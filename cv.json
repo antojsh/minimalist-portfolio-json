@@ -312,7 +312,7 @@
     },
     {
       "name": "Geotech",
-      "isActive": true,
+      "isActive": false,
       "description": "Desarrollamos desde cero toda una plataforma de seguimiento de vehiculos con mas de 10 mil vehiculos",
       "highlights": [
         "Actualización de posición en real time",

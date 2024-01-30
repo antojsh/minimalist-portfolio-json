@@ -1,264 +1,325 @@
 {
   "basics": {
-    "name": "Miguel Ángel Durán",
-    "label": "Full Stack Developer con más de 15 años de experiencia & Creador de Contenido de Programación",
-    "image": "/me.webp",
-    "email": "miduga@gmail.com",
-    "phone": "+34 688888888",
+    "name": "Antonio Sierra Hurtado",
+    "label": "Front End Developer con más de 10 años de experiencia",
+    "image": "https://github.com/antojsh.png",
+    "email": "antoniojsh93@gmail.com",
     "url": "https://midu.dev",
-    "summary": "+15 años de experiencia como Desarrollador Web. Actualmente soy Creador de Contenido y Divulgador sobre Programación. Vivo en Barcelona, España. He trabajado en diferentes entornos: desde acelerar el desarrollo de start-ups hasta liderando equipos de empresas multinacionales.",
+    "summary": "+10 años de experiencia como Desarrollador Web. Actualmente trabajando en Personalsoft para el cliente Bancolombia, desarrollando el sistema de diseño del banco y widgets web con flujos completos para su porterior reutilización.",
     "location": {
       "address": "",
-      "postalCode": "08820",
-      "city": "el Prat de Llobregat",
-      "countryCode": "ES",
-      "region": "España"
+      "postalCode": "080008",
+      "city": "Barranquilla",
+      "countryCode": "CO",
+      "region": "Colombia"
     },
     "profiles": [
       {
         "network": "LinkedIn",
-        "username": "midudev",
-        "url": "https://linkedin.com/in/midudev"
+        "username": "antojsh",
+        "url": "https://www.linkedin.com/in/antojsh/"
       },
       {
-      "network": "X",
-      "username": "midudev",
-      "url": "https://x.com/midudev"
+        "network": "X",
+        "username": "antojsh",
+        "url": "https://x.com/antojsh"
+      },
+      {
+        "network": "GitHub",
+        "username": "antojsh",
+        "url": "https://github.com/antojsh"
+      }
+    ]
+  },
+  "work": [
+    {
+      "name": "Personalsoft",
+      "position": "Senior FrontEnd Developer",
+      "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia",
+      "startDate": "2020-10-21",
+      "endDate": null,
+      "summary": "Desarrollar el sistema de diseño de Bancolombia en angular y nativo, esto para unificar los estilos de todas las experiencias web del banco. Además del sistema de diseño también se desarrollan widgets que son experiencias o flujos más complejos para su posterior reutilización. Tambien estoy en cargado de mantener los repositorios GIT y revisar las contribuciones de los demas equipos del banco.",
+      "highlights": [
+        "Started the company"
+      ]
     },
     {
-      "network": "GitHub",
-      "username": "midudev",
-      "url": "https://github.com/midudev"
+      "name": "Fintra",
+      "position": "Front end developer",
+      "url": "https://twitch.tv/midudev",
+      "startDate": "2016-03-21",
+      "endDate": "2020-10-01",
+      "summary": "Desarrolle una plataforma web para que los clientes puedan solicitar créditos educativos de manera autónoma, desde la consulta a las centrales de riesgo y todas las demás etapas del crédito hasta el desembolso del dinero.",
+      "highlights": [
+        "Started the company"
+      ]
+    },
+    {
+      "name": "Geotch",
+      "position": "FullStack Developer",
+      "startDate": "2014-02-11",
+      "endDate": "2016-03-10",
+      "summary": "Desarrollar pagina web para la visualizacion de los vehiculos utilizando Google maps y socket io para la actualizacion en tiempo real, ademnas de otros modulos para la gestion de los vehiculos",
+      "highlights": [
+        "Started the company"
+      ]
     }
-  ]
-  },
-  "work": [{
-    "name": "midudev",
-    "position": "Divulgador sobre Programación Web",
-    "url": "https://twitch.tv/midudev",
-    "startDate": "2021-01-01",
-    "endDate": null,
-    "summary": "Streamer de programación más visto en Español en Twitch. +1 millón de seguidores entre todas mis redes sociales. Reconocido por Google, Microsoft y GitHub por mi impacto en la comunidad de desarrolladores.",
-    "highlights": [
-      "Started the company"
-    ]
-  },
-  {
-    "name": "Adevinta",
-    "position": "Lead Frontend Architect",
-    "url": "https://twitch.tv/midudev",
-    "startDate": "2016-06-01",
-    "endDate": "2022-09-01",
-    "summary": "Lideré una convergencia técnica entre diferentes productos y migramos una arquitectura monolítica a otra más flexible y optimizada. Fomenté buenas prácticas y mejoras en la cultura de rendimiento, además de la entrega rápida de valor a los usuarios.",
-    "highlights": [
-      "Started the company"
-    ]
-  },
-  {
-    "name": "Hubii",
-    "position": "Senior FrontEnd Developer",
-    "startDate": "2011-03-01",
-    "endDate": "2016-05-01",
-    "summary": "Desarrollé una plataforma de noticias geolocalizadas y una API para consumir la información. Escalé los servicios para soportar la carga de más de cientos de miles de peticiones al día. Recorté los tiempos de entrega y despliegues a producción a la mitad. Colaboré con Mozilla y Telefónica para desarrollar la primera app para televisores con FirefoxOS.",
-    "highlights": [
-      "Started the company"
-    ]
-  }],
-  "volunteer": [{
-    "organization": "Organization",
-    "position": "Volunteer",
-    "url": "https://organization.com/",
-    "startDate": "2012-01-01",
-    "endDate": "2013-01-01",
-    "summary": "Description…",
-    "highlights": [
-      "Awarded 'Volunteer of the Month'"
-    ]
-  }],
-  "education": [{
-    "institution": "Universitat Oberta de Catalunya",
-    "url": "https://www.uoc.edu/portal/es/index.html",
-    "area": "Ingeniero de Software",
-    "studyType": "Bachelor",
-    "startDate": "2003-01-01",
-    "endDate": "2009-01-01",
-    "score": "4.0",
-    "courses": [
-      "DB1101 - Basic SQL"
-    ]
-  }],
-  "awards": [{
-    "title": "Award",
-    "date": "2014-11-01",
-    "awarder": "Company",
-    "summary": "There is no spoon."
-  }],
-  "certificates": [{
-    "name": "Certificate",
-    "date": "2021-11-07",
-    "issuer": "Company",
-    "url": "https://certificate.com"
-  }],
-  "publications": [{
-    "name": "Publication",
-    "publisher": "Company",
-    "releaseDate": "2014-10-01",
-    "url": "https://publication.com",
-    "summary": "Description…"
-  }],
+  ],
+  "volunteer": [
+    {
+      "organization": "Organization",
+      "position": "Volunteer",
+      "url": "https://organization.com/",
+      "startDate": "2012-01-01",
+      "endDate": "2013-01-01",
+      "summary": "Description…",
+      "highlights": [
+        "Awarded 'Volunteer of the Month'"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "Universitat Oberta de Catalunya",
+      "url": "https://www.uoc.edu/portal/es/index.html",
+      "area": "Ingeniero de Software",
+      "studyType": "Bachelor",
+      "startDate": "2003-01-01",
+      "endDate": "2009-01-01",
+      "score": "4.0",
+      "courses": [
+        "DB1101 - Basic SQL"
+      ]
+    }
+  ],
+  "awards": [
+    {
+      "title": "Award",
+      "date": "2014-11-01",
+      "awarder": "Company",
+      "summary": "There is no spoon."
+    }
+  ],
+  "certificates": [
+    {
+      "name": "Certificate",
+      "date": "2021-11-07",
+      "issuer": "Company",
+      "url": "https://certificate.com"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Publication",
+      "publisher": "Company",
+      "releaseDate": "2014-10-01",
+      "url": "https://publication.com",
+      "summary": "Description…"
+    }
+  ],
   "skills": [
-      {
-        "name": "HTML",
-        "level": "Master",
-        "keywords": [
-          "Desarrollo Web", "Frontend"
-        ]
-      },
-      {
-        "name": "CSS",
-        "level": "Master",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "Diseño Responsive"
-        ]
-      },
-      {
-        "name": "JavaScript",
-        "level": "Master",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "Backend", "Fullstack"
-        ]
-      },
-      {
-        "name": "Tailwind",
-        "level": "Avanzado",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "CSS Framework", "Diseño Responsive"
-        ]
-      },
-      {
-        "name": "TypeScript",
-        "level": "Avanzado",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "Backend", "JavaScript Superset"
-        ]
-      },
-      {
-        "name": "Node",
-        "level": "Avanzado",
-        "keywords": [
-          "Desarrollo Web", "Backend", "JavaScript", "Servidor"
-        ]
-      },
-      {
-        "name": "MySQL",
-        "level": "Avanzado",
-        "keywords": [
-          "Bases de Datos", "SQL", "Almacenamiento de Datos", "Backend"
-        ]
-      },
-      {
-        "name": "Git",
-        "level": "Avanzado",
-        "keywords": [
-          "Control de Versiones", "Colaboración", "Código Fuente"
-        ]
-      },
-      {
-        "name": "GitHub",
-        "level": "Avanzado",
-        "keywords": [
-          "Control de Versiones", "Colaboración", "Código Fuente", "Git"
-        ]
-      },
-      {
-        "name": "Next.js",
-        "level": "Avanzado",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "React Framework", "SSR", "Static Generation"
-        ]
-      },
-      {
-        "name": "React",
-        "level": "Avanzado",
-        "keywords": [
-          "Desarrollo Web", "Frontend", "JavaScript Library", "UI"
-        ]
-      }
-    ],
-  "languages": [{
-    "language": "Spanish",
-    "fluency": "Native speaker"
-  }, {
-    "language": "English",
-    "fluency": "Advanced"
-  }],
-  "interests": [{
-    "name": "Wildlife",
-    "keywords": [
-      "Ferrets",
-      "Unicorns"
-    ]
-  }],
-  "references": [{
-    "name": "Jane Doe",
-    "reference": "Reference…"
-  }],
+    {
+      "name": "Angular",
+      "level": "Master",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend"
+      ]
+    },
+    {
+      "name": "HTML",
+      "level": "Master",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend"
+      ]
+    },
+    {
+      "name": "CSS",
+      "level": "Master",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "Diseño Responsive"
+      ]
+    },
+    {
+      "name": "JavaScript",
+      "level": "Master",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "Backend",
+        "Fullstack"
+      ]
+    },
+    {
+      "name": "Tailwind",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "CSS Framework",
+        "Diseño Responsive"
+      ]
+    },
+    {
+      "name": "TypeScript",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "Backend",
+        "JavaScript Superset"
+      ]
+    },
+    {
+      "name": "Node",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Backend",
+        "JavaScript",
+        "Servidor"
+      ]
+    },
+    {
+      "name": "MySQL",
+      "level": "Avanzado",
+      "keywords": [
+        "Bases de Datos",
+        "SQL",
+        "Almacenamiento de Datos",
+        "Backend"
+      ]
+    },
+    {
+      "name": "Git",
+      "level": "Avanzado",
+      "keywords": [
+        "Control de Versiones",
+        "Colaboración",
+        "Código Fuente"
+      ]
+    },
+    {
+      "name": "GitHub",
+      "level": "Avanzado",
+      "keywords": [
+        "Control de Versiones",
+        "Colaboración",
+        "Código Fuente",
+        "Git"
+      ]
+    },
+    {
+      "name": "Next.js",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "React Framework",
+        "SSR",
+        "Static Generation"
+      ]
+    },
+    {
+      "name": "React",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "JavaScript Library",
+        "UI"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Spanish",
+      "fluency": "Native speaker"
+    },
+    {
+      "language": "English",
+      "fluency": "Advanced"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Wildlife",
+      "keywords": [
+        "Ferrets",
+        "Unicorns"
+      ]
+    }
+  ],
+  "references": [
+    {
+      "name": "Jane Doe",
+      "reference": "Reference…"
+    }
+  ],
   "projects": [
     {
-    "name": "mars.codes",
-    "isActive": true,
-    "description": "Historia interactiva con retos de programación para viajar a Marte",
-    "highlights": [
-      "Elige tu propia aventura",
-      "En desarrollo"
-    ],
-    "url": "https://mars.codes"
-  }, {
-    "name": "AdventJS",
-    "isActive": true,
-    "description": "Retos de programación en JavaScript para cada día de diciembre hasta Navidad",
-    "highlights": [
-      "+1 millón de visitas",
-      "Multidioma",
-      "JavaScript & TypeScript"
-    ],
-    "url": "https://adventjs.dev"
-  }, {
-    "name": "Codember",
-    "isActive": true,
-    "description": "Juego interactivo de programación con retos y secretos",
-    "highlights": [
-      "+2000 usuarios activos",
-      "Retos para cualquier lenguaje"
-    ],
-    "url": "https://codember.dev"
-  }, {
-    "name": "codi.link",
-    "isActive": true,
-    "description": "Playground de código HTML, CSS y JavaScript para compartir",
-    "highlights": [
-      "100k visitas al mes",
-      "Desarrollado por la comunidad"
-    ],
-    "url": "https://codi.link",
-    "github": "https://github.com/midudev/codi.link"
-  }, {
-    "name": "Pruebas Técnicas",
-    "isActive": true,
-    "description": "Lista de pruebas técnicas de empresas para practicar programación",
-    "highlights": [
-      "100% gratuito",
-      "+500 soluciones de la comunidad"
-    ],
-    "url": "https://pruebastecnicas.com",
-    "github": "https://github.com/midudev/codi.link"
-  }, {
-    "name": "miduConf",
-    "description": "Conferencia de programación en streaming para la comunidad hispanohablante con charlas top",
-    "highlights": [
-      "+15k tickets repartidos",
-      "+50k espectadores en directo"
-    ],
-    "url": "https://miduconf.com"
-  }]
+      "name": "Bancolombia.com",
+      "isActive": true,
+      "description": "Sistema de diseño de Bancolombia y widgets web para el rehuso de multiples equipos en el banco.",
+      "highlights": [
+        "Sistema de diseño agnostico",
+        "Buenas practicas"
+      ],
+      "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia"
+    },
+    {
+      "name": "edu.fintra.co",
+      "isActive": false,
+      "description": "Plataforma para solicitud de creditos educativos, desarrollada en Angular",
+      "highlights": [
+        "Miles de solicitudes de credito",
+        "Ngrx",
+        "TypeScript & SCSS"
+      ],
+      "url": "https://edu.fintra.co/login"
+    },
+    {
+      "name": "Interdiseños app y web",
+      "isActive": false,
+      "description": "Desarrolladar pagina web y app para manejar el inventario de los paraderos de buses de la ciudad de bogota",
+      "highlights": [
+        "Fotografias y videos de los paraderos",
+        "TypeScript, SCSS y Ionic"
+      ],
+      "url": "https://xn--grupointerdiseos-kub.com/"
+    },
+    {
+      "name": "Finexus web",
+      "isActive": false,
+      "description": "Landing page, pagina de solicitudes de credito y plataforma interna de estudio y gestión del credito.",
+      "highlights": [
+        "+2000 creditos desembolsados",
+        "Desarrollo del front y back en nodejs"
+      ],
+      "url": "https://www.finexus.com.co/"
+    },
+    {
+      "name": "Finexus App",
+      "isActive": false,
+      "description": "App movil para que los asesores puedan vender micro-creditos a domicilio.",
+      "highlights": [
+        "Ionic",
+        "Validación de identidad con Facial Recognition"
+      ]
+    },
+    {
+      "name": "Geotech",
+      "isActive": true,
+      "description": "Desarrollamos desde cero toda una plataforma de seguimiento de vehiculos con mas de 10 mil vehiculos",
+      "highlights": [
+        "Actualización de posición en real time",
+        "Envio de comandos a los vehiculos",
+        "Ruby on rails en backend"
+      ],
+      "url": "https://geotech.com.co"
+    }
+  ]
 }

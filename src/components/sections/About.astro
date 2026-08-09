@@ -6,7 +6,65 @@ const { summary } = basics
 ---
 
 <Section title="Sobre mí">
-  <p>
-    {summary}
-  </p>
+  <div class="about-card">
+    <p>{summary}</p>
+    <aside>
+      <strong>10+</strong>
+      <span>años construyendo productos web</span>
+    </aside>
+  </div>
 </Section>
+
+<style>
+  .about-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 180px;
+    align-items: center;
+    gap: 32px;
+    padding: 24px 26px;
+    border-left: 3px solid var(--accent);
+    background: #f4efe9;
+  }
+
+  .about-card p {
+    max-width: 720px;
+    color: #4f5a62;
+    font-size: 0.98rem;
+    line-height: 1.7;
+  }
+
+  aside {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 20px;
+    border-left: 1px solid rgba(30, 39, 48, 0.14);
+  }
+
+  aside strong {
+    color: var(--accent);
+    font-size: 2.2rem;
+    letter-spacing: -0.08em;
+    line-height: 1;
+  }
+
+  aside span {
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 600px) {
+    .about-card {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    aside {
+      padding-top: 16px;
+      padding-left: 0;
+      border-top: 1px solid rgba(30, 39, 48, 0.14);
+      border-left: 0;
+    }
+  }
+</style>

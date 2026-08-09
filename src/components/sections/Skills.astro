@@ -4,7 +4,7 @@ import Section from "../Section.astro"
 import { skills } from "@cv"
 ---
 
-<Section title="Skills">
+<Section title="Herramientas">
   <ul>
     {
       skills.map(({ name }) => (
@@ -24,11 +24,12 @@ import { skills } from "@cv"
   }
 
   li {
-    border-radius: 6px;
-    background: #eee;
-    color: black;
-    font-size: 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.76rem;
     font-weight: 500;
-    padding: 0.2rem 0.6rem;
+    padding: 0.35rem 0.7rem;
   }
 </style>

@@ -4,7 +4,7 @@ import Section from "../Section.astro"
 import { projects } from "@cv"
 ---
 
-<Section title="Proyectos">
+<Section title="Proyectos laborales">
   <ul>
     {
       projects.map(({ url, description, highlights, name, isActive }) => {
@@ -36,14 +36,14 @@ import { projects } from "@cv"
 <style>
   ul {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
-    margin-inline: -16px;
   }
 
   article {
     border-radius: 8px;
-    border: 1px solid #f2f2f2;
+    border: 1px solid var(--line);
+    background: var(--surface);
     gap: 16px;
     display: flex;
     flex-direction: column;
@@ -60,7 +60,7 @@ import { projects } from "@cv"
   }
 
   article a {
-    color: #111;
+    color: var(--text);
   }
 
   article a:hover {
@@ -74,7 +74,7 @@ import { projects } from "@cv"
   }
 
   article h3 span {
-    color: rgb(0, 188, 47);
+    color: var(--accent);
   }
 
   footer {
@@ -86,10 +86,22 @@ import { projects } from "@cv"
 
   footer span {
     border-radius: 6px;
-    background: #eee;
-    color: #444;
+    background: var(--accent-soft);
+    color: #8b4938;
     font-size: 0.6rem;
     font-weight: 500;
     padding: 0.2rem 0.6rem;
+  }
+
+  @media (max-width: 820px) {
+    ul {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 520px) {
+    ul {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

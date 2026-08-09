@@ -4,6 +4,7 @@ import Layout from "@/layouts/Layout.astro"
 import About from "@/components/sections/About.astro"
 import Experience from "@/components/sections/Experience.astro"
 import Hero from "@/components/sections/Hero.astro"
+import PersonalProjects from "@/components/sections/PersonalProjects.astro"
 import Projects from "@/components/sections/Projects.astro"
 import Skills from "@/components/sections/Skills.astro"
 import KeyboardManager from "@/components/KeyboardManager.astro"
@@ -16,6 +17,7 @@ const { name, label } = basics
   <main>
     <Hero />
     <About />
+    <PersonalProjects />
     <Experience />
     <!-- <Education /> -->
     <Projects />
@@ -27,8 +29,8 @@ const { name, label } = basics
 
 <style>
   main {
-    padding: 4rem;
+    width: min(1120px, 100%);
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.25rem, 4vw, 3rem) 5rem;
     margin: auto;
-    width: 100%;
   }
 </style>

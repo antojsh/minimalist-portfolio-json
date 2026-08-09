@@ -1,9 +1,13 @@
 ---
-// se ejecuta en el servidor o en build time <----
-const { title } = Astro.props
+interface Props {
+  title?: string
+  id?: string
+}
+
+const { title, id } = Astro.props
 ---
 
-<section>
+<section id={id}>
   {title && <h2>{title}</h2>}
   <slot />
 </section>
@@ -14,14 +18,25 @@ const { title } = Astro.props
 
 <style>
   section {
-    max-width: 700px;
-    margin: 0 auto 48px;
+    max-width: 960px;
+    margin: 0 auto 64px;
   }
 
   h2 {
+    display: flex;
+    align-items: center;
+    gap: 16px;
     margin-bottom: 8px;
-    font-weight: 700;
-    line-height: 1.5;
-    font-size: 1.5rem;
+    color: var(--text);
+    font-size: 1.35rem;
+    font-weight: 750;
+    letter-spacing: -0.04em;
+  }
+
+  h2::after {
+    height: 1px;
+    flex: 1;
+    background: var(--line);
+    content: "";
   }
 </style>

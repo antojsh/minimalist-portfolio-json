@@ -1,0 +1,182 @@
+---
+import Section from "../Section.astro"
+
+import { personalProjects } from "@cv"
+---
+
+<Section id="proyectos-personales" title="Proyectos personales">
+  <p class="intro">
+    Productos que he construido por iniciativa propia, desde la idea y la
+    experiencia hasta la implementación.
+  </p>
+
+  <ul>
+    {
+      personalProjects.map((project) => (
+        <li>
+          <article class={project.accent}>
+            <a
+              class="project-media"
+              href={project.url}
+              title={`Visitar ${project.name}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img src={project.image} alt={`Vista de ${project.name}`} loading="lazy" />
+              <span>Visitar proyecto <b aria-hidden="true">↗</b></span>
+            </a>
+
+            <div class="project-copy">
+              <span class="kind">{project.kind}</span>
+              <h3>{project.name}</h3>
+              <p>{project.description}</p>
+              <footer>
+                {project.highlights.map((highlight) => <span>{highlight}</span>)}
+              </footer>
+            </div>
+          </article>
+        </li>
+      ))
+    }
+  </ul>
+</Section>
+
+<style>
+  .intro {
+    max-width: 650px;
+    margin-bottom: 24px;
+  }
+
+  ul {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  article {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--project-accent);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 10px 28px rgba(30, 39, 48, 0.04);
+  }
+
+  article.violet {
+    --project-accent: #6d61cc;
+    --project-soft: #eeecfb;
+  }
+
+  article.green {
+    --project-accent: #2f7055;
+    --project-soft: #e8f0eb;
+  }
+
+  .project-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 8;
+    overflow: hidden;
+    background: #f1f2ee;
+  }
+
+  .project-media::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(20, 27, 31, 0.42), transparent 55%);
+    content: "";
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .project-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 300ms ease;
+  }
+
+  .project-media span {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    z-index: 1;
+    padding: 7px 10px;
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(20, 27, 31, 0.76);
+    font-size: 0.68rem;
+    font-weight: 700;
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .project-media span b {
+    margin-left: 2px;
+  }
+
+  .project-media:hover::after,
+  .project-media:hover span {
+    opacity: 1;
+  }
+
+  .project-media:hover span {
+    transform: translateY(0);
+  }
+
+  .project-media:hover img {
+    transform: scale(1.025);
+  }
+
+  .project-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 22px 22px;
+  }
+
+  .kind {
+    color: var(--project-accent);
+    font-size: 0.69rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  h3 {
+    color: var(--text);
+    font-size: 1.5rem;
+    letter-spacing: -0.06em;
+  }
+
+  .project-copy p {
+    min-height: 52px;
+    font-size: 0.82rem;
+  }
+
+  footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 3px;
+  }
+
+  footer span {
+    padding: 5px 8px;
+    border-radius: 5px;
+    color: var(--project-accent);
+    background: var(--project-soft);
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+
+  @media (max-width: 700px) {
+    ul {
+      grid-template-columns: 1fr;
+    }
+
+    .project-copy p {
+      min-height: auto;
+    }
+  }
+</style>

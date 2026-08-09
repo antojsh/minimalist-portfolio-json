@@ -5,7 +5,7 @@
     "image": "https://github.com/antojsh.png",
     "email": "antoniojsh93@gmail.com",
     "url": "https://midu.dev",
-    "summary": "+10 años de experiencia como Desarrollador Web. Actualmente trabajando en Personalsoft para el cliente Bancolombia, desarrollando el sistema de diseño del banco y widgets web con flujos completos para su posterior reutilización.",
+    "summary": "Soy desarrollador frontend con más de 10 años de experiencia. Me especializo en convertir problemas complejos en interfaces claras, sistemas de diseño reutilizables y productos que los equipos pueden mantener y hacer crecer. Actualmente trabajo en el sistema de diseño y los widgets web de Bancolombia desde Personalsoft.",
     "location": {
       "address": "",
       "postalCode": "080008",
@@ -38,7 +38,7 @@
       "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia",
       "startDate": "2020-10-21",
       "endDate": null,
-      "summary": "Maintainer de repositorios front-end en Bancolombia, encargado del desarrollo del sistema de diseño en Angular y tecnologías nativas para estandarizar los estilos en todas las experiencias web del banco. Además del sistema de diseño, lidero el desarrollo de widgets que encapsulan flujos y experiencias complejas para su reutilización en distintas plataformas. Responsable de la administración y mantenimiento de repositorios GIT, así como de la revisión de contribuciones de otros equipos dentro del banco para asegurar la consistencia y calidad del código.",
+      "summary": "En Personalsoft trabajo para Bancolombia como Senior Frontend Developer, manteniendo y evolucionando su sistema de diseño con Angular y tecnologías web nativas. También diseño y desarrollo widgets que encapsulan flujos complejos para que distintos equipos puedan reutilizarlos con consistencia. Reviso contribuciones y cuido los repositorios para mantener una base de código sólida y coherente.",
       "highlights": [
         "Started the company"
       ]
@@ -49,7 +49,7 @@
       "url": "https://twitch.tv/midudev",
       "startDate": "2016-03-21",
       "endDate": "2020-10-01",
-      "summary": "Desarrolle una plataforma web para que los clientes puedan solicitar créditos educativos de manera autónoma, desde la consulta a las centrales de riesgo y todas las demás etapas del crédito hasta el desembolso del dinero.",
+      "summary": "Desarrollé una plataforma web para que los clientes solicitaran créditos educativos de forma autónoma. El flujo cubría desde la consulta en centrales de riesgo hasta las distintas etapas de estudio, aprobación y desembolso del crédito.",
       "highlights": [
         "Started the company"
       ]
@@ -59,7 +59,7 @@
       "position": "FullStack Developer",
       "startDate": "2014-02-11",
       "endDate": "2016-03-10",
-      "summary": "Desarrollar pagina web para la visualizacion de los vehiculos utilizando Google maps y socket io para la actualizacion en tiempo real, ademnas de otros modulos para la gestion de los vehiculos",
+      "summary": "Desarrollé una plataforma web para visualizar y monitorear vehículos sobre Google Maps, con actualización de posiciones en tiempo real mediante Socket.IO. También construí módulos para administrar la información y la operación de la flota.",
       "highlights": [
         "Started the company"
       ]
@@ -224,6 +224,17 @@
       ]
     },
     {
+      "name": "Astro",
+      "level": "Avanzado",
+      "keywords": [
+        "Desarrollo Web",
+        "Frontend",
+        "React Framework",
+        "SSR",
+        "Static Generation"
+      ]
+    },
+    {
       "name": "React",
       "level": "Avanzado",
       "keywords": [
@@ -319,7 +330,35 @@
         "Envio de comandos a los vehiculos",
         "Ruby on rails en backend"
       ],
-      "url": "https://geotech.com.co"
+      "url": "https://geotechsa.co"
+    }
+  ],
+  "personalProjects": [
+    {
+      "name": "Yulia",
+      "kind": "Feedback y PQRS con IA",
+      "description": "Plataforma para escuchar, analizar y gestionar las observaciones de los clientes desde un solo lugar.",
+      "highlights": [
+        "Buzones digitales con QR",
+        "Clasificación con IA",
+        "Seguimiento y reportes"
+      ],
+      "url": "https://yulia.com.co",
+      "image": "/projects/yulia-dashboard.webp",
+      "accent": "violet"
+    },
+    {
+      "name": "Menuco",
+      "kind": "Menú digital para restaurantes",
+      "description": "Carta digital rápida y fácil de actualizar para restaurantes en Colombia, con su propia identidad.",
+      "highlights": [
+        "Carta desde un QR",
+        "Pedidos por WhatsApp",
+        "Soporte para multisede"
+      ],
+      "url": "https://menuco.co",
+      "image": "/projects/menuco-og.png",
+      "accent": "green"
     }
   ]
 }

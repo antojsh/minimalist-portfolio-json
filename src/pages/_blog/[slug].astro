@@ -32,7 +32,7 @@ const { Content } = await post.render();
                 {
                     post.data.tags.length > 0 && (
                         <ul class="tags">
-                            {post.data.tags.map((tag) => (
+                            {post.data.tags.map((tag: string) => (
                                 <li>{tag}</li>
                             ))}
                         </ul>

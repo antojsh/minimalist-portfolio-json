@@ -1,0 +1,88 @@
+---
+import { basics } from "@cv"
+import GitHub from "@/icons/GitHub.astro"
+import LinkedIn from "@/icons/LinkedIn.astro"
+import X from "@/icons/X.astro"
+
+interface Props {
+  tone?: "light" | "dark"
+}
+
+const { tone = "light" } = Astro.props
+const { name, profiles } = basics
+
+const SOCIAL_ICONS: Record<string, any> = {
+  GitHub,
+  LinkedIn,
+  X,
+}
+---
+
+<ul class:list={["socials", tone]}>
+  {
+    profiles.map(({ network, url }) => {
+      const Icon = SOCIAL_ICONS[network]
+
+      return (
+        <li>
+          <a
+            href={url}
+            title={`Visitar el perfil de ${name} en ${network}`}
+            aria-label={network}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon />
+          </a>
+        </li>
+      )
+    })
+  }
+</ul>
+
+<style>
+  .socials {
+    display: flex;
+    gap: 8px;
+  }
+
+  a {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--ink);
+    transition:
+      transform 200ms var(--ease-out),
+      background 200ms ease,
+      border-color 200ms ease,
+      color 200ms ease;
+  }
+
+  a:hover {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+    transform: translateY(-2px);
+  }
+
+  .dark a {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+    color: #fff;
+  }
+
+  .dark a:hover {
+    border-color: #fff;
+    background: #fff;
+    color: var(--ink);
+  }
+
+  a :global(svg) {
+    width: 17px;
+    height: 17px;
+  }
+</style>

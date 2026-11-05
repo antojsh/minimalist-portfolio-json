@@ -1,70 +1,146 @@
 ---
 import Section from "../Section.astro"
 
-import { basics } from "@cv"
+import { basics, personalProjects } from "@cv"
+import { getYearsOfExperience } from "@/lib/cv"
+
 const { summary } = basics
+const yearsOfExperience = getYearsOfExperience()
+const productNames = new Intl.ListFormat("es", { type: "conjunction" }).format(
+  personalProjects.map(({ name }) => name)
+)
 ---
 
-<Section title="Sobre mí">
-  <div class="about-card">
-    <p>{summary}</p>
-    <aside>
-      <strong>10+</strong>
+<Section id="sobre-mi" title="Sobre mí">
+  <div class="about">
+    <div class="summary">
+      <p>{summary}</p>
+    </div>
+
+    <div class="stat stat-dark">
+      <strong>{yearsOfExperience}+</strong>
       <span>años construyendo productos web</span>
-    </aside>
+    </div>
+
+    <div class="stat stat-soft">
+      <strong>{personalProjects.length}</strong>
+      <span>productos propios: {productNames}</span>
+    </div>
   </div>
 </Section>
 
 <style>
-  .about-card {
+  .about {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 180px;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    gap: 16px;
+  }
+
+  .summary {
+    position: relative;
+    display: flex;
+    grid-row: span 2;
     align-items: center;
-    gap: 32px;
-    padding: 24px 26px;
-    border-left: 3px solid var(--accent);
-    background: #f4efe9;
+    padding: clamp(28px, 4.5vw, 52px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
   }
 
-  .about-card p {
-    max-width: 720px;
-    color: #4f5a62;
-    font-size: 0.98rem;
-    line-height: 1.7;
+  .summary::before {
+    position: absolute;
+    top: clamp(28px, 4.5vw, 52px);
+    bottom: clamp(28px, 4.5vw, 52px);
+    left: -1px;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+    background: var(--accent);
+    content: "";
   }
 
-  aside {
+  .summary p {
+    max-width: 62ch;
+    color: var(--text);
+    font-size: clamp(1.1rem, 1.7vw, 1.32rem);
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+  }
+
+  .stat {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding-left: 20px;
-    border-left: 1px solid rgba(30, 39, 48, 0.14);
+    justify-content: space-between;
+    gap: 28px;
+    padding: 26px 28px;
+    border-radius: var(--radius-lg);
   }
 
-  aside strong {
+  .stat strong {
+    font-family: var(--font-display);
+    font-size: clamp(3.25rem, 6vw, 4.5rem);
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    line-height: 0.85;
+  }
+
+  .stat span {
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+
+  .stat-dark {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(226, 88, 58, 0.28), transparent 60%),
+      var(--dark);
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  .stat-dark strong {
     color: var(--accent);
-    font-size: 2.2rem;
-    letter-spacing: -0.08em;
-    line-height: 1;
   }
 
-  aside span {
-    color: var(--muted);
-    font-size: 0.68rem;
-    line-height: 1.35;
+  .stat-soft {
+    background: var(--accent-soft);
+    color: var(--text);
   }
 
-  @media (max-width: 600px) {
-    .about-card {
-      grid-template-columns: 1fr;
-      gap: 20px;
+  .stat-soft strong {
+    color: var(--accent-ink);
+  }
+
+  @media (max-width: 760px) {
+    .about {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    aside {
-      padding-top: 16px;
-      padding-left: 0;
-      border-top: 1px solid rgba(30, 39, 48, 0.14);
-      border-left: 0;
+    .summary {
+      grid-column: 1 / -1;
+      grid-row: auto;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .stat {
+      padding: 22px;
+    }
+  }
+
+  @media print {
+    .summary,
+    .stat {
+      border: 1px solid var(--line);
+      box-shadow: none;
+      break-inside: avoid;
+    }
+
+    .stat-dark {
+      background: #fff;
+      color: var(--text-soft);
+    }
+
+    .stat-dark strong {
+      color: var(--accent-ink);
     }
   }
 </style>

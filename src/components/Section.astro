@@ -2,13 +2,20 @@
 interface Props {
   title?: string
   id?: string
+  class?: string
 }
 
-const { title, id } = Astro.props
+const { title, id, class: className } = Astro.props
 ---
 
-<section id={id}>
-  {title && <h2>{title}</h2>}
+<section id={id} class:list={["reveal", className]}>
+  {
+    title && (
+      <header>
+        <h2>{title}</h2>
+      </header>
+    )
+  }
   <slot />
 </section>
 
@@ -18,25 +25,43 @@ const { title, id } = Astro.props
 
 <style>
   section {
-    max-width: 960px;
-    margin: 0 auto 64px;
+    margin-bottom: clamp(5rem, 11vw, 8.5rem);
+    scroll-margin-top: 1.5rem;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: clamp(1.75rem, 3.5vw, 2.75rem);
+  }
+
+  header::after {
+    flex: 1;
+    height: 1px;
+    background: var(--line-strong);
+    content: "";
   }
 
   h2 {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 8px;
-    color: var(--text);
-    font-size: 1.35rem;
-    font-weight: 750;
-    letter-spacing: -0.04em;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
   }
 
-  h2::after {
-    height: 1px;
-    flex: 1;
-    background: var(--line);
-    content: "";
+  @media print {
+    section {
+      margin-bottom: 1.75rem;
+    }
+
+    header {
+      margin-bottom: 0.9rem;
+      break-after: avoid;
+    }
+
+    h2 {
+      font-size: 1.6rem;
+    }
   }
 </style>

@@ -1,7 +1,7 @@
 {
   "basics": {
     "name": "Antonio Sierra Hurtado",
-    "label": "Front End Developer con más de 10 años de experiencia",
+    "label": "Frontend Developer con más de 10 años de experiencia",
     "image": "https://github.com/antojsh.png",
     "email": "antoniojsh93@gmail.com",
     "url": "https://midu.dev",
@@ -34,34 +34,43 @@
   "work": [
     {
       "name": "Personalsoft",
-      "position": "Senior FrontEnd Developer",
+      "position": "Senior Frontend Developer",
       "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia",
       "startDate": "2020-10-21",
       "endDate": null,
       "summary": "En Personalsoft trabajo para Bancolombia como Senior Frontend Developer, manteniendo y evolucionando su sistema de diseño con Angular y tecnologías web nativas. También diseño y desarrollo widgets que encapsulan flujos complejos para que distintos equipos puedan reutilizarlos con consistencia. Reviso contribuciones y cuido los repositorios para mantener una base de código sólida y coherente.",
       "highlights": [
-        "Started the company"
+        "Sistema de diseño",
+        "Widgets web",
+        "Angular",
+        "Revisión de código"
       ]
     },
     {
       "name": "Fintra",
-      "position": "Front end developer",
+      "position": "Frontend Developer",
       "url": "https://twitch.tv/midudev",
       "startDate": "2016-03-21",
       "endDate": "2020-10-01",
       "summary": "Desarrollé una plataforma web para que los clientes solicitaran créditos educativos de forma autónoma. El flujo cubría desde la consulta en centrales de riesgo hasta las distintas etapas de estudio, aprobación y desembolso del crédito.",
       "highlights": [
-        "Started the company"
+        "Angular",
+        "NgRx",
+        "TypeScript",
+        "SCSS"
       ]
     },
     {
-      "name": "Geotch",
-      "position": "FullStack Developer",
+      "name": "Geotech",
+      "position": "Full Stack Developer",
       "startDate": "2014-02-11",
       "endDate": "2016-03-10",
       "summary": "Desarrollé una plataforma web para visualizar y monitorear vehículos sobre Google Maps, con actualización de posiciones en tiempo real mediante Socket.IO. También construí módulos para administrar la información y la operación de la flota.",
       "highlights": [
-        "Started the company"
+        "Google Maps",
+        "Socket.IO",
+        "Ruby on Rails",
+        "Tiempo real"
       ]
     }
   ],
@@ -120,7 +129,7 @@
   "skills": [
     {
       "name": "Angular",
-      "level": "Master",
+      "level": "Experto",
       "keywords": [
         "Desarrollo Web",
         "Frontend"
@@ -128,7 +137,7 @@
     },
     {
       "name": "HTML",
-      "level": "Master",
+      "level": "Experto",
       "keywords": [
         "Desarrollo Web",
         "Frontend"
@@ -136,7 +145,7 @@
     },
     {
       "name": "CSS",
-      "level": "Master",
+      "level": "Experto",
       "keywords": [
         "Desarrollo Web",
         "Frontend",
@@ -145,7 +154,7 @@
     },
     {
       "name": "JavaScript",
-      "level": "Master",
+      "level": "Experto",
       "keywords": [
         "Desarrollo Web",
         "Frontend",
@@ -274,20 +283,21 @@
     {
       "name": "Bancolombia.com",
       "isActive": true,
-      "description": "Sistema de diseño de Bancolombia y widgets web para el rehuso de multiples equipos en el banco.",
+      "description": "Sistema de diseño de Bancolombia y widgets web reutilizables por múltiples equipos del banco.",
       "highlights": [
-        "Sistema de diseño agnostico",
-        "Buenas practicas"
+        "Sistema de diseño agnóstico",
+        "Buenas prácticas"
       ],
-      "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia"
+      "url": "https://www.behance.net/gallery/152005995/Sistema-de-Diseno-Bancolombia",
+      "image": "/projects/bancolombia-design-system.webp"
     },
     {
       "name": "edu.fintra.co",
       "isActive": false,
-      "description": "Plataforma para solicitud de creditos educativos, desarrollada en Angular",
+      "description": "Plataforma para la solicitud de créditos educativos, desarrollada en Angular.",
       "highlights": [
-        "Miles de solicitudes de credito",
-        "Ngrx",
+        "Miles de solicitudes de crédito",
+        "NgRx",
         "TypeScript & SCSS"
       ],
       "url": "https://edu.fintra.co/login"
@@ -295,9 +305,9 @@
     {
       "name": "Interdiseños app y web",
       "isActive": false,
-      "description": "Desarrolladar pagina web y app para manejar el inventario de los paraderos de buses de la ciudad de bogota",
+      "description": "Página web y app para manejar el inventario de los paraderos de buses de Bogotá.",
       "highlights": [
-        "Fotografias y videos de los paraderos",
+        "Fotografías y videos de los paraderos",
         "TypeScript, SCSS y Ionic"
       ],
       "url": "https://xn--grupointerdiseos-kub.com/"
@@ -305,35 +315,49 @@
     {
       "name": "Finexus web",
       "isActive": false,
-      "description": "Landing page, pagina de solicitudes de credito y plataforma interna de estudio y gestión del credito.",
+      "description": "Landing page, página de solicitudes de crédito y plataforma interna de estudio y gestión del crédito.",
       "highlights": [
-        "+2000 creditos desembolsados",
-        "Desarrollo del front y back en nodejs"
+        "+2.000 créditos desembolsados",
+        "Desarrollo del front y back en Node.js"
       ],
       "url": "https://www.finexus.com.co/"
     },
     {
       "name": "Finexus App",
       "isActive": false,
-      "description": "App movil para que los asesores puedan vender micro-creditos a domicilio.",
+      "description": "App móvil para que los asesores puedan vender microcréditos a domicilio.",
       "highlights": [
         "Ionic",
-        "Validación de identidad con Facial Recognition"
+        "Validación de identidad con reconocimiento facial"
       ]
     },
     {
       "name": "Geotech",
       "isActive": false,
-      "description": "Desarrollamos desde cero toda una plataforma de seguimiento de vehiculos con mas de 10 mil vehiculos",
+      "description": "Desarrollamos desde cero una plataforma de seguimiento para más de 10 mil vehículos.",
       "highlights": [
-        "Actualización de posición en real time",
-        "Envio de comandos a los vehiculos",
-        "Ruby on rails en backend"
+        "Actualización de posición en tiempo real",
+        "Envío de comandos a los vehículos",
+        "Ruby on Rails en backend"
       ],
       "url": "https://geotechsa.co"
     }
   ],
   "personalProjects": [
+    {
+      "name": "Mi voz",
+      "kind": "Comunicación con pictogramas",
+      "description": "App para que niños y niñas se comuniquen con pictogramas: cada toque se dice en voz alta, también sin internet.",
+      "mission": "Mi meta: hacer la mejor app de pictogramas.",
+      "highlights": [
+        "Pictogramas con voz",
+        "Funciona sin internet",
+        "Tablero configurable por el cuidador"
+      ],
+      "url": "https://mivoz.antojsh.dev/",
+      "image": "/projects/mivoz-cover.webp",
+      "accent": "amber"
+    },
     {
       "name": "Yulia",
       "kind": "Feedback y PQRS con IA",

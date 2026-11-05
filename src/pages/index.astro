@@ -1,36 +1,45 @@
 ---
-import Layout from "@/layouts/Layout.astro"
+import Layout from "@/layouts/Layout.astro";
 
-import About from "@/components/sections/About.astro"
-import Experience from "@/components/sections/Experience.astro"
-import Hero from "@/components/sections/Hero.astro"
-import PersonalProjects from "@/components/sections/PersonalProjects.astro"
-import Projects from "@/components/sections/Projects.astro"
-import Skills from "@/components/sections/Skills.astro"
-import KeyboardManager from "@/components/KeyboardManager.astro"
+import About from "@/components/sections/About.astro";
+import Contact from "@/components/sections/Contact.astro";
+import Experience from "@/components/sections/Experience.astro";
+import Hero from "@/components/sections/Hero.astro";
+import PersonalProjects from "@/components/sections/PersonalProjects.astro";
+import Projects from "@/components/sections/Projects.astro";
+import Skills from "@/components/sections/Skills.astro";
+import KeyboardManager from "@/components/KeyboardManager.astro";
 
-import { basics } from "@cv"
-const { name, label } = basics
+import { basics } from "@cv";
+const { name, label } = basics;
 ---
 
 <Layout title={`Portafolio de ${name} - ${label}`}>
-  <main>
-    <Hero />
-    <About />
-    <PersonalProjects />
-    <Experience />
-    <!-- <Education /> -->
-    <Projects />
-    <Skills />
-  </main>
+    <main>
+        <Hero />
+        <About />
+        <PersonalProjects />
+        <Experience />
+        <!-- <Education /> -->
+        <Projects />
+        <Skills />
+        <Contact />
+    </main>
 
-  <KeyboardManager />
+    <KeyboardManager />
 </Layout>
 
 <style>
-  main {
-    width: min(1120px, 100%);
-    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.25rem, 4vw, 3rem) 5rem;
-    margin: auto;
-  }
+    main {
+        width: min(1180px, 100%);
+        padding: clamp(1.25rem, 3vw, 2rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+        margin: auto;
+    }
+
+    @media print {
+        main {
+            width: 100%;
+            padding: 0;
+        }
+    }
 </style>

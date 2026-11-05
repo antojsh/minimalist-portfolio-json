@@ -2,89 +2,262 @@
 import Section from "../Section.astro"
 
 import { work } from "@cv"
+import { formatDuration } from "@/lib/cv"
 ---
 
-<Section title="Experiencia laboral">
-  <ul>
+<Section id="experiencia" title="Experiencia laboral">
+  <ol class="timeline">
     {
       work.map(
-        ({ name, startDate, endDate, position, summary }) => {
-          const startYear = new Date(startDate).getFullYear()
-          const endYear =
-            endDate != null ? new Date(endDate).getFullYear() : "Actual"
-          const years = `${startYear} - ${endYear}`
+        ({ name, startDate, endDate, position, summary, highlights }) => {
+          const isCurrent = endDate == null
+          const period = `${startDate.slice(0, 4)} — ${
+            endDate == null ? "Hoy" : endDate.slice(0, 4)
+          }`
 
           return (
-            <li>
+            <li class:list={{ current: isCurrent }}>
+              <div class="when">
+                <time datetime={startDate}>{period}</time>
+                <span>{formatDuration(startDate, endDate)}</span>
+              </div>
+
+              <div class="rail" aria-hidden="true">
+                <span class="node" />
+              </div>
+
               <article>
                 <header>
-                  <div>
-                    <h3>{name}</h3>
-                    <h4>{position}</h4>
-                  </div>
-
-                  <time>{years}</time>
+                  <h3>{name}</h3>
+                  {isCurrent && <span class="badge">Actual</span>}
                 </header>
-
-                <footer>
-                  <p>{summary}</p>
-                </footer>
+                <p class="role">{position}</p>
+                <p>{summary}</p>
+                <ul class="tags">
+                  {highlights.map((highlight) => (
+                    <li>{highlight}</li>
+                  ))}
+                </ul>
               </article>
             </li>
           )
         }
       )
     }
-  </ul>
+  </ol>
 </Section>
 
 <style>
-  ul {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  li {
-    padding: 20px 0;
-    border-top: 1px solid var(--line);
-  }
-
-  li:last-child {
-    border-bottom: 1px solid var(--line);
-  }
-
-  article {
+  .timeline > li {
     display: grid;
-    grid-template-columns: minmax(170px, 0.35fr) minmax(0, 1fr);
-    gap: 28px;
+    grid-template-areas: "when rail content";
+    grid-template-columns: 170px 44px minmax(0, 1fr);
   }
 
-  article h3 {
-    color: var(--text);
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  article h4 {
-    margin-top: 5px;
-    color: var(--muted);
-    font-size: 0.78rem;
-    font-weight: 500;
+  .when {
+    grid-area: when;
+    padding-top: 24px;
+    text-align: right;
   }
 
   time {
     display: block;
-    margin-top: 3px;
-    color: var(--accent);
-    font-size: 0.76rem;
-    font-weight: 700;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    font-weight: 600;
   }
 
-  @media (max-width: 600px) {
+  .when span {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .rail {
+    position: relative;
+    grid-area: rail;
+  }
+
+  .rail::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--line);
+    transform: translateX(-50%);
+    content: "";
+  }
+
+  li:first-child > .rail::before {
+    top: 30px;
+  }
+
+  li:last-child > .rail::before {
+    bottom: auto;
+    height: 30px;
+  }
+
+  .node {
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--line-strong);
+    border-radius: 50%;
+    background: var(--background);
+    transform: translateX(-50%);
+  }
+
+  .current .node {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 0 5px var(--accent-soft);
+  }
+
+  article {
+    grid-area: content;
+    padding: 18px 0 48px;
+  }
+
+  .current article {
+    margin-bottom: 36px;
+    padding: 20px clamp(20px, 3vw, 32px) 28px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  h3 {
+    font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  .badge {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .role {
+    margin: 4px 0 14px;
+    color: var(--accent-ink);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  article p:not(.role) {
+    max-width: 72ch;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 18px;
+  }
+
+  .tags li {
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-soft);
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .current .tags li {
+    background: var(--background);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .current .node {
+      animation: node-glow 2.4s ease-in-out infinite;
+    }
+  }
+
+  @keyframes node-glow {
+    50% {
+      box-shadow: 0 0 0 9px rgba(226, 88, 58, 0.12);
+    }
+  }
+
+  @media (max-width: 680px) {
+    .timeline > li {
+      grid-template-areas:
+        "rail when"
+        "rail content";
+      grid-template-columns: 30px minmax(0, 1fr);
+    }
+
+    .rail::before {
+      left: 7px;
+    }
+
+    .node {
+      top: 23px;
+      left: 7px;
+    }
+
+    li:first-child > .rail::before {
+      top: 28px;
+    }
+
+    .when {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 10px;
+      padding-top: 20px;
+      text-align: left;
+    }
+
+    .when span {
+      margin-top: 0;
+    }
+
     article {
-      grid-template-columns: 1fr;
-      gap: 12px;
+      padding-top: 10px;
+    }
+
+    .current article {
+      margin-top: 8px;
+      padding: 18px 20px 22px;
+    }
+  }
+
+  @media print {
+    .timeline > li {
+      grid-template-columns: 120px 32px minmax(0, 1fr);
+    }
+
+    article {
+      padding-bottom: 22px;
+      break-inside: avoid;
+    }
+
+    .current article {
+      margin-bottom: 18px;
+      box-shadow: none;
     }
   }
 </style>

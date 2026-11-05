@@ -2,34 +2,139 @@
 import Section from "../Section.astro"
 
 import { skills } from "@cv"
+
+// Agrupa por nivel respetando el orden en que aparecen en el cv.json
+const levels = [...new Set(skills.map(({ level }) => level))]
+const groups = levels.map((level) => ({
+  level,
+  items: skills.filter((skill) => skill.level === level),
+}))
 ---
 
-<Section title="Herramientas">
-  <ul>
+<Section id="herramientas" title="Herramientas">
+  <div class="groups">
     {
-      skills.map(({ name }) => (
-        <li>
-          <span>{name}</span>
-        </li>
+      groups.map(({ level, items }, index) => (
+        <div class:list={["group", { primary: index === 0 }]}>
+          <h3>{level}</h3>
+          <ul>
+            {items.map(({ name }) => (
+              <li>{name}</li>
+            ))}
+          </ul>
+        </div>
       ))
     }
-  </ul>
+  </div>
 </Section>
 
 <style>
+  .group {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+    padding: 28px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .group:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+
+  h3 {
+    padding-top: 10px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   ul {
-    display: inline-flex;
-    gap: 8px;
+    display: flex;
     flex-wrap: wrap;
+    gap: 10px;
   }
 
   li {
-    border: 1px solid var(--line);
+    padding: 9px 16px;
+    border: 1px solid var(--line-strong);
     border-radius: 999px;
     background: var(--surface);
     color: var(--text);
-    font-size: 0.76rem;
+    font-size: 0.95rem;
     font-weight: 500;
-    padding: 0.35rem 0.7rem;
+    transition:
+      transform 200ms var(--ease-out),
+      border-color 200ms ease;
+  }
+
+  li:hover {
+    border-color: var(--ink);
+    transform: translateY(-2px);
+  }
+
+  .primary h3 {
+    color: var(--accent-ink);
+  }
+
+  .primary li {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 22px 14px 18px;
+    border-color: var(--ink);
+    border-radius: var(--radius-md);
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .primary li::before {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    content: "";
+  }
+
+  .primary li:hover {
+    border-color: var(--accent-ink);
+    background: var(--accent-ink);
+  }
+
+  .primary li:hover::before {
+    background: #fff;
+  }
+
+  @media (max-width: 640px) {
+    .group {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      padding: 22px 0;
+    }
+
+    h3 {
+      padding-top: 0;
+    }
+  }
+
+  @media print {
+    .group {
+      grid-template-columns: 120px minmax(0, 1fr);
+      padding: 14px 0;
+      break-inside: avoid;
+    }
+
+    .primary li {
+      border-color: var(--line-strong);
+      background: #fff;
+      color: var(--ink);
+    }
   }
 </style>

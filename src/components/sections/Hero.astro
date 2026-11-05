@@ -1,235 +1,657 @@
 ---
-import { basics } from "@cv"
-import Section from "@/components/Section.astro"
-import Mail from "@/icons/Mail.astro"
-import X from "@/icons/X.astro"
-import LinkedIn from "@/icons/LinkedIn.astro"
-import GitHub from "@/icons/GitHub.astro"
-import WorldMap from "@/icons/WorldMap.astro"
+import { basics, projects } from "@cv";
+import { currentJob } from "@/lib/cv";
+import SocialLinks from "@/components/SocialLinks.astro";
+import Mail from "@/icons/Mail.astro";
 
-const { name, label, image, location, profiles, email } = basics
-const { city, region } = location
+const { name, label, image, location, profiles, email } = basics;
+const { city, region } = location;
 
-const SOCIAL_ICONS: Record<string, any> = {
-  GitHub,
-  LinkedIn,
-  X,
-}
+const [firstName] = name.split(" ");
+const initials = name
+    .split(" ")
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("");
+const activeProject = projects.find(({ isActive }) => isActive);
 
-const linkedInfo = profiles.find(({ network }) => network === "LinkedIn")
-const linkedUrl = linkedInfo?.url
-const printInfo = [email, linkedUrl].filter(Boolean).join(" • ")
+const linkedInfo = profiles.find(({ network }) => network === "LinkedIn");
+const linkedUrl = linkedInfo?.url;
+const printInfo = [email, linkedUrl].filter(Boolean).join(" • ");
 ---
 
-<Section>
-  <div class="container">
-    <div class="info">
-      <h1>{name}</h1>
-      <h2>{label}</h2>
-      <span class="location"><WorldMap /> {city}, {region}</span>
-      <p class="intro">
-        Construyo interfaces y productos web que hacen más clara la tecnología
-        para las personas que la usan.
-      </p>
-      <div class="actions no-print">
-        <a href="#proyectos-personales">Ver proyectos personales <span aria-hidden="true">↗</span></a>
-        {email && <a class="mail-link" href={`mailto:${email}`}><Mail /> Escribirme</a>}
-      </div>
-      <footer class="print">{printInfo}</footer>
-      <footer class="socials no-print">
-        {
-          profiles.map(({ network, url }) => {
-            const Icon = SOCIAL_ICONS[network]
+<header class="hero">
+    <nav class="topbar no-print" aria-label="Secciones">
+        <a class="brand" href="#" aria-label="Volver al inicio">
+            <span class="monogram" aria-hidden="true">
+                {initials}
+            </span>
+            <span class="brand-name">{name}</span>
+        </a>
+        <ul>
+            <li>
+                <a href="#proyectos-personales">Proyectos</a>
+            </li>
+            <li>
+                <a href="#experiencia">Experiencia</a>
+            </li>
+            <li>
+                <a href="#herramientas">Herramientas</a>
+            </li>
+            <li>
+                <a class="nav-cta" href="#contacto">
+                    Contacto
+                </a>
+            </li>
+        </ul>
+    </nav>
 
-            return (
-              <a
-                href={url}
-                title={`Visitar el perfil de ${name} en ${network}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon />
-                <span>{network}</span>
-              </a>
-            )
-          })
-        }
-      </footer>
+    <div class="info">
+        <h1>{name}</h1>
+        <h2>{label}</h2>
+        <p class="intro">
+            Construyo interfaces y productos web que hacen <em>más clara</em> la
+            tecnología para las personas que la usan.
+        </p>
+        <div class="actions no-print">
+            <a class="button primary" href="#proyectos-personales">
+                Ver proyectos personales <span aria-hidden="true">↓</span>
+            </a>
+            {email && (
+                <a class="button" href={`mailto:${email}`}>
+                    <Mail /> Escribirme
+                </a>
+            )}
+            <SocialLinks />
+        </div>
+        <p class="print print-contact">{printInfo}</p>
     </div>
 
-    <figure>
-      <img src={image} alt={name} />
-      <figcaption>Disponible para construir cosas útiles.</figcaption>
+    <figure class="portrait">
+        <div class="frame">
+            <img src={image} alt={name} width="340" height="340" />
+            <span class="handle top left" aria-hidden="true"></span>
+            <span class="handle top right" aria-hidden="true"></span>
+            <span class="handle bottom left" aria-hidden="true"></span>
+            <span class="handle bottom right" aria-hidden="true"></span>
+            <span class="frame-label no-print" aria-hidden="true">
+                Frontend × Backend
+            </span>
+        </div>
+        <div class="cursor no-print" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24">
+                <path d="M3 2.5 20.5 9.4l-7.6 2.4-2.6 7.7Z"></path>
+            </svg>
+            <span>{firstName}</span>
+        </div>
     </figure>
-  </div>
-</Section>
+
+    <dl class="facts">
+        {currentJob && (
+            <div>
+                <dt>Actualmente</dt>
+                <dd>
+                    {currentJob.position}
+                    <span>en {currentJob.name}</span>
+                </dd>
+            </div>
+        )}
+        {activeProject && (
+            <div>
+                <dt>Proyecto actual</dt>
+                <dd>
+                    {activeProject.name}
+                    <span>{activeProject.highlights[0]}</span>
+                </dd>
+            </div>
+        )}
+        <div>
+            <dt>Ubicación</dt>
+            <dd>
+                {city}
+                <span>{region}</span>
+            </dd>
+        </div>
+    </dl>
+</header>
 
 <style>
-  .container {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 260px;
-    align-items: center;
-    gap: clamp(2rem, 7vw, 7rem);
-    min-height: 360px;
-    padding: 32px 0 56px;
-  }
-
-  .info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .location,
-  figcaption {
-    color: var(--muted);
-    font-size: 0.72rem;
-    letter-spacing: 0.01em;
-  }
-
-  h1 {
-    color: var(--text);
-    font-size: clamp(2.7rem, 6vw, 4.7rem);
-    font-weight: 780;
-    letter-spacing: -0.085em;
-    line-height: 0.98;
-  }
-
-  h2 {
-    max-width: 620px;
-    margin-top: 18px;
-    color: #4f5b65;
-    font-size: clamp(1rem, 2vw, 1.3rem);
-    font-weight: 520;
-    letter-spacing: -0.04em;
-    line-height: 1.3;
-  }
-
-  .location {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 14px;
-  }
-
-  .intro {
-    max-width: 520px;
-    margin-top: 22px;
-    font-size: 0.92rem;
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 24px;
-  }
-
-  .actions a {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 9px 13px;
-    border: 1px solid var(--text);
-    border-radius: 6px;
-    color: var(--text);
-    font-size: 0.72rem;
-    font-weight: 700;
-  }
-
-  .actions a:first-child {
-    color: #fff;
-    background: var(--text);
-  }
-
-  .actions a:hover {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: #fff;
-  }
-
-  .actions .mail-link {
-    border-color: var(--line);
-    background: var(--surface);
-  }
-
-  .actions :global(svg) {
-    width: 14px;
-    height: 14px;
-  }
-
-  .socials {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 28px;
-  }
-
-  .socials a {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    color: var(--muted);
-    font-size: 0.65rem;
-  }
-
-  .socials a:hover {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-
-  .socials :global(svg) {
-    width: 14px;
-    height: 14px;
-  }
-
-  figure {
-    position: relative;
-    justify-self: end;
-    width: 100%;
-  }
-
-  img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 1;
-    border-radius: 16px;
-    object-fit: cover;
-  }
-
-  figcaption {
-    position: relative;
-    z-index: 2;
-    display: inline-block;
-    margin-top: 22px;
-    padding-left: 14px;
-  }
-
-  figcaption::before {
-    position: absolute;
-    top: 0.35em;
-    left: 0;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--accent);
-    content: "";
-  }
-
-  @media (max-width: 700px) {
-    .container {
-      grid-template-columns: 1fr;
-      gap: 32px;
-      padding-top: 12px;
+    .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(240px, 27vw, 340px);
+        align-items: center;
+        column-gap: clamp(2.5rem, 7vw, 6.5rem);
+        padding-bottom: clamp(4.5rem, 10vw, 7.5rem);
     }
 
-    figure {
-      justify-self: start;
-      width: min(220px, 58vw);
-      order: -1;
+    /* Barra superior */
+    .topbar {
+        display: flex;
+        grid-column: 1 / -1;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: clamp(3rem, 8vw, 5.5rem);
     }
-  }
+
+    .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .monogram {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        padding-right: 4px;
+        border-radius: 13px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .monogram::after {
+        position: absolute;
+        right: 7px;
+        bottom: 13px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        content: "";
+    }
+
+    .topbar ul {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .topbar ul a {
+        display: block;
+        padding: 9px 15px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .topbar ul a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    /* Astro añade el atributo de scope a cada parte del selector, por eso
+       hace falta "ul" aquí para ganarle a ".topbar ul a" */
+    .topbar ul .nav-cta {
+        margin-left: 8px;
+        border-color: var(--ink);
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .topbar ul .nav-cta:hover {
+        background: var(--ink);
+        color: #fff;
+    }
+
+    /* Presentación */
+    .info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 28px;
+        padding: 7px 15px 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: var(--shadow-sm);
+        color: var(--text);
+        font-size: 0.85rem;
+        font-weight: 500;
+        backdrop-filter: blur(6px);
+    }
+
+    .pulse {
+        position: relative;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success);
+    }
+
+    .pulse::after {
+        position: absolute;
+        inset: -4px;
+        border: 2px solid var(--success);
+        border-radius: 50%;
+        opacity: 0;
+        content: "";
+    }
+
+    h1 {
+        font-size: clamp(3rem, 8.2vw, 6.4rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 0.92;
+    }
+
+    h2 {
+        max-width: 28ch;
+        margin-top: 24px;
+        color: var(--text-soft);
+        font-size: clamp(1.2rem, 2.3vw, 1.6rem);
+        font-weight: 500;
+        letter-spacing: -0.03em;
+        line-height: 1.25;
+    }
+
+    .intro {
+        max-width: 46ch;
+        margin-top: 18px;
+        font-size: 1.1rem;
+    }
+
+    .intro em {
+        color: var(--accent-ink);
+        font-family: var(--font-serif);
+        font-size: 1.32em;
+        font-style: italic;
+        line-height: 1;
+    }
+
+    .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 36px;
+    }
+
+    .button {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        height: 48px;
+        padding: 0 22px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition:
+            transform 200ms var(--ease-out),
+            background 200ms ease,
+            border-color 200ms ease,
+            color 200ms ease;
+    }
+
+    .button:hover {
+        border-color: var(--ink);
+        transform: translateY(-2px);
+    }
+
+    .button.primary {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: #fff;
+    }
+
+    .button.primary:hover {
+        border-color: var(--accent-ink);
+        background: var(--accent-ink);
+    }
+
+    .button span {
+        transition: transform 200ms var(--ease-out);
+    }
+
+    .button:hover span {
+        transform: translateY(3px);
+    }
+
+    .button :global(svg) {
+        width: 17px;
+        height: 17px;
+    }
+
+    .actions :global(.socials) {
+        margin-left: 6px;
+    }
+
+    /* Retrato con guiño a Figma: selección, manejadores y cursor */
+    .portrait {
+        position: relative;
+        justify-self: end;
+        width: 100%;
+    }
+
+    .frame {
+        position: relative;
+    }
+
+    .frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+        border-radius: 28px;
+        background: var(--dark);
+        box-shadow: 0 40px 80px -40px rgba(21, 25, 30, 0.6);
+        object-fit: cover;
+    }
+
+    .frame::before {
+        position: absolute;
+        inset: -14px;
+        border: 1.5px solid var(--accent);
+        border-radius: 4px;
+        pointer-events: none;
+        content: "";
+    }
+
+    .handle {
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border: 1.5px solid var(--accent);
+        background: var(--surface);
+    }
+
+    .handle.top {
+        top: -19px;
+    }
+
+    .handle.bottom {
+        bottom: -19px;
+    }
+
+    .handle.left {
+        left: -19px;
+    }
+
+    .handle.right {
+        right: -19px;
+    }
+
+    .frame-label {
+        position: absolute;
+        bottom: -14px;
+        left: 50%;
+        padding: 6px 10px;
+        border-radius: 5px;
+        background: var(--accent);
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        transform: translate(-50%, calc(100% + 12px));
+    }
+
+    .cursor {
+        position: absolute;
+        top: 30%;
+        left: -30px;
+        display: flex;
+        align-items: flex-start;
+        pointer-events: none;
+    }
+
+    .cursor svg {
+        flex: none;
+        fill: var(--accent);
+        stroke: #fff;
+        stroke-linejoin: round;
+        stroke-width: 1.5;
+        filter: drop-shadow(0 3px 6px rgba(21, 25, 30, 0.3));
+    }
+
+    .cursor span {
+        margin: 18px 0 0 -4px;
+        padding: 6px 11px;
+        border-radius: 3px 999px 999px 999px;
+        background: var(--accent);
+        box-shadow: 0 8px 20px -8px rgba(21, 25, 30, 0.5);
+        color: var(--ink);
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    /* Datos clave */
+    .facts {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin: clamp(4rem, 8vw, 5.5rem) 0 0;
+        border-top: 1px solid var(--line-strong);
+    }
+
+    .facts div {
+        padding: 22px 24px 0 0;
+    }
+
+    .facts div + div {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+    }
+
+    dt {
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    dd {
+        margin: 10px 0 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.25rem;
+        font-weight: 650;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+    }
+
+    dd span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-family: var(--font-body);
+        font-size: 0.9rem;
+        font-weight: 400;
+        letter-spacing: 0;
+        line-height: 1.4;
+    }
+
+    /* Movimiento */
+    @keyframes hero-rise {
+        from {
+            opacity: 0;
+            transform: translateY(18px);
+        }
+    }
+
+    @keyframes hero-pulse {
+        from {
+            opacity: 0.9;
+            transform: scale(0.6);
+        }
+        to {
+            opacity: 0;
+            transform: scale(1.9);
+        }
+    }
+
+    @keyframes hero-cursor {
+        0%,
+        100% {
+            transform: translate(0, 0);
+        }
+        35% {
+            transform: translate(10px, -12px);
+        }
+        70% {
+            transform: translate(-6px, 8px);
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .info > *,
+        .portrait,
+        .facts {
+            animation: hero-rise 800ms var(--ease-out) both;
+        }
+
+        .info > :nth-child(2) {
+            animation-delay: 70ms;
+        }
+
+        .info > :nth-child(3) {
+            animation-delay: 140ms;
+        }
+
+        .info > :nth-child(4) {
+            animation-delay: 210ms;
+        }
+
+        .info > :nth-child(5) {
+            animation-delay: 280ms;
+        }
+
+        .portrait {
+            animation-delay: 180ms;
+        }
+
+        .facts {
+            animation-delay: 380ms;
+        }
+
+        .pulse::after {
+            animation: hero-pulse 2.2s var(--ease-out) infinite;
+        }
+
+        .cursor {
+            animation: hero-cursor 7s ease-in-out infinite;
+        }
+    }
+
+    @media (max-width: 860px) {
+        .topbar li:not(:last-child) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .hero {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .topbar {
+            order: -2;
+            margin-bottom: 2.5rem;
+        }
+
+        .brand-name {
+            display: none;
+        }
+
+        .portrait {
+            order: -1;
+            justify-self: start;
+            width: min(210px, 58vw);
+            margin: 14px 0 72px 14px;
+        }
+
+        .cursor {
+            top: 58%;
+            right: -78px;
+            left: auto;
+        }
+
+        .actions :global(.socials) {
+            margin-left: 0;
+        }
+
+        .facts {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .facts div,
+        .facts div + div {
+            padding: 18px 0;
+            border-left: 0;
+        }
+
+        .facts div + div {
+            border-top: 1px solid var(--line);
+        }
+    }
+
+    @media print {
+        .hero {
+            grid-template-columns: minmax(0, 1fr) 120px;
+            column-gap: 28px;
+            padding-bottom: 1.75rem;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+        }
+
+        h2 {
+            margin-top: 12px;
+            font-size: 1.2rem;
+        }
+
+        .intro {
+            margin-top: 10px;
+            font-size: 1rem;
+        }
+
+        .print-contact {
+            margin-top: 14px;
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .frame::before,
+        .handle {
+            display: none;
+        }
+
+        .frame img {
+            border-radius: 18px;
+            box-shadow: none;
+        }
+
+        .facts {
+            margin-top: 1.5rem;
+        }
+
+        .facts div {
+            padding-top: 12px;
+        }
+    }
 </style>

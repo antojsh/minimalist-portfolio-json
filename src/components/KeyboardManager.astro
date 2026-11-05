@@ -55,9 +55,16 @@ const profilesInfo = profiles.map(({ network, url }) => {
 })
 ---
 
-<footer class="no-print">
-  Pulsa <kbd>Cmd</kbd> + <kbd>K</kbd> para abrir la paleta de comandos.
-</footer>
+<button
+  class="palette-trigger no-print"
+  type="button"
+  aria-label="Abrir la paleta de comandos"
+>
+  <span class="keys" aria-hidden="true">
+    <kbd data-modifier>⌘</kbd><kbd>K</kbd>
+  </span>
+  <span>Comandos</span>
+</button>
 
 <ninja-keys
   data-info={JSON.stringify(profilesInfo)}
@@ -97,6 +104,13 @@ const profilesInfo = profiles.map(({ network, url }) => {
       },
       ...data,
     ]
+
+    const trigger = document.querySelector(".palette-trigger")
+    const modifier = trigger?.querySelector("[data-modifier]")
+    const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent)
+
+    if (modifier != null && !isApple) modifier.textContent = "Ctrl"
+    trigger?.addEventListener("click", () => ninja.open())
   }
 </script>
 
@@ -107,37 +121,73 @@ const profilesInfo = profiles.map(({ network, url }) => {
     }
   }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+  ninja-keys {
+    --ninja-accent-color: var(--accent-ink);
+    --ninja-font-family: var(--font-body);
+    --ninja-z-index: 50;
   }
 
-  footer {
-    background: #fdfdfd;
-    border-top: 1px solid #eee;
+  .palette-trigger {
     position: fixed;
-    bottom: 0px;
-    width: 100%;
-    padding-block: 8px;
-    text-align: center;
+    right: 20px;
+    bottom: 20px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px 7px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(21, 25, 30, 0.88);
+    box-shadow: 0 16px 36px -14px rgba(21, 25, 30, 0.6);
+    color: #fff;
+    font: inherit;
     font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition:
+      transform 200ms var(--ease-out),
+      background 200ms ease;
+  }
 
-    view-timeline-name: --revealing;
-    view-timeline-axis: block;
+  .palette-trigger:hover {
+    background: var(--ink);
+    transform: translateY(-2px);
+  }
 
-    animation: linear 0.3s fadeIn;
-    animation-timeline: --revealing;
-    animation-range: entry 100% cover 10%;
+  .keys {
+    display: inline-flex;
+    gap: 4px;
   }
 
   kbd {
-    background: #eee;
-    border-radius: 4px;
-    padding: 2px 4px;
-    font-size: 12px;
+    min-width: 26px;
+    padding: 4px 7px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.14);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  @keyframes palette-in {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .palette-trigger {
+      animation: palette-in 600ms var(--ease-out) 900ms both;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .palette-trigger {
+      right: 14px;
+      bottom: 14px;
+    }
   }
 </style>

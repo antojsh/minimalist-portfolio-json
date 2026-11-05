@@ -1,0 +1,169 @@
+---
+import { getCollection, type CollectionEntry } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import { formatPostDate } from "@/lib/blog";
+
+export async function getStaticPaths() {
+    const posts = await getCollection("blog", ({ data }) => !data.draft);
+    return posts.map((post) => ({
+        params: { slug: post.slug },
+        props: { post },
+    }));
+}
+
+interface Props {
+    post: CollectionEntry<"blog">;
+}
+
+const { post } = Astro.props;
+const { Content } = await post.render();
+---
+
+<Layout title={`${post.data.title} | Blog de Antonio Sierra`}>
+    <main>
+        <a class="back" href="/blog/">← Todos los artículos</a>
+        <article>
+            <header>
+                <time datetime={post.data.date.toISOString()}>
+                    {formatPostDate(post.data.date)}
+                </time>
+                <h1>{post.data.title}</h1>
+                <p>{post.data.description}</p>
+                {
+                    post.data.tags.length > 0 && (
+                        <ul class="tags">
+                            {post.data.tags.map((tag) => (
+                                <li>{tag}</li>
+                            ))}
+                        </ul>
+                    )
+                }
+            </header>
+            <div class="prose">
+                <Content />
+            </div>
+        </article>
+    </main>
+</Layout>
+
+<style>
+    main {
+        width: min(760px, 100%);
+        padding: clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+        margin: auto;
+    }
+
+    .back {
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .back:hover {
+        color: var(--ink);
+    }
+
+    header {
+        margin: 3rem 0 2.5rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid var(--line);
+    }
+
+    time {
+        color: var(--accent-ink);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+    }
+
+    h1 {
+        margin-top: 12px;
+        font-size: clamp(2.2rem, 6vw, 3.5rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+    }
+
+    header p {
+        margin-top: 14px;
+        font-size: 1.15rem;
+    }
+
+    .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 18px;
+    }
+
+    .tags li {
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* El HTML que genera el Markdown no lleva el scope del componente */
+    .prose :global(:is(p, ul, ol, blockquote, pre)) {
+        margin: 0 0 1.25rem;
+    }
+
+    .prose :global(p),
+    .prose :global(li) {
+        color: var(--text);
+        font-size: 1.1rem;
+        line-height: 1.75;
+    }
+
+    .prose :global(ul) {
+        padding-left: 1.25rem;
+        list-style: disc;
+    }
+
+    .prose :global(ol) {
+        padding-left: 1.25rem;
+        list-style: decimal;
+    }
+
+    .prose :global(h2) {
+        margin: 2.5rem 0 1rem;
+        font-size: 1.8rem;
+        letter-spacing: -0.03em;
+    }
+
+    .prose :global(h3) {
+        margin: 2rem 0 0.75rem;
+        font-size: 1.35rem;
+    }
+
+    .prose :global(a) {
+        color: var(--accent-ink);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .prose :global(:not(pre) > code) {
+        padding: 2px 6px;
+        border-radius: 6px;
+        background: var(--accent-soft);
+        font-family: var(--font-mono);
+        font-size: 0.9em;
+    }
+
+    .prose :global(pre) {
+        padding: 20px;
+        border-radius: var(--radius-md);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        overflow-x: auto;
+    }
+
+    .prose :global(blockquote) {
+        padding: 4px 0 4px 18px;
+        border-left: 3px solid var(--accent);
+    }
+
+    .prose :global(img) {
+        border-radius: var(--radius-md);
+    }
+</style>

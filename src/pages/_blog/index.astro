@@ -1,0 +1,100 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { formatPostDate, getPublishedPosts } from "@/lib/blog";
+
+const posts = await getPublishedPosts();
+---
+
+<Layout title="Blog de Antonio Sierra Hurtado">
+    <main>
+        <a class="back" href="/">← Volver al portafolio</a>
+        <header>
+            <h1>Blog</h1>
+            <p>
+                Frontend, backend con Node.js y lo que aprendo construyendo
+                productos.
+            </p>
+        </header>
+
+        <ul>
+            {
+                posts.map((post) => (
+                    <li>
+                        <a href={`/blog/${post.slug}/`}>
+                            <time datetime={post.data.date.toISOString()}>
+                                {formatPostDate(post.data.date)}
+                            </time>
+                            <h2>{post.data.title}</h2>
+                            <p>{post.data.description}</p>
+                        </a>
+                    </li>
+                ))
+            }
+        </ul>
+    </main>
+</Layout>
+
+<style>
+    main {
+        width: min(820px, 100%);
+        padding: clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+        margin: auto;
+    }
+
+    .back {
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .back:hover {
+        color: var(--ink);
+    }
+
+    header {
+        margin: 3rem 0 2.5rem;
+    }
+
+    h1 {
+        font-size: clamp(3rem, 8vw, 5rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    header p {
+        margin-top: 12px;
+        font-size: 1.1rem;
+    }
+
+    ul {
+        display: grid;
+        gap: 14px;
+    }
+
+    li a {
+        display: block;
+        padding: 26px 28px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        transition:
+            transform 250ms var(--ease-out),
+            box-shadow 250ms var(--ease-out);
+    }
+
+    li a:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-3px);
+    }
+
+    time {
+        color: var(--accent-ink);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+    }
+
+    h2 {
+        margin: 8px 0 6px;
+        font-size: 1.6rem;
+        letter-spacing: -0.03em;
+    }
+</style>

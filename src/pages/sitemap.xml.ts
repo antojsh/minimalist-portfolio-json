@@ -1,16 +1,17 @@
 import type { APIRoute } from "astro";
+import { LAST_REVIEW } from "@/lib/festivos";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
-const pages = [
+const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
     { path: "/", changefreq: "monthly", priority: "1.0" },
-    { path: "/festivos-colombia-2027", changefreq: "monthly", priority: "0.9" },
+    { path: "/festivos-colombia-2027", changefreq: "monthly", priority: "0.9", lastmod: LAST_REVIEW },
 ];
 
 export const GET: APIRoute = ({ site }) => {
-    const lastmod = new Date().toISOString().slice(0, 10);
+    const buildDate = new Date().toISOString().slice(0, 10);
     const urls = pages
         .map(
-            ({ path, changefreq, priority }) => `  <url>
+            ({ path, changefreq, priority, lastmod = buildDate }) => `  <url>
     <loc>${new URL(path, site).href}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>

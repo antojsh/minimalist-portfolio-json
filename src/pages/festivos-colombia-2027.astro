@@ -1,380 +1,1826 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import { basics } from "@cv";
+import {
+    LAST_REVIEW,
+    MONTHS,
+    WEEKDAYS,
+    addDays,
+    capitalize,
+    countWorkdays,
+    dayOf,
+    formatDays,
+    formatLong,
+    formatRange,
+    formatShort,
+    formatWeekdayDay,
+    getEaster,
+    getHolidays,
+    getLongWeekends,
+    getSpecialDates,
+    getVacationPlans,
+    isWeekend,
+    joinList,
+    weekdayOf,
+    type Holiday,
+} from "@/lib/festivos";
 
-interface Holiday {
-    date: string;
-    name: string;
-    type: "fijo" | "puente" | "semana-santa";
-}
+const YEAR = 2027;
 
-// Ley 51 de 1983 (Ley Emiliani): los festivos "puente" se trasladan al lunes.
-// Pascua 2027: 28 de marzo.
-const holidays: Holiday[] = [
-    { date: "2027-01-01", name: "Año Nuevo", type: "fijo" },
-    { date: "2027-01-11", name: "Día de los Reyes Magos", type: "puente" },
-    { date: "2027-03-22", name: "Día de San José", type: "puente" },
-    { date: "2027-03-25", name: "Jueves Santo", type: "semana-santa" },
-    { date: "2027-03-26", name: "Viernes Santo", type: "semana-santa" },
-    { date: "2027-05-01", name: "Día del Trabajo", type: "fijo" },
-    { date: "2027-05-10", name: "Ascensión del Señor", type: "puente" },
-    { date: "2027-05-31", name: "Corpus Christi", type: "puente" },
-    { date: "2027-06-07", name: "Sagrado Corazón de Jesús", type: "puente" },
-    { date: "2027-07-05", name: "San Pedro y San Pablo", type: "puente" },
-    { date: "2027-07-20", name: "Día de la Independencia", type: "fijo" },
-    { date: "2027-08-07", name: "Batalla de Boyacá", type: "fijo" },
-    { date: "2027-08-16", name: "Asunción de la Virgen", type: "puente" },
-    { date: "2027-10-18", name: "Día de la Raza", type: "puente" },
-    { date: "2027-11-01", name: "Día de Todos los Santos", type: "puente" },
-    { date: "2027-11-15", name: "Independencia de Cartagena", type: "puente" },
-    { date: "2027-12-08", name: "Inmaculada Concepción", type: "fijo" },
-    { date: "2027-12-25", name: "Navidad", type: "fijo" },
-];
+const LAW_51_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=4954";
+const LAW_2578_URL =
+    "https://www.mininterior.gov.co/noticias/gobierno-sanciona-ley-que-convierte-el-9-de-julio-en-nuevo-festivo-nacional/";
 
-const TYPE_LABELS: Record<Holiday["type"], string> = {
-    fijo: "Fecha fija",
-    puente: "Puente festivo",
-    "semana-santa": "Semana Santa",
-};
+const holidays = getHolidays(YEAR);
+const longWeekends = getLongWeekends(YEAR);
+const plans = getVacationPlans(YEAR);
+const specialDates = getSpecialDates(YEAR);
+const workdays = countWorkdays(YEAR);
+const easter = getEaster(YEAR);
 
-const toDate = (date: string) => new Date(`${date}T12:00:00Z`);
-const format = (date: string, options: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat("es-CO", { timeZone: "UTC", ...options }).format(
-        toDate(date),
-    );
+const byDate = new Map(holidays.map((holiday) => [holiday.date, holiday] as const));
+const movable = holidays.filter(({ kind }) => kind === "trasladable");
+const fixed = holidays.filter(({ kind }) => kind === "fijo");
+const holyWeek = holidays.filter(({ kind }) => kind === "semana-santa");
+const onSaturday = holidays.filter(({ date }) => weekdayOf(date) === 6);
+const onSunday = holidays.filter(({ movedFrom }) => movedFrom != null && weekdayOf(movedFrom) === 0);
+const onWeekdays = holidays.filter(({ date }) => !isWeekend(date)).length;
+const newest = holidays.find(({ since }) => since != null && since >= YEAR - 1);
+const first = holidays[0];
+const mothersDay = specialDates.find(({ name }) => name === "Día de la Madre")!;
+const daysOf = ({ start, days }: { start: string; days: number }) =>
+    Array.from({ length: days }, (_, index) => addDays(start, index));
 
-const months = Array.from({ length: 12 }, (_, index) => {
-    const month = String(index + 1).padStart(2, "0");
+// Días de fin de semana que se suman a un puente (se pintan en el calendario)
+const bridgeDays = new Set(longWeekends.flatMap(daysOf).filter((date) => !byDate.has(date)));
+
+const months = MONTHS.map((name, index) => {
+    const prefix = `${YEAR}-${String(index + 1).padStart(2, "0")}`;
+    const length = new Date(Date.UTC(YEAR, index + 1, 0)).getUTCDate();
     return {
-        name: format(`2027-${month}-01`, { month: "long" }),
-        holidays: holidays.filter(({ date }) => date.slice(5, 7) === month),
+        name,
+        number: index + 1,
+        offset: weekdayOf(`${prefix}-01`) + 1,
+        holidays: holidays.filter(({ date }) => date.startsWith(prefix)),
+        days: Array.from({ length }, (_, day) => {
+            const date = `${prefix}-${String(day + 1).padStart(2, "0")}`;
+            return { holiday: byDate.get(date), bridge: bridgeDays.has(date), sunday: weekdayOf(date) === 0 };
+        }),
     };
 });
 
-const bridges = holidays.filter(({ date }) => toDate(date).getUTCDay() === 1)
-    .length;
+const semesters = [
+    { title: "Enero a junio", months: months.slice(0, 6) },
+    { title: "Julio a diciembre", months: months.slice(6) },
+];
 
-const longDate = (date: string) =>
-    format(date, { weekday: "long", day: "numeric", month: "long" });
+const describe = ({ date, kind, movedFrom }: Holiday) => {
+    if (movedFrom) return `Se corre del ${formatLong(movedFrom)}`;
+    if (kind === "trasladable") return "Ya cae lunes, no se mueve";
+    if (kind === "semana-santa") return "Semana Santa";
+    if (isWeekend(date)) return `Cae ${WEEKDAYS[weekdayOf(date)]} y no se corre al lunes`;
+    return "Fecha fija";
+};
 
-const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const restName = (list: Holiday[]) =>
+    joinList([...new Set(list.map(({ name, kind }) => (kind === "semana-santa" ? "Semana Santa" : name)))]);
+
+
+const stripDay = (date: string, type: string) => ({
+    type,
+    weekday: WEEKDAYS[weekdayOf(date)].charAt(0).toUpperCase(),
+    day: dayOf(date),
+});
 
 const faqs = [
     {
-        question: "¿Cuántos festivos tiene Colombia en 2027?",
-        answer: `Colombia tiene ${holidays.length} días festivos en 2027, de los cuales ${bridges} caen en lunes y forman puentes.`,
+        question: `¿Cuántos festivos tiene Colombia en ${YEAR}?`,
+        answer: `Colombia tiene ${holidays.length} festivos en ${YEAR}: ${fixed.length} de fecha fija, ${holyWeek.length} de Semana Santa y ${movable.length} que siempre se celebran en lunes por la Ley Emiliani.${newest ? ` Desde ${newest.since} se suma el Día de la Virgen de Chiquinquirá (Ley 2578 de 2026).` : ""}`,
+    },
+    ...(newest
+        ? [
+              {
+                  question: "¿Cuál es el nuevo festivo de Colombia?",
+                  answer: `El Día de Nuestra Señora del Rosario de Chiquinquirá, creado por la Ley 2578 del 1 de junio de 2026. Se conmemora el 9 de julio y, como los festivos de la Ley Emiliani, se descansa el lunes siguiente: en ${YEAR} es el ${formatLong(newest.date)}.`,
+              },
+          ]
+        : []),
+    {
+        question: `¿Cuántos puentes festivos hay en ${YEAR}?`,
+        answer: `Hay ${longWeekends.length} fines de semana largos: ${longWeekends.filter(({ days }) => days === 3).length} puentes de tres días y la Semana Santa, que va ${formatRange(holyWeek[0].date, addDays(holyWeek[0].date, 3))}.`,
     },
     {
-        question: "¿Cuándo es Semana Santa en 2027?",
-        answer: "Los festivos de Semana Santa en 2027 son el jueves 25 y el viernes 26 de marzo. El Domingo de Pascua es el 28 de marzo.",
+        question: `¿Cuándo es Semana Santa en ${YEAR}?`,
+        answer: `Va del Domingo de Ramos, ${formatLong(addDays(easter, -7)).replace("domingo ", "")}, al Domingo de Resurrección, ${formatLong(easter).replace("domingo ", "")}. Los festivos son el Jueves Santo (${dayOf(holyWeek[0].date)} de marzo) y el Viernes Santo (${dayOf(holyWeek[1].date)} de marzo).`,
     },
     {
-        question: "¿Cuál es el primer puente festivo de 2027?",
-        answer: "El primer puente del año es el lunes 11 de enero de 2027, por el Día de los Reyes Magos.",
+        question: `¿Qué festivos de ${YEAR} caen en fin de semana?`,
+        answer: `${joinList(onSaturday.map(({ name, date }) => `${name} (${formatLong(date).replace("sábado ", "")})`))} caen sábado y no se corren al lunes.${onSunday.map(({ name, date, movedFrom }) => ` ${name} cae ${formatLong(movedFrom!)}, pero por la Ley Emiliani se descansa el ${formatLong(date)}.`).join("")}`,
     },
     {
-        question: "¿Por qué algunos festivos se pasan al lunes?",
-        answer: "La Ley 51 de 1983, conocida como Ley Emiliani, traslada varios festivos al lunes siguiente para crear fines de semana largos.",
+        question: `¿Cuántos días hábiles tiene ${YEAR} en Colombia?`,
+        answer: `${workdays} días hábiles de lunes a viernes: el año tiene ${workdays + onWeekdays} días entre semana y ${onWeekdays} festivos caen en ellos.`,
+    },
+    {
+        question: "¿Por qué los festivos en Colombia se pasan al lunes?",
+        answer: `Por la Ley 51 de 1983, conocida como Ley Emiliani. Dice que varios festivos, "cuando no caigan en día lunes se trasladarán al lunes siguiente a dicho día". En ${YEAR} son ${movable.length}; los de fecha fija y los de Semana Santa no se mueven.`,
+    },
+    {
+        question: `¿Cuánto pagan por trabajar un festivo en ${YEAR}?`,
+        answer: `Con la reforma laboral (Ley 2466 de 2025), el recargo por trabajar un domingo o festivo es del 90 % sobre el valor de la hora ordinaria hasta el 30 de junio de ${YEAR}, y del 100 % desde el 1 de julio de ${YEAR}.`,
+    },
+    {
+        question: "¿El 24 y el 31 de diciembre son festivos?",
+        answer: `No. En ${YEAR} el 24 y el 31 de diciembre caen ${WEEKDAYS[weekdayOf(`${YEAR}-12-24`)]} y son días hábiles, aunque algunas empresas dan el día. El festivo de esa semana es la Navidad, el ${formatLong(`${YEAR}-12-25`)}.`,
+    },
+    {
+        question: "¿El Día de la Madre es festivo?",
+        answer: `No. En Colombia se celebra el segundo domingo de mayo: en ${YEAR} es el ${formatLong(mothersDay.date)}.`,
     },
 ];
 
-const pageUrl = new URL("/festivos-colombia-2027", Astro.site).href;
-const description = `Calendario de los ${holidays.length} festivos de Colombia en 2027: fechas, ${bridges} puentes festivos, Semana Santa y si hoy es festivo.`;
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/festivos-colombia-2027", site).href;
+const title = `Festivos en Colombia ${YEAR}: lista, calendario y puentes`;
+const description = `Los ${holidays.length} festivos de Colombia en ${YEAR} con su día de la semana, los ${longWeekends.length} puentes, Semana Santa y el nuevo festivo de la Virgen de Chiquinquirá.`;
+const image = new URL("/og/festivos-colombia-2027.png", site).href;
+const personId = new URL("/#person", site).href;
 
-const jsonLd = [
-    {
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        name: "Festivos en Colombia 2027",
-        description,
-        url: pageUrl,
-        inLanguage: "es-CO",
-        mainEntity: {
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: LAST_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            about: { "@type": "Country", name: "Colombia" },
+            mainEntity: { "@id": `${pageUrl}#festivos` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
             "@type": "ItemList",
-            name: "Días festivos de Colombia en 2027",
+            "@id": `${pageUrl}#festivos`,
+            name: `Festivos de Colombia en ${YEAR}`,
             numberOfItems: holidays.length,
+            itemListOrder: "https://schema.org/ItemListOrderAscending",
             itemListElement: holidays.map((holiday, index) => ({
                 "@type": "ListItem",
                 position: index + 1,
-                name: `${holiday.name}: ${longDate(holiday.date)} de 2027`,
+                name: `${holiday.name}: ${formatLong(holiday.date)} de ${YEAR}`,
             })),
         },
-    },
-    {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: faqs.map(({ question, answer }) => ({
-            "@type": "Question",
-            name: question,
-            acceptedAnswer: { "@type": "Answer", text: answer },
-        })),
-    },
-    {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Inicio", item: Astro.site?.href },
-            { "@type": "ListItem", position: 2, name: "Festivos Colombia 2027", item: pageUrl },
-        ],
-    },
-];
+        {
+            "@type": "Dataset",
+            "@id": `${pageUrl}#dataset`,
+            name: `Festivos de Colombia ${YEAR}`,
+            description: `Fechas de los ${holidays.length} días festivos de Colombia en ${YEAR}, con el día de la semana y la fecha original de los que se trasladan al lunes por la Ley 51 de 1983 (Ley Emiliani) y la Ley 2578 de 2026.`,
+            url: pageUrl,
+            temporalCoverage: `${YEAR}-01-01/${YEAR}-12-31`,
+            spatialCoverage: { "@type": "Country", name: "Colombia" },
+            creator: { "@id": personId },
+            dateModified: LAST_REVIEW,
+            isAccessibleForFree: true,
+            distribution: [
+                {
+                    "@type": "DataDownload",
+                    encodingFormat: "text/calendar",
+                    contentUrl: new URL("/festivos-colombia-2027.ics", site).href,
+                },
+                {
+                    "@type": "DataDownload",
+                    encodingFormat: "application/json",
+                    contentUrl: new URL("/festivos-colombia-2027.json", site).href,
+                },
+            ],
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: `Festivos Colombia ${YEAR}`, item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
 ---
 
 <Layout
-    title="Festivos en Colombia 2027: calendario completo y puentes"
+    title={title}
     description={description}
     image="/og/festivos-colombia-2027.png"
-    imageAlt="Calendario de festivos en Colombia 2027"
+    imageAlt={`Calendario de los ${holidays.length} festivos de Colombia en ${YEAR}`}
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
     jsonLd={jsonLd}
 >
-    <main>
-        <header class="hero">
-            <div class="flag" aria-hidden="true"><span></span><span></span><span></span></div>
-            <p class="eyebrow">Calendario oficial · Colombia</p>
-            <h1>Festivos <span class="h1-country">en Colombia</span> <em>2027</em></h1>
-            <p class="lead">
-                Todos los días festivos de Colombia en 2027, con sus puentes y la
-                Semana Santa.
-            </p>
+    <div class="flag" aria-hidden="true"></div>
 
-            <section class="status" data-status aria-live="polite">
-                <p class="status-label">¿Hoy es festivo?</p>
-                <p class="status-answer" data-answer>…</p>
-                <p class="status-detail" data-detail>Revisando el calendario</p>
-                <div class="next" data-next hidden>
-                    <span>Próximo festivo</span>
-                    <strong data-next-name></strong>
-                    <span data-next-date></span>
-                    <b class="countdown" data-countdown></b>
+    <main data-year={YEAR}>
+        <header class="topbar no-print">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Festivos {YEAR}</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#lista">Lista</a>
+                <a href="#calendario">Calendario</a>
+                <a href="#puentes">Puentes</a>
+                <a href="#vacaciones">Vacaciones</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <div class="intro">
+                <h1>Festivos en Colombia <span>{YEAR}</span></h1>
+                <p class="lead">
+                    Colombia tiene <strong>{holidays.length} festivos</strong> en {YEAR}.
+                    De ellos, {movable.length} se celebran en lunes por la Ley Emiliani, así que el año trae
+                    <strong>{longWeekends.length} fines de semana largos</strong>.
+                    {
+                        newest && (
+                            <>
+                                Ojo: desde {newest.since} hay un festivo nuevo, la
+                                <a href="#ley-emiliani">Virgen de Chiquinquirá</a>, que en {YEAR} cae el
+                                {formatLong(newest.date)}.
+                            </>
+                        )
+                    }
+                </p>
+                <div class="actions no-print">
+                    <a class="button" href="/festivos-colombia-2027.ics">
+                        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-linecap="round"
+                                stroke-width="1.8"
+                                d="M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm7 7v5m-2.5-2.5h5"
+                            ></path>
+                        </svg>
+                        Añadir a mi calendario
+                    </a>
+                    <button class="button ghost" type="button" data-print>Imprimir calendario</button>
+                </div>
+                <p class="updated">
+                    Actualizado el <time datetime={LAST_REVIEW}>{formatLong(LAST_REVIEW).replace(/^\S+ /, "")} de {LAST_REVIEW.slice(0, 4)}</time>
+                    · Calculado con la <a href={LAW_51_URL} rel="noopener">Ley 51 de 1983</a> y la
+                    <a href={LAW_2578_URL} rel="noopener">Ley 2578 de 2026</a>
+                </p>
+            </div>
+
+            <aside class="today no-print" aria-labelledby="hoy" data-today>
+                <h2 id="hoy">¿Hoy es festivo?</h2>
+                <div class="today-body">
+                    <div class="tile" aria-hidden="true">
+                        <div class="sheet page">
+                            <span class="band" data-month></span>
+                            <span class="day" data-day></span>
+                            <span class="weekday" data-weekday></span>
+                        </div>
+                        <div class="sheet cover">
+                            <span class="band">Almanaque</span>
+                            <span class="day">{YEAR}</span>
+                            <span class="weekday">Colombia</span>
+                        </div>
+                        <span class="rings"></span>
+                    </div>
+                    <div class="today-info" aria-live="polite">
+                        <p class="verdict" data-answer>Revisando el calendario…</p>
+                        <p class="status" data-status></p>
+                        <div class="next">
+                            <p class="next-label">
+                                Próximo festivo <span class="countdown" data-countdown></span>
+                            </p>
+                            <p class="next-date" data-next-date>{capitalize(formatLong(first.date))}</p>
+                            <p class="next-name" data-next-name>{first.name}</p>
+                            <p class="next-bridge" data-bridge></p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <dl class="facts">
+                <div><dt>festivos en el año</dt><dd>{holidays.length}</dd></div>
+                <div><dt>fines de semana largos</dt><dd>{longWeekends.length}</dd></div>
+                <div><dt>días hábiles de lunes a viernes</dt><dd>{workdays}</dd></div>
+                <div><dt>festivos caen sábado</dt><dd>{onSaturday.length}</dd></div>
+            </dl>
+        </section>
+
+        <section id="lista" class="no-print" aria-labelledby="lista-titulo">
+            <header class="head">
+                <h2 id="lista-titulo">Los {holidays.length} festivos de {YEAR}, mes a mes</h2>
+                <p>
+                    Con su día de la semana. Cuando la Ley Emiliani corre un festivo al lunes, también
+                    te dejo la fecha original.
+                </p>
+            </header>
+
+            <div class="semesters">
+                {
+                    semesters.map((semester) => (
+                        <table>
+                            <caption class="sr-only">Festivos de {semester.title.toLowerCase()}</caption>
+                            <thead class="sr-only">
+                                <tr>
+                                    <th scope="col">Mes</th>
+                                    <th scope="col">Fecha</th>
+                                    <th scope="col">Festivo</th>
+                                </tr>
+                            </thead>
+                            {semester.months.map((month) => (
+                                <tbody class:list={{ empty: month.holidays.length === 0 }}>
+                                    {month.holidays.length === 0 ? (
+                                        <tr>
+                                            <th scope="row" class="month">{month.name}</th>
+                                            <td colspan="2" class="none">Este mes no tiene festivos</td>
+                                        </tr>
+                                    ) : (
+                                        month.holidays.map((holiday, index) => (
+                                            <tr class="holiday" data-date={holiday.date}>
+                                                {index === 0 && (
+                                                    <th scope="rowgroup" class="month" rowspan={month.holidays.length}>
+                                                        {month.name}
+                                                    </th>
+                                                )}
+                                                <td class="date">
+                                                    <time datetime={holiday.date}>
+                                                        <span class="d">{dayOf(holiday.date)}</span>{" "}
+                                                        <span class="wd">{WEEKDAYS[weekdayOf(holiday.date)]}</span>
+                                                        <span class="sr-only"> de {month.name}</span>
+                                                    </time>
+                                                </td>
+                                                <td>
+                                                    <strong>
+                                                        {holiday.name}
+                                                        {holiday === newest && <span class="badge">Nuevo</span>}
+                                                    </strong>
+                                                    <span class="note">{describe(holiday)}</span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            ))}
+                        </table>
+                    ))
+                }
+            </div>
+        </section>
+
+        <div class="calendar-layout">
+            <section id="calendario" aria-labelledby="calendario-titulo">
+                <header class="head stacked">
+                    <h2 id="calendario-titulo">Calendario {YEAR}</h2>
+                    <p>
+                        Domingos y festivos en rojo, como en el almanaque de la tienda. En rosado, los
+                        días que se suman a un puente.
+                    </p>
+                </header>
+
+                <div class="wall">
+                    <p class="print print-title">Festivos en Colombia {YEAR}</p>
+                    <ol class="year" aria-hidden="true">
+                        {
+                            months.map((month) => (
+                                <li class="cal-month" data-month={month.number}>
+                                    <p class="cal-name">
+                                        {month.name}
+                                        {month.holidays.length === 0 && <span>sin festivos</span>}
+                                    </p>
+                                    <div class="cal-weekdays">
+                                        {["D", "L", "M", "M", "J", "V", "S"].map((letter) => (
+                                            <i data-w={letter} />
+                                        ))}
+                                    </div>
+                                    <ol class="cal-days" style={`--offset: ${month.offset}`}>
+                                        {month.days.map(({ holiday, bridge, sunday }) => (
+                                            <li class:list={{ hol: holiday, bridge, sun: sunday }} data-name={holiday?.name} />
+                                        ))}
+                                    </ol>
+                                    <ul class="print cal-list">
+                                        {month.holidays.map(({ date, name }) => (
+                                            <li>
+                                                <b>{dayOf(date)}</b> {name}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </li>
+                            ))
+                        }
+                    </ol>
+                    <ul class="legend" aria-hidden="true">
+                        <li><i class="key-hol"></i>Festivo</li>
+                        <li><i class="key-bridge"></i>Se suma al puente</li>
+                        <li><i class="key-sun">7</i>Domingo</li>
+                    </ul>
+                    <p class="print print-foot">antojsh.dev/festivos-colombia-2027</p>
                 </div>
             </section>
 
-            <dl class="stats">
-                <div><dt>Festivos</dt><dd>{holidays.length}</dd></div>
-                <div><dt>Puentes (lunes)</dt><dd>{bridges}</dd></div>
-                <div><dt>Semana Santa</dt><dd>25–26 mar</dd></div>
-            </dl>
-        </header>
+            <section id="puentes" class="no-print" aria-labelledby="puentes-titulo">
+                <header class="head stacked">
+                    <h2 id="puentes-titulo">Puentes festivos {YEAR}</h2>
+                    <p>
+                        {longWeekends.length} fines de semana largos:
+                        {longWeekends.filter(({ days }) => days === 3).length} de tres días y la Semana Santa,
+                        de cuatro.
+                    </p>
+                </header>
 
-        <div class="months">
-            {
-                months.map((month) => (
-                    <section class:list={["month", { empty: month.holidays.length === 0 }]}>
-                        <h2>{month.name}</h2>
-                        {month.holidays.length === 0 ? (
-                            <p class="no-holidays">
-                                <span aria-hidden="true">☕</span>
-                                Este mes no tiene festivos
-                            </p>
-                        ) : (
-                        <ul>
-                            {month.holidays.map((holiday) => (
-                                <li class={`holiday ${holiday.type}`} data-date={holiday.date}>
-                                    <div class="day">
-                                        <strong>{format(holiday.date, { day: "numeric" })}</strong>
-                                        <span>{format(holiday.date, { weekday: "short" })}</span>
-                                    </div>
-                                    <div class="info">
-                                        <h3>{holiday.name}</h3>
-                                        <p class="weekday">{capitalize(longDate(holiday.date))}</p>
-                                        <span class="tag">{TYPE_LABELS[holiday.type]}</span>
-                                    </div>
-                                    <span class="marker" data-marker></span>
-                                </li>
-                            ))}
-                        </ul>
-                        )}
-                    </section>
-                ))
-            }
+                <ol class="bridges">
+                    {
+                        longWeekends.map((weekend) => (
+                            <li>
+                                <ol class="strip" aria-hidden="true">
+                                    {daysOf(weekend).map((date) => {
+                                        const cell = stripDay(date, byDate.has(date) ? "hol" : "off");
+                                        return <li class={cell.type} data-w={cell.weekday} data-d={cell.day} />;
+                                    })}
+                                </ol>
+                                <div>
+                                    <p class="bridge-name">{restName(weekend.holidays)}</p>
+                                    <p class="bridge-dates">{capitalize(formatRange(weekend.start, weekend.end))}</p>
+                                </div>
+                            </li>
+                        ))
+                    }
+                </ol>
+            </section>
         </div>
 
-        <section class="faq" aria-labelledby="faq-title">
-            <h2 id="faq-title">Preguntas frecuentes</h2>
-            {
-                faqs.map(({ question, answer }) => (
-                    <details>
-                        <summary>{question}</summary>
-                        <p>{answer}</p>
-                    </details>
-                ))
-            }
+        <section id="vacaciones" class="no-print" aria-labelledby="vacaciones-titulo">
+            <header class="head">
+                <h2 id="vacaciones-titulo">Vacaciones {YEAR}: los días que más rinden</h2>
+                <p>
+                    Si puedes pedir días, pídelos aquí: cada plan une festivos y fines de semana. Cuentas
+                    hechas para quien trabaja de lunes a viernes.
+                </p>
+            </header>
+
+            <ol class="plans">
+                {
+                    plans.map((plan) => (
+                        <li class="plan">
+                            <p class="ratio">
+                                <span class="ask">
+                                    <b>{plan.leave.length}</b>
+                                    {plan.leave.length === 1 ? "día que pides" : "días que pides"}
+                                </span>
+                                <span class="rest">
+                                    <b>{plan.days}</b>
+                                    días de descanso
+                                </span>
+                            </p>
+                            <div class="plan-text">
+                                <h3>{capitalize(formatRange(plan.start, plan.end))}</h3>
+                                <p>
+                                    {`Pide ${formatDays(plan.leave)}. Aprovechas ${joinList(
+                                        plan.holidays
+                                            .filter(({ date }) => !isWeekend(date))
+                                            .map(({ name, date }) => `${name} (${formatWeekdayDay(date)})`),
+                                    )}.`}
+                                </p>
+                            </div>
+                            <ol class="strip" aria-hidden="true">
+                                {daysOf(plan).map((date) => {
+                                    const type = byDate.has(date) ? "hol" : isWeekend(date) ? "off" : "leave";
+                                    const cell = stripDay(date, type);
+                                    return <li class={cell.type} data-w={cell.weekday} data-d={cell.day} />;
+                                })}
+                            </ol>
+                        </li>
+                    ))
+                }
+            </ol>
+            <ul class="legend" aria-hidden="true">
+                <li><i class="key-hol"></i>Festivo</li>
+                <li><i class="key-bridge"></i>Fin de semana</li>
+                <li><i class="key-leave"></i>Día que pides</li>
+            </ul>
         </section>
 
-        <p class="note">
-            Fechas según la Ley 51 de 1983. Los festivos trasladables se mueven al
-            lunes siguiente.
-        </p>
+        <section id="ley-emiliani" class="law no-print" aria-labelledby="ley-titulo">
+            <div class="law-text">
+                <h2 id="ley-titulo">¿Por qué casi todos los festivos caen lunes?</h2>
+                <p>
+                    Por la <a href={LAW_51_URL} rel="noopener">Ley 51 de 1983</a>, que todos conocen
+                    como Ley Emiliani. Para diez festivos dice que,
+                </p>
+                <blockquote cite={LAW_51_URL}>
+                    <p>«cuando no caigan en día lunes se trasladarán al lunes siguiente a dicho día».</p>
+                    <footer>Ley 51 de 1983, artículo 1</footer>
+                </blockquote>
+                <p>
+                    En junio de 2026 la <a href={LAW_2578_URL} rel="noopener">Ley 2578</a> sumó un
+                    festivo nuevo con la misma regla: el Día de Nuestra Señora del Rosario de
+                    Chiquinquirá, el 9 de julio. Por eso ahora son {movable.length}.
+                </p>
+                <p>
+                    Los demás nunca se mueven: {joinList(fixed.map(({ name }) => name))}, además del
+                    Jueves y el Viernes Santo. Por eso en {YEAR}
+                    {joinList(onSaturday.map(({ date }) => formatLong(date).replace("sábado ", "")))}
+                    caen sábado y no dan puente.
+                </p>
+            </div>
+
+            <table class="moves">
+                <caption>Festivos que se corren al lunes en {YEAR}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Festivo</th>
+                        <th scope="col">Cae</th>
+                        <th scope="col">Se descansa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {
+                        movable.map((holiday) => (
+                            <tr>
+                                <th scope="row">
+                                    {holiday.name}
+                                    {holiday === newest && <span class="badge">Nuevo</span>}
+                                </th>
+                                <td class="from">
+                                    <time datetime={holiday.movedFrom ?? holiday.date}>
+                                        {formatShort(holiday.movedFrom ?? holiday.date)}
+                                    </time>
+                                </td>
+                                <td class="to">
+                                    {holiday.movedFrom ? (
+                                        <time datetime={holiday.date}>{formatShort(holiday.date)}</time>
+                                    ) : (
+                                        "Igual, ya es lunes"
+                                    )}
+                                </td>
+                            </tr>
+                        ))
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section id="otras-fechas" class="no-print" aria-labelledby="otras-titulo">
+            <header class="head">
+                <h2 id="otras-titulo">Fechas de {YEAR} que no son festivo</h2>
+                <p>Se celebran, pero no dan el día libre. Te las dejo para que no te tomen por sorpresa.</p>
+            </header>
+            <ul class="others">
+                {
+                    specialDates.map(({ date, name, rule }) => (
+                        <li>
+                            <strong>{name}</strong>
+                            <time datetime={date}>{capitalize(formatLong(date))}</time>
+                            {rule && <span>{rule}</span>}
+                        </li>
+                    ))
+                }
+            </ul>
+        </section>
+
+        <section id="preguntas" class="faq no-print" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    ¿No está tu pregunta o ves un error?
+                    <a href={`mailto:${basics.email}?subject=Festivos%20${YEAR}`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon no-print">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Las
+                fechas se calculan con la ley, no se copian de otra página.
+            </p>
+            <p>
+                Datos abiertos:
+                <a href="/festivos-colombia-2027.ics">festivos-colombia-2027.ics</a> ·
+                <a href="/festivos-colombia-2027.json">.json</a>
+            </p>
+        </footer>
     </main>
 </Layout>
 
-<script define:vars={{ holidays }}>
-    // Fecha de hoy en hora de Colombia, en formato AAAA-MM-DD
-    const today = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Bogota",
-    }).format(new Date());
+<script>
+    import {
+        MONTHS,
+        WEEKDAYS,
+        capitalize,
+        daysBetween,
+        formatLong,
+        formatRange,
+        getHolidays,
+        getLongWeekends,
+        todayInColombia,
+        toDate,
+    } from "@/lib/festivos";
 
-    const dayMs = 86_400_000;
-    const daysBetween = (from, to) =>
-        Math.round((Date.parse(to) - Date.parse(from)) / dayMs);
-    const longDate = (date) =>
-        new Intl.DateTimeFormat("es-CO", {
-            weekday: "long",
-            day: "numeric",
-            month: "long",
-            timeZone: "UTC",
-        }).format(new Date(`${date}T12:00:00Z`)).replace(/^./, (letter) => letter.toUpperCase());
+    const today = todayInColombia();
+    const date = toDate(today);
+    const year = date.getUTCFullYear();
+    const holidays = [...getHolidays(year), ...getHolidays(year + 1)];
+    const holiday = holidays.find((item) => item.date === today);
+    const next = holidays.find((item) => item.date > today);
+    const findBridge = (day: string) =>
+        getLongWeekends(Number(day.slice(0, 4))).find(({ start, end }) => start <= day && day <= end);
 
-    const status = document.querySelector("[data-status]");
-    const todayHoliday = holidays.find(({ date }) => date === today);
-    const next = holidays.find(({ date }) => date > today);
+    const card = document.querySelector<HTMLElement>("[data-today]");
 
-    if (todayHoliday) {
-        status.classList.add("yes");
-        status.querySelector("[data-answer]").textContent = "¡Sí!";
-        status.querySelector("[data-detail]").textContent =
-            `Hoy es ${todayHoliday.name}. Disfruta el descanso.`;
-    } else {
-        status.classList.add("no");
-        status.querySelector("[data-answer]").textContent = "No";
-        status.querySelector("[data-detail]").textContent =
-            today < "2027-01-01"
-                ? "Aún no empieza 2027, pero así viene el año."
-                : today > "2027-12-31"
-                  ? "El 2027 ya terminó."
-                  : "Hoy es un día hábil en Colombia.";
+    if (card != null) {
+        const set = (name: string, text: string) => {
+            const element = card.querySelector(`[data-${name}]`);
+            if (element != null) element.textContent = text;
+        };
+
+        set("month", `${MONTHS[date.getUTCMonth()]} ${year}`);
+        set("day", String(date.getUTCDate()));
+        set("weekday", WEEKDAYS[date.getUTCDay()]);
+
+        const dayOfWeek = date.getUTCDay();
+
+        if (holiday != null) {
+            set("answer", "¡Hoy es festivo!");
+            set("status", holiday.name);
+        } else {
+            set("answer", "Hoy no es festivo");
+            set(
+                "status",
+                findBridge(today) != null
+                    ? "Pero estás de puente: aprovecha."
+                    : dayOfWeek === 0
+                      ? "Es domingo, día de descanso."
+                      : dayOfWeek === 6
+                        ? "Es sábado."
+                        : "Es día hábil.",
+            );
+        }
+
+        if (next != null) {
+            const days = daysBetween(today, next.date);
+            const nextYear = next.date.slice(0, 4);
+            const bridge = findBridge(next.date);
+            const when = `${formatLong(next.date)}${Number(nextYear) !== year ? ` de ${nextYear}` : ""}`;
+            set("next-date", capitalize(when));
+            set("next-name", next.name);
+            set("countdown", days === 1 ? "Mañana" : `En ${days} días`);
+            set("bridge", bridge ? `Puente ${formatRange(bridge.start, bridge.end)}` : "");
+        }
+
+        card.classList.toggle("is-holiday", holiday != null);
+        card.classList.add("is-ready");
     }
 
-    if (next) {
-        const days = daysBetween(today, next.date);
-        status.querySelector("[data-next]").hidden = false;
-        status.querySelector("[data-next-name]").textContent = next.name;
-        status.querySelector("[data-next-date]").textContent = longDate(next.date);
-        status.querySelector("[data-countdown]").textContent =
-            days === 1 ? "Mañana" : `Faltan ${days} días`;
+    // Durante el año de la página se marcan los festivos que ya pasaron, el próximo y el día de hoy
+    const pageYear = Number(document.querySelector<HTMLElement>("main")?.dataset.year);
+
+    if (year === pageYear) {
+        document.querySelectorAll<HTMLElement>("tr[data-date]").forEach((row) => {
+            const { date: rowDate = "" } = row.dataset;
+            row.classList.toggle("is-past", rowDate < today);
+            row.classList.toggle("is-today", rowDate === today);
+            row.classList.toggle("is-next", rowDate === next?.date);
+        });
+
+        const [, month, day] = today.split("-").map(Number);
+        document.querySelector(`[data-month="${month}"] .cal-days li:nth-child(${day})`)?.classList.add("is-today");
     }
 
-    document.querySelectorAll("[data-date]").forEach((item) => {
-        const { date } = item.dataset;
-        if (date === today) item.classList.add("is-today");
-        else if (date < today) item.classList.add("is-past");
-        else if (date === next?.date) item.classList.add("is-next");
-
-        const marker = item.querySelector("[data-marker]");
-        if (date === today) marker.textContent = "Hoy";
-        else if (date === next?.date) marker.textContent = "Próximo";
-    });
+    document.querySelector("[data-print]")?.addEventListener("click", () => window.print());
 </script>
 
 <style>
     main {
-        --yellow: #fcd116;
-        --blue: #003893;
-        --red: #ce1126;
+        --red: #c42a1a;
+        --red-ink: #a32113;
+        --red-soft: #f9e0d9;
+        --sheet: #fffdf9;
+        --gutter: clamp(16px, 4vw, 40px);
 
-        width: min(1080px, 100%);
-        padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+        width: min(1200px, 100%);
         margin: auto;
+        padding: 0 var(--gutter) clamp(3rem, 6vw, 5rem);
     }
 
-    .hero {
-        position: relative;
-        padding-bottom: 3rem;
-    }
-
-    .flag {
-        display: flex;
-        width: 72px;
-        height: 10px;
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
         overflow: hidden;
-        border-radius: 999px;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 
-    .flag span:nth-child(1) {
-        flex: 2;
-        background: var(--yellow);
+    a {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
     }
 
-    .flag span:nth-child(2) {
-        flex: 1;
-        background: var(--blue);
+    a:hover {
+        text-decoration-color: currentColor;
     }
 
-    .flag span:nth-child(3) {
-        flex: 1;
-        background: var(--red);
+    /* Bandera con sus proporciones reales: amarillo la mitad, azul y rojo un cuarto */
+    .flag {
+        height: 8px;
+        background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%);
     }
 
-    .eyebrow {
-        margin-top: 22px;
+    /* Encabezado */
+    .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 20px 0;
+    }
+
+    .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         color: var(--muted);
-        font-family: var(--font-mono);
-        font-size: 0.78rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .crumbs li + li::before {
+        margin-right: 10px;
+        color: var(--line-strong);
+        content: "/";
+    }
+
+    .crumbs a {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .monogram {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .toc {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .toc a {
+        flex: none;
+        padding: 8px 13px;
+        border-radius: 8px;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+    .toc a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    /* Portada */
+    .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 48px clamp(40px, 7vw, 96px);
+        align-items: end;
+        padding-top: clamp(2rem, 6vw, 4.5rem);
     }
 
     h1 {
-        margin-top: 10px;
-        font-size: clamp(3.5rem, 12vw, 8rem);
+        font-size: clamp(3.1rem, 1.4rem + 6.8vw, 7rem);
         font-weight: 800;
+        letter-spacing: -0.055em;
+        line-height: 0.88;
+    }
+
+    h1 span {
+        color: var(--red);
+    }
+
+    .lead {
+        max-width: 50ch;
+        margin-top: 28px;
+        color: var(--text);
+        font-size: clamp(1.08rem, 1rem + 0.35vw, 1.25rem);
+        line-height: 1.6;
+    }
+
+    .lead strong {
+        color: var(--ink);
+    }
+
+    .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .button {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 18px;
+        border: 1px solid var(--ink);
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font: inherit;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+            transform 200ms var(--ease-out),
+            background 200ms ease;
+    }
+
+    .button:hover {
+        transform: translateY(-2px);
+    }
+
+    .button.ghost {
+        border-color: var(--line-strong);
+        background: transparent;
+        color: var(--ink);
+    }
+
+    .button.ghost:hover {
+        border-color: var(--ink);
+    }
+
+    .updated {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .updated a {
+        color: inherit;
+    }
+
+    /* ¿Hoy es festivo?: un taco de calendario que se arranca al cargar */
+    .today h2 {
+        margin-bottom: 18px;
+        font-size: 1.15rem;
+        letter-spacing: -0.02em;
+    }
+
+    .today-body {
+        display: grid;
+        gap: 26px;
+    }
+
+    .tile {
+        position: relative;
+        isolation: isolate;
+        height: 290px;
+    }
+
+    /* Hojas que asoman por debajo */
+    .tile::before,
+    .tile::after {
+        position: absolute;
+        inset: auto 8px -6px;
+        z-index: -1;
+        height: 24px;
+        border: 1px solid var(--line-strong);
+        border-radius: 0 0 14px 14px;
+        background: var(--sheet);
+        content: "";
+    }
+
+    .tile::after {
+        inset: auto 16px -12px;
+        z-index: -2;
+    }
+
+    .sheet {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        justify-items: center;
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        background: var(--sheet);
+    }
+
+    .band {
+        justify-self: stretch;
+        min-height: 1em;
+        padding: 18px 0 13px;
+        background: var(--red);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .day {
+        align-self: center;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 8.5rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.06em;
+        line-height: 1;
+    }
+
+    .weekday {
+        padding-bottom: 24px;
+        color: var(--text-soft);
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .cover .day {
+        color: var(--red);
+        font-size: 5.5rem;
+    }
+
+    .is-holiday .page .day {
+        color: var(--red);
+    }
+
+    .cover {
+        z-index: 1;
+        transform-origin: 18% 0;
+    }
+
+    /* Argollas del taco */
+    .rings::before,
+    .rings::after {
+        position: absolute;
+        top: -10px;
+        z-index: 2;
+        width: 10px;
+        height: 26px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, #39404a, var(--ink));
+        content: "";
+    }
+
+    .rings::before {
+        left: 26%;
+    }
+
+    .rings::after {
+        right: 26%;
+    }
+
+    .is-ready .cover {
+        visibility: hidden;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .is-ready .cover {
+            visibility: visible;
+            animation: tear-off 900ms var(--ease-out) 350ms forwards;
+        }
+
+        .is-ready .today-info {
+            animation: fade-in 600ms ease 500ms both;
+        }
+    }
+
+    @keyframes tear-off {
+        30% {
+            transform: rotate(-3deg);
+        }
+
+        to {
+            visibility: hidden;
+            opacity: 0;
+            transform: translate(-6%, -26%) rotate(-14deg);
+        }
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+    }
+
+    .today-info {
+        min-height: 13.5em;
+    }
+
+    /* La respuesta es lo primero que se lee */
+    .verdict {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.9rem, 1.5rem + 1.2vw, 2.4rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+
+    .is-holiday .verdict {
+        color: var(--red);
+    }
+
+    .status {
+        min-height: 1.6em;
+        margin-top: 8px;
+        color: var(--text-soft);
+        font-size: 1.02rem;
+    }
+
+    .next {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line-strong);
+    }
+
+    .next-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .countdown:not(:empty) {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .next-date {
+        margin-top: 6px;
+        color: var(--ink);
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+
+    .next-name {
+        color: var(--text);
+        font-size: 0.98rem;
+    }
+
+    .next-bridge:not(:empty) {
+        margin-top: 6px;
+        color: var(--red-ink);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    /* Datos clave, como la ficha de un periódico */
+    .facts {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin: 0;
+        border-block: 2px solid var(--ink);
+    }
+
+    .facts div {
+        display: flex;
+        flex-direction: column-reverse;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 22px 20px 24px 0;
+    }
+
+    .facts div + div {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+    }
+
+    .facts dd {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.5rem + 2.6vw, 3.75rem);
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
         letter-spacing: -0.05em;
         line-height: 0.9;
     }
 
-    h1 em {
-        background: linear-gradient(
-            90deg,
-            #e0a800 0%,
-            var(--blue) 55%,
-            var(--red) 100%
-        );
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        font-family: var(--font-serif);
-        font-weight: 400;
-        letter-spacing: -0.02em;
-        padding-right: 0.08em;
-    }
-
-    .h1-country {
-        display: block;
-        margin-bottom: 6px;
+    .facts dt {
+        max-width: 18ch;
         color: var(--text-soft);
-        font-size: 0.32em;
+        font-size: 0.92rem;
+        line-height: 1.35;
+    }
+
+    /* Secciones */
+    section:not(.hero) {
+        margin-top: clamp(4.5rem, 10vw, 8rem);
+        scroll-margin-top: 24px;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 1.3rem + 2.4vw, 3.1rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .head {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 14px 48px;
+        align-items: end;
+        margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+    }
+
+    .head.stacked {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .head p {
+        max-width: 46ch;
+        font-size: 1.05rem;
+    }
+
+    .head a {
+        color: var(--ink);
         font-weight: 600;
-        letter-spacing: -0.02em;
-        line-height: 1.1;
     }
 
-    .faq {
-        margin-top: 3rem;
-        padding: clamp(24px, 4vw, 40px);
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        background: var(--surface);
+    /* Lista por semestres */
+    .semesters {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 48px clamp(32px, 5vw, 72px);
+        align-items: start;
     }
 
-    .faq h2 {
-        margin-bottom: 10px;
-        text-transform: none;
+    table {
+        width: 100%;
+        border-collapse: collapse;
     }
 
-    details {
-        border-top: 1px solid var(--line);
+    .semesters table {
+        border-top: 2px solid var(--ink);
     }
 
-    summary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 18px 0;
+    /* Solo hay líneas entre meses: dentro de un mes manda el espacio */
+    tbody {
+        border-bottom: 1px solid var(--line);
+    }
+
+    tbody th,
+    tbody td {
+        padding: 10px 0;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    tbody tr:first-child > * {
+        padding-top: 22px;
+    }
+
+    tbody tr:last-child > * {
+        padding-bottom: 22px;
+    }
+
+    .month {
+        width: 128px;
+        padding-right: 12px;
         color: var(--ink);
         font-family: var(--font-display);
         font-size: 1.15rem;
         font-weight: 700;
         letter-spacing: -0.02em;
+        line-height: 1.6;
+        text-transform: capitalize;
+    }
+
+    .date {
+        width: 72px;
+    }
+
+    .date time {
+        display: grid;
+        justify-items: start;
+    }
+
+    .d {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: 2rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+
+    .wd {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .holiday strong {
+        display: block;
+        padding-top: 3px;
+        color: var(--ink);
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .note {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.86rem;
+    }
+
+    .badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--red);
+        color: #fff;
+        font-family: var(--font-body);
+        font-size: 0.7rem;
+        font-weight: 700;
+        vertical-align: 2px;
+    }
+
+    /* Los meses sin festivos quedan en segundo plano */
+    .empty .month {
+        color: var(--muted);
+    }
+
+    .none {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.85;
+    }
+
+    .is-past {
+        opacity: 0.45;
+    }
+
+    .is-next strong::after,
+    .is-today strong::after {
+        margin-left: 8px;
+        color: var(--red);
+        font-size: 0.8rem;
+        font-weight: 700;
+        content: "· Próximo";
+    }
+
+    .is-today strong::after {
+        content: "· Hoy";
+    }
+
+    /* Calendario de pared y puentes */
+    .calendar-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+        gap: 0 clamp(32px, 5vw, 64px);
+        align-items: start;
+    }
+
+    .wall {
+        position: relative;
+        padding: clamp(36px, 4vw, 48px) clamp(18px, 3vw, 36px) clamp(20px, 3vw, 32px);
+        border: 1px solid var(--line-strong);
+        border-radius: 18px;
+        background: var(--sheet);
+        box-shadow: 0 40px 70px -50px rgba(21, 25, 30, 0.45);
+    }
+
+    /* Perforaciones de la espiral */
+    .wall::before {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        width: min(56%, 340px);
+        height: 8px;
+        background: radial-gradient(circle, var(--line-strong) 3px, transparent 3.5px) 0 0 / 16px 8px
+            repeat-x;
+        transform: translateX(-50%);
+        content: "";
+    }
+
+    .year {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(22px, 3vw, 34px) clamp(16px, 2.5vw, 30px);
+    }
+
+    .cal-name {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.02rem;
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .cal-name span {
+        color: var(--muted);
+        font-family: var(--font-body);
+        font-size: 0.72rem;
+        font-weight: 500;
+        text-transform: none;
+    }
+
+    .cal-weekdays,
+    .cal-days {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .cal-weekdays i {
+        padding-bottom: 4px;
+        color: var(--muted);
+        font-size: 0.66rem;
+        font-style: normal;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .cal-weekdays i::before {
+        content: attr(data-w);
+    }
+
+    .cal-weekdays i:first-child {
+        color: var(--red);
+    }
+
+    /* Los números salen de un contador CSS: el HTML no se llena de "1 2 3 4…" */
+    .cal-days {
+        row-gap: 2px;
+        counter-reset: day;
+    }
+
+    .cal-days li {
+        position: relative;
+        display: grid;
+        place-items: center;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        color: var(--text);
+        font-size: 0.74rem;
+        font-variant-numeric: tabular-nums;
+        counter-increment: day;
+    }
+
+    .cal-days li::before {
+        content: counter(day);
+    }
+
+    .cal-days li:first-child {
+        grid-column-start: var(--offset);
+    }
+
+    .cal-days .sun {
+        color: var(--red);
+    }
+
+    .cal-days .bridge {
+        background: var(--red-soft);
+        color: var(--red-ink);
+    }
+
+    .cal-days .hol {
+        background: var(--red);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .cal-days .is-today {
+        box-shadow: inset 0 0 0 2px var(--ink);
+    }
+
+    .cal-days [data-name]:hover::after {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        z-index: 2;
+        padding: 5px 9px;
+        border-radius: 6px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transform: translateX(-50%);
+        pointer-events: none;
+        content: attr(data-name);
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+        margin-top: 26px;
+        color: var(--text-soft);
+        font-size: 0.85rem;
+    }
+
+    .legend li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend i {
+        display: grid;
+        place-items: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        font-size: 0.7rem;
+        font-style: normal;
+        font-weight: 600;
+    }
+
+    .key-hol {
+        background: var(--red);
+    }
+
+    .key-bridge {
+        background: var(--red-soft);
+    }
+
+    .key-sun {
+        color: var(--red);
+    }
+
+    .key-leave {
+        background: var(--ink);
+    }
+
+    #vacaciones .legend i {
+        border-radius: 4px;
+    }
+
+    #puentes {
+        margin-top: clamp(4.5rem, 10vw, 8rem);
+    }
+
+    .bridges > li {
+        display: grid;
+        grid-template-columns: 128px minmax(0, 1fr);
+        gap: 16px;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .bridges > li:first-child {
+        border-top: 2px solid var(--ink);
+    }
+
+    .bridge-name {
+        color: var(--ink);
+        font-size: 0.98rem;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .bridge-dates {
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+
+    /* Tira de días: festivos, fines de semana y días que se piden */
+    .strip {
+        display: flex;
+        gap: 4px;
+    }
+
+    .strip li {
+        display: grid;
+        gap: 3px;
+        justify-items: center;
+        width: 28px;
+    }
+
+    .strip li::before {
+        color: var(--muted);
+        font-size: 0.62rem;
+        font-weight: 600;
+        content: attr(data-w);
+    }
+
+    .strip li::after {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 7px;
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        content: attr(data-d);
+    }
+
+    .strip .off::after {
+        background: var(--red-soft);
+        color: var(--red-ink);
+    }
+
+    .strip .hol::after {
+        background: var(--red);
+        color: #fff;
+    }
+
+    .strip .leave::after {
+        background: var(--ink);
+        color: #fff;
+    }
+
+    /* Planes de vacaciones */
+    .plans {
+        border-top: 2px solid var(--ink);
+    }
+
+    .plan {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr) auto;
+        gap: 18px 40px;
+        align-items: center;
+        padding: 26px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .ratio {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .ratio span {
+        display: grid;
+        gap: 4px;
+        max-width: 12ch;
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.2;
+    }
+
+    .ratio b {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 3rem;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.9;
+    }
+
+    .ratio .rest b {
+        color: var(--red);
+    }
+
+    .ratio .ask {
+        position: relative;
+        padding-right: 30px;
+    }
+
+    .ratio .ask::after {
+        position: absolute;
+        top: 12px;
+        right: 4px;
+        color: var(--muted);
+        font-size: 1.2rem;
+        content: "→";
+    }
+
+    .plan h3 {
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+    }
+
+    .plan-text p {
+        margin-top: 4px;
+        font-size: 0.95rem;
+    }
+
+    #vacaciones .legend {
+        margin-top: 20px;
+    }
+
+    /* Ley Emiliani */
+    .law {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .law-text h2 {
+        margin-bottom: 24px;
+    }
+
+    .law-text p + p {
+        margin-top: 14px;
+    }
+
+    .law-text a {
+        color: var(--ink);
+    }
+
+    blockquote {
+        margin: 22px 0;
+        padding-left: 20px;
+        border-left: 3px solid var(--red);
+    }
+
+    blockquote p {
+        color: var(--ink);
+        font-family: var(--font-serif);
+        font-size: clamp(1.45rem, 1.2rem + 0.8vw, 1.8rem);
+        font-style: italic;
+        line-height: 1.2;
+    }
+
+    blockquote footer {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .moves caption {
+        font-size: 1.1rem;
+    }
+
+    .moves th,
+    .moves td {
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.92rem;
+        text-align: left;
+    }
+
+    .moves thead th {
+        padding-top: 14px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .moves tbody th {
+        padding-right: 12px;
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .moves .from {
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    .moves .to {
+        padding-left: 12px;
+        color: var(--red-ink);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .moves .from time::after {
+        margin-left: 10px;
+        color: var(--line-strong);
+        content: "→";
+    }
+
+    /* Fechas que no son festivo */
+    .others {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0 40px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .others li {
+        display: grid;
+        gap: 2px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .others strong {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .others time {
+        color: var(--text-soft);
+        font-size: 0.92rem;
+    }
+
+    .others span {
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    /* Preguntas */
+    .faq {
+        display: grid;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+        gap: 0 clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .faq .head {
+        position: sticky;
+        top: 24px;
+    }
+
+    details {
+        border-bottom: 1px solid var(--line);
+    }
+
+    details:first-child {
+        border-top: 2px solid var(--ink);
+    }
+
+    summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.12rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
         cursor: pointer;
         list-style: none;
     }
@@ -385,11 +1831,14 @@ const jsonLd = [
 
     summary::after {
         flex: none;
-        color: var(--blue);
-        font-size: 1.5rem;
-        font-weight: 400;
-        content: "+";
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        background:
+            linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat,
+            linear-gradient(var(--ink), var(--ink)) center / 2px 100% no-repeat;
         transition: transform 250ms var(--ease-out);
+        content: "";
     }
 
     details[open] summary::after {
@@ -397,319 +1846,254 @@ const jsonLd = [
     }
 
     details p {
-        padding-bottom: 18px;
-        font-size: 1.02rem;
+        max-width: 62ch;
+        padding-bottom: 22px;
     }
 
-    .lead {
-        max-width: 46ch;
-        margin-top: 18px;
-        font-size: 1.15rem;
-    }
-
-    /* Tarjeta de estado de hoy */
-    .status {
-        position: relative;
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        align-items: center;
-        gap: 6px 28px;
-        overflow: hidden;
-        margin-top: 2.5rem;
-        padding: clamp(24px, 4vw, 40px);
-        border-radius: 32px;
-        background:
-            radial-gradient(circle at 100% 0%, rgba(252, 209, 22, 0.25), transparent 50%),
-            radial-gradient(circle at 0% 100%, rgba(0, 56, 147, 0.45), transparent 55%),
-            var(--dark);
-        color: #fff;
-    }
-
-    .status.yes {
-        background:
-            radial-gradient(circle at 100% 0%, rgba(206, 17, 38, 0.35), transparent 55%),
-            radial-gradient(circle at 0% 100%, rgba(0, 56, 147, 0.5), transparent 55%),
-            linear-gradient(135deg, #f2bd00, #fcd116);
-        color: var(--ink);
-    }
-
-    .status-label {
-        grid-column: 1 / -1;
-        color: inherit;
-        font-family: var(--font-mono);
-        font-size: 0.8rem;
-        letter-spacing: 0.08em;
-        opacity: 0.75;
-        text-transform: uppercase;
-    }
-
-    .status-answer {
-        color: inherit;
-        font-family: var(--font-display);
-        font-size: clamp(4rem, 12vw, 7.5rem);
-        font-weight: 800;
-        letter-spacing: -0.05em;
-        line-height: 1;
-    }
-
-    .status-detail {
-        color: inherit;
-        font-size: 1.2rem;
-        opacity: 0.85;
-    }
-
-    .next {
+    /* Pie */
+    .colophon {
         display: flex;
         flex-wrap: wrap;
-        grid-column: 1 / -1;
-        align-items: baseline;
-        gap: 6px 14px;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.16);
-        font-size: 0.95rem;
+        justify-content: space-between;
+        gap: 12px 40px;
+        margin-top: clamp(5rem, 10vw, 8rem);
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
     }
 
-    .status.yes .next {
-        border-color: rgba(21, 25, 30, 0.2);
+    .colophon p {
+        color: var(--muted);
+        font-size: 0.88rem;
     }
 
-    .next span:first-child {
-        opacity: 0.7;
-    }
-
-    .next strong {
-        font-family: var(--font-display);
-        font-size: 1.3rem;
-    }
-
-    .next span:not(:first-child) {
-        opacity: 0.8;
-    }
-
-    .countdown {
-        margin-left: auto;
-        padding: 6px 14px;
-        border-radius: 999px;
-        background: var(--yellow);
+    .colophon a {
         color: var(--ink);
-        font-size: 0.85rem;
     }
 
-    .status.yes .countdown {
-        background: var(--ink);
-        color: #fff;
-    }
+    @media (max-width: 1023px) {
+        .hero,
+        .calendar-layout,
+        .law,
+        .faq {
+            grid-template-columns: minmax(0, 1fr);
+        }
 
-    .stats {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-        margin: 16px 0 0;
-    }
+        .today-body {
+            grid-template-columns: 150px minmax(0, 1fr);
+            align-items: center;
+        }
 
-    .stats div {
-        padding: 20px 22px;
-        border: 1px solid var(--line);
-        border-radius: var(--radius-lg);
-        background: var(--surface);
-    }
+        .tile {
+            height: 176px;
+        }
 
-    .stats dt {
-        color: var(--muted);
-        font-size: 0.85rem;
-    }
+        .band {
+            padding: 12px 0 9px;
+            font-size: 0.66rem;
+            letter-spacing: 0.12em;
+        }
 
-    .stats dd {
-        margin: 6px 0 0;
-        color: var(--ink);
-        font-family: var(--font-display);
-        font-size: 2rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-    }
+        .day {
+            font-size: 4.6rem;
+        }
 
-    /* Meses */
-    .months {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px;
-    }
+        .cover .day {
+            font-size: 2.9rem;
+        }
 
-    .month {
-        padding: 24px;
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        background: var(--surface);
-    }
+        .weekday {
+            padding-bottom: 14px;
+            font-size: 0.68rem;
+        }
 
-    h2 {
-        margin-bottom: 14px;
-        font-size: 1.7rem;
-        letter-spacing: -0.035em;
-        text-transform: capitalize;
-    }
+        .today-body {
+            align-items: start;
+        }
 
-    .month ul {
-        display: grid;
-        gap: 8px;
-    }
+        .bridges {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 40px;
+        }
 
-    .holiday {
-        --tone: var(--blue);
-        --tone-soft: #e6edf8;
+        .bridges > li:nth-child(2) {
+            border-top: 2px solid var(--ink);
+        }
 
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding: 10px;
-        border-radius: 18px;
-        background: var(--background);
-        transition:
-            transform 250ms var(--ease-out),
-            opacity 250ms ease;
-    }
+        .plan {
+            grid-template-columns: 230px minmax(0, 1fr);
+        }
 
-    .holiday:hover {
-        transform: translateX(4px);
-    }
+        .plan .strip {
+            grid-column: 2;
+        }
 
-    .holiday.fijo {
-        --tone: var(--red);
-        --tone-soft: #fbe4e7;
-    }
+        .faq .head {
+            position: static;
+        }
 
-    .holiday.semana-santa {
-        --tone: #8a6a00;
-        --tone-soft: #fff4c7;
-    }
-
-    .day {
-        display: grid;
-        flex: none;
-        place-items: center;
-        width: 64px;
-        height: 64px;
-        border-radius: 16px;
-        background: var(--tone-soft);
-        color: var(--tone);
-    }
-
-    .day strong {
-        font-family: var(--font-display);
-        font-size: 1.7rem;
-        font-weight: 800;
-        line-height: 1;
-    }
-
-    .day span {
-        font-size: 0.72rem;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .info h3 {
-        font-size: 1.08rem;
-        letter-spacing: -0.02em;
-    }
-
-    .month.empty {
-        background: transparent;
-        border-style: dashed;
-    }
-
-    .no-holidays {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 18px;
-        border-radius: 18px;
-        background: var(--background);
-        color: var(--muted);
-        font-size: 1rem;
-    }
-
-    .no-holidays span {
-        font-size: 1.4rem;
-    }
-
-    .weekday {
-        margin-top: 2px;
-        color: var(--text-soft);
-        font-size: 0.92rem;
-        font-weight: 500;
-        line-height: 1.4;
-    }
-
-    .tag {
-        display: inline-block;
-        margin-top: 4px;
-        color: var(--tone);
-        font-family: var(--font-mono);
-        font-size: 0.7rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-
-    .marker:empty {
-        display: none;
-    }
-
-    .marker {
-        margin-left: auto;
-        padding: 5px 11px;
-        border-radius: 999px;
-        background: var(--ink);
-        color: #fff;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .is-past {
-        opacity: 0.45;
-    }
-
-    .is-next {
-        background: #fff8d6;
-        box-shadow: inset 0 0 0 2px var(--yellow);
-    }
-
-    .is-today {
-        background: var(--yellow);
-        box-shadow: 0 16px 32px -18px rgba(206, 17, 38, 0.8);
-    }
-
-    .is-today .marker {
-        background: var(--red);
-    }
-
-    .note {
-        margin-top: 2rem;
-        color: var(--muted);
-        font-size: 0.85rem;
-        text-align: center;
+        .others {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 760px) {
-        .months {
+        .head,
+        .semesters,
+        .bridges,
+        .others {
             grid-template-columns: minmax(0, 1fr);
         }
 
-        .stats {
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        .bridges > li:nth-child(2) {
+            border-top: 0;
         }
 
-        .stats div:last-child {
-            grid-column: 1 / -1;
+        .semesters table + table {
+            border-top-width: 0;
         }
 
-        .status {
+        .month {
+            width: 104px;
+            font-size: 1.02rem;
+        }
+
+        .facts {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .facts div:nth-child(3) {
+            padding-left: 0;
+            border-left: 0;
+        }
+
+        .facts div:nth-child(n + 3) {
+            border-top: 1px solid var(--line);
+        }
+
+        .year {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .plan {
             grid-template-columns: minmax(0, 1fr);
         }
 
-        .countdown {
-            margin-left: 0;
+        .plan .strip {
+            grid-column: auto;
+            flex-wrap: wrap;
+        }
+
+        .strip li {
+            width: 26px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .today-body {
+            grid-template-columns: 118px minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .tile {
+            height: 150px;
+        }
+
+        .day {
+            font-size: 3.8rem;
+        }
+
+        .cover .day {
+            font-size: 2.3rem;
+        }
+
+        .verdict {
+            font-size: 1.6rem;
+        }
+
+        .moves .from time::after {
+            content: none;
+        }
+    }
+
+    /* Al imprimir: el almanaque del año en una sola hoja */
+    @media print {
+        .flag {
+            display: none;
+        }
+
+        main {
+            width: 100%;
+            padding: 0;
+        }
+
+        .hero {
+            display: none;
+        }
+
+        .calendar-layout {
+            display: block;
+        }
+
+        section:not(.hero) {
+            margin: 0;
+        }
+
+        #calendario .head {
+            display: none;
+        }
+
+        .wall {
+            padding: 0;
+            border: 0;
+            box-shadow: none;
+        }
+
+        .wall::before {
+            display: none;
+        }
+
+        .print-title {
+            margin-bottom: 8mm;
+            color: var(--ink);
+            font-family: var(--font-display);
+            font-size: 26pt;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+
+        .year {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7mm 6mm;
+        }
+
+        .cal-month {
+            break-inside: avoid;
+        }
+
+        .cal-days li {
+            font-size: 7.5pt;
+        }
+
+        .cal-list {
+            margin-top: 2mm;
+            font-size: 7pt;
+            line-height: 1.35;
+        }
+
+        .cal-list b {
+            color: var(--red);
+        }
+
+        .legend {
+            margin-top: 6mm;
+            font-size: 8pt;
+        }
+
+        .print-foot {
+            margin-top: 4mm;
+            color: var(--muted);
+            font-size: 8pt;
         }
     }
 </style>

@@ -48,13 +48,15 @@ const months = Array.from({ length: 12 }, (_, index) => {
         name: format(`2027-${month}-01`, { month: "long" }),
         holidays: holidays.filter(({ date }) => date.slice(5, 7) === month),
     };
-}).filter(({ holidays }) => holidays.length > 0);
+});
 
 const bridges = holidays.filter(({ date }) => toDate(date).getUTCDay() === 1)
     .length;
 
 const longDate = (date: string) =>
     format(date, { weekday: "long", day: "numeric", month: "long" });
+
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const faqs = [
     {
@@ -156,8 +158,14 @@ const jsonLd = [
         <div class="months">
             {
                 months.map((month) => (
-                    <section class="month">
+                    <section class:list={["month", { empty: month.holidays.length === 0 }]}>
                         <h2>{month.name}</h2>
+                        {month.holidays.length === 0 ? (
+                            <p class="no-holidays">
+                                <span aria-hidden="true">☕</span>
+                                Este mes no tiene festivos
+                            </p>
+                        ) : (
                         <ul>
                             {month.holidays.map((holiday) => (
                                 <li class={`holiday ${holiday.type}`} data-date={holiday.date}>
@@ -167,12 +175,14 @@ const jsonLd = [
                                     </div>
                                     <div class="info">
                                         <h3>{holiday.name}</h3>
+                                        <p class="weekday">{capitalize(longDate(holiday.date))}</p>
                                         <span class="tag">{TYPE_LABELS[holiday.type]}</span>
                                     </div>
                                     <span class="marker" data-marker></span>
                                 </li>
                             ))}
                         </ul>
+                        )}
                     </section>
                 ))
             }
@@ -602,6 +612,34 @@ const jsonLd = [
     .info h3 {
         font-size: 1.08rem;
         letter-spacing: -0.02em;
+    }
+
+    .month.empty {
+        background: transparent;
+        border-style: dashed;
+    }
+
+    .no-holidays {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--background);
+        color: var(--muted);
+        font-size: 1rem;
+    }
+
+    .no-holidays span {
+        font-size: 1.4rem;
+    }
+
+    .weekday {
+        margin-top: 2px;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+        font-weight: 500;
+        line-height: 1.4;
     }
 
     .tag {

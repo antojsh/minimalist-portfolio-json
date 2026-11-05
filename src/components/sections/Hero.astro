@@ -22,7 +22,7 @@ const printInfo = [email, linkedUrl].filter(Boolean).join(" • ");
 
 <header class="hero">
     <nav class="topbar no-print" aria-label="Secciones">
-        <a class="brand" href="#" aria-label="Volver al inicio">
+        <a class="brand" href="#" aria-label={name}>
             <span class="monogram" aria-hidden="true">
                 {initials}
             </span>
@@ -69,7 +69,7 @@ const printInfo = [email, linkedUrl].filter(Boolean).join(" • ");
 
     <figure class="portrait">
         <div class="frame">
-            <img src={image} alt={name} width="340" height="340" />
+            <img src={image} alt={name} width="340" height="340" fetchpriority="high" />
             <span class="handle top left" aria-hidden="true"></span>
             <span class="handle top right" aria-hidden="true"></span>
             <span class="handle bottom left" aria-hidden="true"></span>

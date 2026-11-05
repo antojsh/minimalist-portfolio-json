@@ -11,10 +11,38 @@ import Skills from "@/components/sections/Skills.astro";
 import KeyboardManager from "@/components/KeyboardManager.astro";
 
 import { basics } from "@cv";
-const { name, label } = basics;
+const { name, label, email, image, profiles, location } = basics;
+const site = Astro.site?.href ?? "/";
+
+const jsonLd = [
+    {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        name,
+        jobTitle: "Desarrollador Full Stack",
+        description: label,
+        url: site,
+        email: `mailto:${email}`,
+        image: new URL(image, site).href,
+        address: {
+            "@type": "PostalAddress",
+            addressLocality: location.city,
+            addressCountry: location.countryCode,
+        },
+        sameAs: profiles.map(({ url }) => url),
+        knowsAbout: ["Angular", "TypeScript", "Node.js", "Sistemas de diseño", "Desarrollo web"],
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: `Portafolio de ${name}`,
+        url: site,
+        inLanguage: "es-CO",
+    },
+];
 ---
 
-<Layout title={`Portafolio de ${name} - ${label}`}>
+<Layout title={`Portafolio de ${name} - ${label}`} type="profile" jsonLd={jsonLd}>
     <main>
         <Hero />
         <About />

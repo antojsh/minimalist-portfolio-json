@@ -3,34 +3,81 @@ import { basics } from "@cv"
 
 interface Props {
   title: string
+  description?: string
+  image?: string
+  imageAlt?: string
+  type?: "website" | "article" | "profile"
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[]
 }
 
-const { title } = Astro.props
-const description =
-  "Portafolio de Antonio Sierra Hurtado, desarrollador frontend especializado en interfaces, sistemas de diseño y productos digitales."
+const {
+  title,
+  description = "Portafolio de Antonio Sierra Hurtado, desarrollador full stack con foco en frontend: interfaces, sistemas de diseño, APIs con Node.js y apps móviles.",
+  image = basics.image,
+  imageAlt = basics.name,
+  type = "website",
+  jsonLd,
+} = Astro.props
+
+// Imagen panorámica propia → tarjeta grande; avatar cuadrado → tarjeta normal
+const twitterCard = Astro.props.image ? "summary_large_image" : "summary"
+
+const canonical = new URL(Astro.url.pathname.replace(/\/$/, "") || "/", Astro.site)
+const imageUrl = new URL(image, Astro.site)
+const fontsUrl =
+  "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Serif:ital@1&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang="es-CO">
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={description} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content={basics.name} />
     <meta name="theme-color" content="#f6f3ed" />
-    <meta property="og:type" content="website" />
+
+    <meta property="og:type" content={type} />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:site_name" content={basics.name} />
+    <meta property="og:url" content={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={basics.image} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:alt" content={imageAlt} />
+    <meta name="twitter:card" content={twitterCard} />
+    <meta name="twitter:site" content="@antojsh" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="sitemap" href="/sitemap.xml" />
+
+    <!-- Fuentes sin bloquear el renderizado: se cargan en segundo plano -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href={fontsUrl} />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Serif:ital@1&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"
+      href={fontsUrl}
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript><link rel="stylesheet" href={fontsUrl} /></noscript>
+
+    {
+      jsonLd && (
+        <script
+          type="application/ld+json"
+          set:html={JSON.stringify(jsonLd)}
+        />
+      )
+    }
     <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
   </head>
   <body>
     <slot />

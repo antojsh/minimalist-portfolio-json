@@ -58,7 +58,7 @@ const profilesInfo = profiles.map(({ network, url }) => {
 <button
   class="palette-trigger no-print"
   type="button"
-  aria-label="Abrir la paleta de comandos"
+  title="Abrir la paleta de comandos"
 >
   <span class="keys" aria-hidden="true">
     <kbd data-modifier>⌘</kbd><kbd>K</kbd>
@@ -72,7 +72,9 @@ const profilesInfo = profiles.map(({ network, url }) => {
   hideBreadcrumbs></ninja-keys>
 
 <script>
-  import "ninja-keys"
+  // ninja-keys se descarga cuando el navegador está libre (o al primer clic),
+  // así no compite con la carga inicial de la página
+  const loadPalette = () => import("ninja-keys")
 
   const ninja = document.querySelector("ninja-keys")
 
@@ -110,7 +112,17 @@ const profilesInfo = profiles.map(({ network, url }) => {
     const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent)
 
     if (modifier != null && !isApple) modifier.textContent = "Ctrl"
-    trigger?.addEventListener("click", () => ninja.open())
+    trigger?.addEventListener("click", async () => {
+      await loadPalette()
+      await customElements.whenDefined("ninja-keys")
+      ninja.open()
+    })
+
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(() => loadPalette(), { timeout: 3000 })
+    } else {
+      setTimeout(loadPalette, 2000)
+    }
   }
 </script>
 

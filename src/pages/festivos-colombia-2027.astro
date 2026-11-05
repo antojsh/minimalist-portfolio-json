@@ -1,0 +1,677 @@
+---
+import Layout from "@/layouts/Layout.astro";
+
+interface Holiday {
+    date: string;
+    name: string;
+    type: "fijo" | "puente" | "semana-santa";
+}
+
+// Ley 51 de 1983 (Ley Emiliani): los festivos "puente" se trasladan al lunes.
+// Pascua 2027: 28 de marzo.
+const holidays: Holiday[] = [
+    { date: "2027-01-01", name: "Año Nuevo", type: "fijo" },
+    { date: "2027-01-11", name: "Día de los Reyes Magos", type: "puente" },
+    { date: "2027-03-22", name: "Día de San José", type: "puente" },
+    { date: "2027-03-25", name: "Jueves Santo", type: "semana-santa" },
+    { date: "2027-03-26", name: "Viernes Santo", type: "semana-santa" },
+    { date: "2027-05-01", name: "Día del Trabajo", type: "fijo" },
+    { date: "2027-05-10", name: "Ascensión del Señor", type: "puente" },
+    { date: "2027-05-31", name: "Corpus Christi", type: "puente" },
+    { date: "2027-06-07", name: "Sagrado Corazón de Jesús", type: "puente" },
+    { date: "2027-07-05", name: "San Pedro y San Pablo", type: "puente" },
+    { date: "2027-07-20", name: "Día de la Independencia", type: "fijo" },
+    { date: "2027-08-07", name: "Batalla de Boyacá", type: "fijo" },
+    { date: "2027-08-16", name: "Asunción de la Virgen", type: "puente" },
+    { date: "2027-10-18", name: "Día de la Raza", type: "puente" },
+    { date: "2027-11-01", name: "Día de Todos los Santos", type: "puente" },
+    { date: "2027-11-15", name: "Independencia de Cartagena", type: "puente" },
+    { date: "2027-12-08", name: "Inmaculada Concepción", type: "fijo" },
+    { date: "2027-12-25", name: "Navidad", type: "fijo" },
+];
+
+const TYPE_LABELS: Record<Holiday["type"], string> = {
+    fijo: "Fecha fija",
+    puente: "Puente festivo",
+    "semana-santa": "Semana Santa",
+};
+
+const toDate = (date: string) => new Date(`${date}T12:00:00Z`);
+const format = (date: string, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("es-CO", { timeZone: "UTC", ...options }).format(
+        toDate(date),
+    );
+
+const months = Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, "0");
+    return {
+        name: format(`2027-${month}-01`, { month: "long" }),
+        holidays: holidays.filter(({ date }) => date.slice(5, 7) === month),
+    };
+}).filter(({ holidays }) => holidays.length > 0);
+
+const bridges = holidays.filter(({ date }) => toDate(date).getUTCDay() === 1)
+    .length;
+
+const longDate = (date: string) =>
+    format(date, { weekday: "long", day: "numeric", month: "long" });
+
+const faqs = [
+    {
+        question: "¿Cuántos festivos tiene Colombia en 2027?",
+        answer: `Colombia tiene ${holidays.length} días festivos en 2027, de los cuales ${bridges} caen en lunes y forman puentes.`,
+    },
+    {
+        question: "¿Cuándo es Semana Santa en 2027?",
+        answer: "Los festivos de Semana Santa en 2027 son el jueves 25 y el viernes 26 de marzo. El Domingo de Pascua es el 28 de marzo.",
+    },
+    {
+        question: "¿Cuál es el primer puente festivo de 2027?",
+        answer: "El primer puente del año es el lunes 11 de enero de 2027, por el Día de los Reyes Magos.",
+    },
+    {
+        question: "¿Por qué algunos festivos se pasan al lunes?",
+        answer: "La Ley 51 de 1983, conocida como Ley Emiliani, traslada varios festivos al lunes siguiente para crear fines de semana largos.",
+    },
+];
+
+const pageUrl = new URL("/festivos-colombia-2027", Astro.site).href;
+const description = `Calendario de los ${holidays.length} festivos de Colombia en 2027: fechas, ${bridges} puentes festivos, Semana Santa y si hoy es festivo.`;
+
+const jsonLd = [
+    {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Festivos en Colombia 2027",
+        description,
+        url: pageUrl,
+        inLanguage: "es-CO",
+        mainEntity: {
+            "@type": "ItemList",
+            name: "Días festivos de Colombia en 2027",
+            numberOfItems: holidays.length,
+            itemListElement: holidays.map((holiday, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                name: `${holiday.name}: ${longDate(holiday.date)} de 2027`,
+            })),
+        },
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map(({ question, answer }) => ({
+            "@type": "Question",
+            name: question,
+            acceptedAnswer: { "@type": "Answer", text: answer },
+        })),
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Inicio", item: Astro.site?.href },
+            { "@type": "ListItem", position: 2, name: "Festivos Colombia 2027", item: pageUrl },
+        ],
+    },
+];
+---
+
+<Layout
+    title="Festivos en Colombia 2027: calendario completo y puentes"
+    description={description}
+    image="/og/festivos-colombia-2027.png"
+    imageAlt="Calendario de festivos en Colombia 2027"
+    jsonLd={jsonLd}
+>
+    <main>
+        <header class="hero">
+            <div class="flag" aria-hidden="true"><span></span><span></span><span></span></div>
+            <p class="eyebrow">Calendario oficial · Colombia</p>
+            <h1>Festivos <span class="h1-country">en Colombia</span> <em>2027</em></h1>
+            <p class="lead">
+                Todos los días festivos de Colombia en 2027, con sus puentes y la
+                Semana Santa.
+            </p>
+
+            <section class="status" data-status aria-live="polite">
+                <p class="status-label">¿Hoy es festivo?</p>
+                <p class="status-answer" data-answer>…</p>
+                <p class="status-detail" data-detail>Revisando el calendario</p>
+                <div class="next" data-next hidden>
+                    <span>Próximo festivo</span>
+                    <strong data-next-name></strong>
+                    <span data-next-date></span>
+                    <b class="countdown" data-countdown></b>
+                </div>
+            </section>
+
+            <dl class="stats">
+                <div><dt>Festivos</dt><dd>{holidays.length}</dd></div>
+                <div><dt>Puentes (lunes)</dt><dd>{bridges}</dd></div>
+                <div><dt>Semana Santa</dt><dd>25–26 mar</dd></div>
+            </dl>
+        </header>
+
+        <div class="months">
+            {
+                months.map((month) => (
+                    <section class="month">
+                        <h2>{month.name}</h2>
+                        <ul>
+                            {month.holidays.map((holiday) => (
+                                <li class={`holiday ${holiday.type}`} data-date={holiday.date}>
+                                    <div class="day">
+                                        <strong>{format(holiday.date, { day: "numeric" })}</strong>
+                                        <span>{format(holiday.date, { weekday: "short" })}</span>
+                                    </div>
+                                    <div class="info">
+                                        <h3>{holiday.name}</h3>
+                                        <span class="tag">{TYPE_LABELS[holiday.type]}</span>
+                                    </div>
+                                    <span class="marker" data-marker></span>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                ))
+            }
+        </div>
+
+        <section class="faq" aria-labelledby="faq-title">
+            <h2 id="faq-title">Preguntas frecuentes</h2>
+            {
+                faqs.map(({ question, answer }) => (
+                    <details>
+                        <summary>{question}</summary>
+                        <p>{answer}</p>
+                    </details>
+                ))
+            }
+        </section>
+
+        <p class="note">
+            Fechas según la Ley 51 de 1983. Los festivos trasladables se mueven al
+            lunes siguiente.
+        </p>
+    </main>
+</Layout>
+
+<script define:vars={{ holidays }}>
+    // Fecha de hoy en hora de Colombia, en formato AAAA-MM-DD
+    const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Bogota",
+    }).format(new Date());
+
+    const dayMs = 86_400_000;
+    const daysBetween = (from, to) =>
+        Math.round((Date.parse(to) - Date.parse(from)) / dayMs);
+    const longDate = (date) =>
+        new Intl.DateTimeFormat("es-CO", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            timeZone: "UTC",
+        }).format(new Date(`${date}T12:00:00Z`)).replace(/^./, (letter) => letter.toUpperCase());
+
+    const status = document.querySelector("[data-status]");
+    const todayHoliday = holidays.find(({ date }) => date === today);
+    const next = holidays.find(({ date }) => date > today);
+
+    if (todayHoliday) {
+        status.classList.add("yes");
+        status.querySelector("[data-answer]").textContent = "¡Sí!";
+        status.querySelector("[data-detail]").textContent =
+            `Hoy es ${todayHoliday.name}. Disfruta el descanso.`;
+    } else {
+        status.classList.add("no");
+        status.querySelector("[data-answer]").textContent = "No";
+        status.querySelector("[data-detail]").textContent =
+            today < "2027-01-01"
+                ? "Aún no empieza 2027, pero así viene el año."
+                : today > "2027-12-31"
+                  ? "El 2027 ya terminó."
+                  : "Hoy es un día hábil en Colombia.";
+    }
+
+    if (next) {
+        const days = daysBetween(today, next.date);
+        status.querySelector("[data-next]").hidden = false;
+        status.querySelector("[data-next-name]").textContent = next.name;
+        status.querySelector("[data-next-date]").textContent = longDate(next.date);
+        status.querySelector("[data-countdown]").textContent =
+            days === 1 ? "Mañana" : `Faltan ${days} días`;
+    }
+
+    document.querySelectorAll("[data-date]").forEach((item) => {
+        const { date } = item.dataset;
+        if (date === today) item.classList.add("is-today");
+        else if (date < today) item.classList.add("is-past");
+        else if (date === next?.date) item.classList.add("is-next");
+
+        const marker = item.querySelector("[data-marker]");
+        if (date === today) marker.textContent = "Hoy";
+        else if (date === next?.date) marker.textContent = "Próximo";
+    });
+</script>
+
+<style>
+    main {
+        --yellow: #fcd116;
+        --blue: #003893;
+        --red: #ce1126;
+
+        width: min(1080px, 100%);
+        padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+        margin: auto;
+    }
+
+    .hero {
+        position: relative;
+        padding-bottom: 3rem;
+    }
+
+    .flag {
+        display: flex;
+        width: 72px;
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+    }
+
+    .flag span:nth-child(1) {
+        flex: 2;
+        background: var(--yellow);
+    }
+
+    .flag span:nth-child(2) {
+        flex: 1;
+        background: var(--blue);
+    }
+
+    .flag span:nth-child(3) {
+        flex: 1;
+        background: var(--red);
+    }
+
+    .eyebrow {
+        margin-top: 22px;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    h1 {
+        margin-top: 10px;
+        font-size: clamp(3.5rem, 12vw, 8rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.9;
+    }
+
+    h1 em {
+        background: linear-gradient(
+            90deg,
+            #e0a800 0%,
+            var(--blue) 55%,
+            var(--red) 100%
+        );
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        font-family: var(--font-serif);
+        font-weight: 400;
+        letter-spacing: -0.02em;
+        padding-right: 0.08em;
+    }
+
+    .h1-country {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text-soft);
+        font-size: 0.32em;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+    }
+
+    .faq {
+        margin-top: 3rem;
+        padding: clamp(24px, 4vw, 40px);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--surface);
+    }
+
+    .faq h2 {
+        margin-bottom: 10px;
+        text-transform: none;
+    }
+
+    details {
+        border-top: 1px solid var(--line);
+    }
+
+    summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+        display: none;
+    }
+
+    summary::after {
+        flex: none;
+        color: var(--blue);
+        font-size: 1.5rem;
+        font-weight: 400;
+        content: "+";
+        transition: transform 250ms var(--ease-out);
+    }
+
+    details[open] summary::after {
+        transform: rotate(45deg);
+    }
+
+    details p {
+        padding-bottom: 18px;
+        font-size: 1.02rem;
+    }
+
+    .lead {
+        max-width: 46ch;
+        margin-top: 18px;
+        font-size: 1.15rem;
+    }
+
+    /* Tarjeta de estado de hoy */
+    .status {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 6px 28px;
+        overflow: hidden;
+        margin-top: 2.5rem;
+        padding: clamp(24px, 4vw, 40px);
+        border-radius: 32px;
+        background:
+            radial-gradient(circle at 100% 0%, rgba(252, 209, 22, 0.25), transparent 50%),
+            radial-gradient(circle at 0% 100%, rgba(0, 56, 147, 0.45), transparent 55%),
+            var(--dark);
+        color: #fff;
+    }
+
+    .status.yes {
+        background:
+            radial-gradient(circle at 100% 0%, rgba(206, 17, 38, 0.35), transparent 55%),
+            radial-gradient(circle at 0% 100%, rgba(0, 56, 147, 0.5), transparent 55%),
+            linear-gradient(135deg, #f2bd00, #fcd116);
+        color: var(--ink);
+    }
+
+    .status-label {
+        grid-column: 1 / -1;
+        color: inherit;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        opacity: 0.75;
+        text-transform: uppercase;
+    }
+
+    .status-answer {
+        color: inherit;
+        font-family: var(--font-display);
+        font-size: clamp(4rem, 12vw, 7.5rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .status-detail {
+        color: inherit;
+        font-size: 1.2rem;
+        opacity: 0.85;
+    }
+
+    .next {
+        display: flex;
+        flex-wrap: wrap;
+        grid-column: 1 / -1;
+        align-items: baseline;
+        gap: 6px 14px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+        font-size: 0.95rem;
+    }
+
+    .status.yes .next {
+        border-color: rgba(21, 25, 30, 0.2);
+    }
+
+    .next span:first-child {
+        opacity: 0.7;
+    }
+
+    .next strong {
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+    }
+
+    .next span:not(:first-child) {
+        opacity: 0.8;
+    }
+
+    .countdown {
+        margin-left: auto;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: var(--yellow);
+        color: var(--ink);
+        font-size: 0.85rem;
+    }
+
+    .status.yes .countdown {
+        background: var(--ink);
+        color: #fff;
+    }
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 16px 0 0;
+    }
+
+    .stats div {
+        padding: 20px 22px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+    }
+
+    .stats dt {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .stats dd {
+        margin: 6px 0 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    /* Meses */
+    .months {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .month {
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--surface);
+    }
+
+    h2 {
+        margin-bottom: 14px;
+        font-size: 1.7rem;
+        letter-spacing: -0.035em;
+        text-transform: capitalize;
+    }
+
+    .month ul {
+        display: grid;
+        gap: 8px;
+    }
+
+    .holiday {
+        --tone: var(--blue);
+        --tone-soft: #e6edf8;
+
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 10px;
+        border-radius: 18px;
+        background: var(--background);
+        transition:
+            transform 250ms var(--ease-out),
+            opacity 250ms ease;
+    }
+
+    .holiday:hover {
+        transform: translateX(4px);
+    }
+
+    .holiday.fijo {
+        --tone: var(--red);
+        --tone-soft: #fbe4e7;
+    }
+
+    .holiday.semana-santa {
+        --tone: #8a6a00;
+        --tone-soft: #fff4c7;
+    }
+
+    .day {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: var(--tone-soft);
+        color: var(--tone);
+    }
+
+    .day strong {
+        font-family: var(--font-display);
+        font-size: 1.7rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .day span {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .info h3 {
+        font-size: 1.08rem;
+        letter-spacing: -0.02em;
+    }
+
+    .tag {
+        display: inline-block;
+        margin-top: 4px;
+        color: var(--tone);
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .marker:empty {
+        display: none;
+    }
+
+    .marker {
+        margin-left: auto;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .is-past {
+        opacity: 0.45;
+    }
+
+    .is-next {
+        background: #fff8d6;
+        box-shadow: inset 0 0 0 2px var(--yellow);
+    }
+
+    .is-today {
+        background: var(--yellow);
+        box-shadow: 0 16px 32px -18px rgba(206, 17, 38, 0.8);
+    }
+
+    .is-today .marker {
+        background: var(--red);
+    }
+
+    .note {
+        margin-top: 2rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+    }
+
+    @media (max-width: 760px) {
+        .months {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .stats {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .stats div:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .status {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .countdown {
+            margin-left: 0;
+        }
+    }
+</style>

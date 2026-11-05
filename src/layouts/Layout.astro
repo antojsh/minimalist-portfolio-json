@@ -22,7 +22,11 @@ const {
 // Imagen panorámica propia → tarjeta grande; avatar cuadrado → tarjeta normal
 const twitterCard = Astro.props.image ? "summary_large_image" : "summary"
 
-const canonical = new URL(Astro.url.pathname.replace(/\/$/, "") || "/", Astro.site)
+// En build (format: "file") la ruta llega como "/pagina.html" o "/index.html"
+const cleanPath = Astro.url.pathname
+  .replace(/(index)?\.html$/, "")
+  .replace(/\/$/, "")
+const canonical = new URL(cleanPath || "/", Astro.site)
 const imageUrl = new URL(image, Astro.site)
 const fontsUrl =
   "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Serif:ital@1&family=Inter:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap"

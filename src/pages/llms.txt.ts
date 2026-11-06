@@ -16,7 +16,7 @@ export const GET: APIRoute = ({ site }) => {
 
     const body = `# ${basics.name}
 
-> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral, salario mínimo y días hábiles.
+> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral, salario mínimo, días hábiles y un simulador de crédito.
 
 ## Páginas
 
@@ -25,6 +25,7 @@ ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivo
 - [Calculadora de prima de servicios](${url("/calculadora-prima")}): calcula la prima de junio o diciembre con auxilio de transporte, pagos variables y días trabajados.
 - [Salario mínimo ${nextWage.year}](${url(`/salario-minimo-${nextWage.year}`)}): ${isRevealed ? "el valor oficial" : "cuándo se define"}, simulador del aumento, salario mínimo vigente y costo de contratar a alguien con el mínimo.
 - [Contador de días hábiles](${url("/dias-habiles")}): días hábiles y calendario entre dos fechas, y fecha de vencimiento de un plazo en días hábiles, con los festivos de Colombia. ${FESTIVOS_YEARS.map((year) => `${year}: ${countBetween(`${year}-01-01`, `${year}-12-31`, { includeStart: true }).business} días hábiles`).join("; ")}.
+- [Simulador de crédito](${url("/simulador-credito")}): cuota mensual con tasa E.A., M.V. o N.A.M.V., cuota fija o abono constante a capital, seguros, abonos extra y tabla de amortización descargable. Cuota fija = monto × i ÷ (1 − (1 + i)^−n), con i = (1 + E.A.)^(1/12) − 1.
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
 
 ## Datos

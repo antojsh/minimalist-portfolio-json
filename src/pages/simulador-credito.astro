@@ -1,0 +1,910 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import {
+    CREDITO_REVIEW,
+    RATE_TYPES,
+    chartSVG,
+    extraSavings,
+    formatCOP,
+    formatNumber,
+    formatRate,
+    plazoLabel,
+    simulate,
+} from "@/lib/credito";
+
+const LAW_1555_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=48333";
+const SFC_URL = "https://www.superfinanciera.gov.co/";
+
+const DEFAULTS = { amount: 10_000_000, months: 36, rate: 0.24, rateType: "ea" as const };
+const result = simulate(DEFAULTS);
+const savings = extraSavings({ ...DEFAULTS, extra: 100_000 });
+const TERMS = [12, 24, 36, 48, 60, 84, 120, 180, 240];
+
+const examples = [5_000_000, 10_000_000, 20_000_000, 50_000_000].map((amount) => ({
+    amount,
+    terms: [12, 24, 36, 60].map((months) => simulate({ amount, months, rate: DEFAULTS.rate, rateType: "ea" }).firstPayment),
+}));
+
+const longDate = (date: string) => {
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    return `${Number(date.slice(8))} de ${months[Number(date.slice(5, 7)) - 1]} de ${date.slice(0, 4)}`;
+};
+
+const faqs = [
+    {
+        question: "¿Cómo se calcula la cuota de un crédito?",
+        answer: `Con la fórmula de cuota fija: monto × i ÷ (1 − (1 + i)^−n), donde i es la tasa mensual y n el número de cuotas. Por ejemplo, ${formatCOP(DEFAULTS.amount)} a ${DEFAULTS.months} meses con una tasa de 24 % E.A. (${formatRate(result.monthly, 2)} mensual) dan una cuota de ${formatCOP(result.firstPayment)}.`,
+    },
+    {
+        question: "¿Qué diferencia hay entre tasa E.A. y M.V.?",
+        answer: `La efectiva anual (E.A.) es lo que de verdad cuesta el crédito en un año, con intereses sobre intereses. La mes vencido (M.V.) es la tasa de cada mes. No se pasa de una a otra dividiendo entre 12: 24 % E.A. equivale a ${formatRate(result.monthly, 2)} M.V., no a 2 %. La fórmula es (1 + E.A.)^(1/12) − 1.`,
+    },
+    {
+        question: "¿Qué es la tasa nominal (N.A.M.V.)?",
+        answer: `Es la tasa mensual multiplicada por 12. Se ve más baja que la efectiva aunque es el mismo crédito: 24 % E.A. equivale a ${formatRate(result.rates.nmv, 2)} N.A.M.V. Cuando compares ofertas, compáralas siempre en E.A.`,
+    },
+    {
+        question: "¿Me conviene hacer abonos a capital?",
+        answer: `Casi siempre. Cada peso que abonas deja de cobrar intereses el resto del crédito. En el ejemplo, abonar ${formatCOP(100_000)} extra al mes te ahorra ${formatCOP(savings.interest)} en intereses y ${savings.months} cuotas. En Colombia puedes prepagar sin multa, total o parcialmente (Ley 1555 de 2012), salvo en créditos de más de 880 salarios mínimos.`,
+    },
+    {
+        question: "¿Es mejor abonar para reducir la cuota o el plazo?",
+        answer: "Reducir el plazo te ahorra más intereses, porque terminas de pagar antes. Reducir la cuota alivia tu flujo de caja mes a mes, pero el ahorro total es menor. El banco debe preguntarte cuál prefieres cuando haces el abono.",
+    },
+    {
+        question: "¿Cuota fija o abono constante a capital?",
+        answer: `Con cuota fija pagas lo mismo cada mes y al principio la mayor parte son intereses. Con abono constante a capital la primera cuota es más alta y va bajando, y pagas menos intereses en total. En el ejemplo de ${formatCOP(DEFAULTS.amount)}, la cuota fija es de ${formatCOP(result.firstPayment)} y la otra empieza en ${formatCOP(simulate({ ...DEFAULTS, method: "capital" }).firstPayment)}.`,
+    },
+    {
+        question: "¿Qué es la tasa de usura?",
+        answer: "Es la tasa máxima que se puede cobrar en Colombia. La Superintendencia Financiera certifica cada mes el interés bancario corriente, y la usura es 1,5 veces ese valor. Cobrar por encima es un delito. Antes de firmar, revisa que la tasa E.A. de tu crédito esté por debajo de la usura del mes.",
+    },
+    {
+        question: "¿Qué más se suma a la cuota además de los intereses?",
+        answer: "El seguro de vida deudor casi siempre, y en algunos créditos la cuota de manejo, el seguro del vehículo o el de incendio y terremoto en vivienda. Pídelos al banco y ponlos en «Seguros y otros cobros» para ver la cuota real.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/simulador-credito", site).href;
+const title = "Simulador de crédito: calcula tu cuota mensual y la tabla de amortización";
+const description = `Calcula la cuota de un préstamo con tasa E.A. o mensual, mira cuánto pagas en intereses y cuánto te ahorras con abonos a capital. Gratis y sin registrarte.`;
+const ogPath = "/og/simulador-credito.png";
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: CREDITO_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            mainEntity: { "@id": `${pageUrl}#calculadora` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#calculadora`,
+            name: "Simulador de crédito",
+            url: pageUrl,
+            applicationCategory: "FinanceApplication",
+            operatingSystem: "Web",
+            inLanguage: "es-CO",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Simulador de crédito", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt="Simulador de crédito: cuota mensual, intereses y tabla de amortización"
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Simulador de crédito</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#simulador">Simulador</a>
+                <a href="#amortizacion">Amortización</a>
+                <a href="#tasas">Tasas</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Simulador de <span>crédito</span></h1>
+            <p class="lead">
+                Pon el monto, el plazo y la tasa, y mira <strong>cuánto pagas cada mes</strong>, cuánto se va en
+                intereses y cuánto te ahorras si abonas a capital. Sirve para préstamos de libre inversión, vehículo,
+                vivienda o tarjeta. Todo se calcula en tu navegador.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={CREDITO_REVIEW}>{longDate(CREDITO_REVIEW)}</time> · Tasas convertidas
+                con interés compuesto, como las reporta la <a href={SFC_URL} rel="noopener">Superintendencia Financiera</a>
+            </p>
+        </section>
+
+        <section id="simulador" class="workbench" aria-labelledby="simulador-titulo">
+            <h2 id="simulador-titulo" class="sr-only">Simula tu crédito</h2>
+
+            <form class="form" data-form>
+                <div class="field">
+                    <label for="monto">¿Cuánto te prestan?</label>
+                    <div class="money big">
+                        <span aria-hidden="true">$</span>
+                        <input id="monto" name="monto" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(DEFAULTS.amount)} />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="plazo">Plazo en meses</label>
+                    <div class="money">
+                        <input id="plazo" name="plazo" type="number" min="1" max="360" inputmode="numeric" value={DEFAULTS.months} />
+                        <span class="unit" data-term-label>{plazoLabel(DEFAULTS.months)}</span>
+                    </div>
+                    <div class="chips" role="group" aria-label="Plazos comunes">
+                        {TERMS.map((months) => (
+                            <button type="button" class="chip" data-term={months} aria-pressed={months === DEFAULTS.months ? "true" : "false"}>
+                                {months}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="tasa">Tasa de interés</label>
+                    <div class="money">
+                        <input id="tasa" name="tasa" type="text" inputmode="decimal" autocomplete="off" value="24" />
+                        <span aria-hidden="true">%</span>
+                        <select name="tipo" aria-label="Tipo de tasa">
+                            {RATE_TYPES.map(({ value, label, hint }) => (
+                                <option value={value} selected={value === "ea"}>{label} · {hint}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <p class="hint" data-rate-hint>
+                        Equivale a {formatRate(result.rates.mv, 3)} mensual y {formatRate(result.rates.nmv)} N.A.M.V. Pídele
+                        al banco la tasa E.A.; es la única que sirve para comparar.
+                    </p>
+                </div>
+
+                <fieldset class="field">
+                    <legend>Tipo de cuota</legend>
+                    <div class="options">
+                        <label class="option">
+                            <input type="radio" name="metodo" value="fija" checked />
+                            <span><strong>Cuota fija</strong><small>La más común. Igual todos los meses</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="metodo" value="capital" />
+                            <span><strong>Abono constante a capital</strong><small>Empieza alta y va bajando</small></span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <details class="more">
+                    <summary>Seguros y abonos extra</summary>
+                    <div class="field">
+                        <label for="seguros">Seguros y otros cobros al mes</label>
+                        <div class="money">
+                            <span aria-hidden="true">$</span>
+                            <input id="seguros" name="seguros" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                        </div>
+                        <p class="hint">Seguro de vida deudor, cuota de manejo y similares. Se suman a cada cuota.</p>
+                    </div>
+                    <div class="field">
+                        <label for="extra">Abono extra a capital cada mes</label>
+                        <div class="money">
+                            <span aria-hidden="true">$</span>
+                            <input id="extra" name="extra" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                        </div>
+                        <p class="hint">Lo que pagues de más para terminar antes. Mira abajo cuánto te ahorras.</p>
+                    </div>
+                </details>
+            </form>
+
+            <div class="result">
+                <div class="result-card">
+                    <p class="result-kicker" data-out="kicker">Tu cuota mensual</p>
+                    <p class="result-big" data-out="payment">{formatCOP(result.firstPayment)}</p>
+                    <p class="result-sub" data-out="sub">{DEFAULTS.months} cuotas de {formatCOP(result.firstPayment)}</p>
+
+                    <div class="split" aria-hidden="true">
+                        <span class="seg capital" data-out="seg-capital" style={`--w: ${DEFAULTS.amount / result.total}`}></span>
+                        <span class="seg interest" data-out="seg-interest" style={`--w: ${result.interest / result.total}`}></span>
+                        <span class="seg fees" data-out="seg-fees" style="--w: 0"></span>
+                    </div>
+
+                    <dl class="result-grid">
+                        <div><dt><i class="dot capital"></i>Te prestan</dt><dd data-out="amount">{formatCOP(DEFAULTS.amount)}</dd></div>
+                        <div><dt><i class="dot interest"></i>Pagas en intereses</dt><dd data-out="interest">{formatCOP(result.interest)}</dd></div>
+                        <div data-fees-row hidden><dt><i class="dot fees"></i>Seguros y cobros</dt><dd data-out="fees">$0</dd></div>
+                        <div><dt>Pagas en total</dt><dd data-out="total">{formatCOP(result.total)}</dd></div>
+                    </dl>
+
+                    <p class="factor" data-out="factor">
+                        Por cada $1 que te prestan devuelves <b>${result.factor.toFixed(2).replace(".", ",")}</b>.
+                    </p>
+
+                    <div class="savings" data-out="savings" hidden></div>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="amortizacion" aria-labelledby="amortizacion-titulo">
+            <header class="head">
+                <h2 id="amortizacion-titulo">Cómo se reparte cada cuota</h2>
+                <p data-out="crossover">
+                    Al principio una buena parte de la cuota se va en intereses; con el tiempo pesa más el capital. La
+                    línea es lo que todavía debes.
+                </p>
+            </header>
+
+            <figure class="chart">
+                <div class="chart-svg" data-out="chart" set:html={chartSVG(result.rows, DEFAULTS.amount)} />
+                <figcaption class="chart-legend">
+                    <span><i class="dot capital"></i>Capital</span>
+                    <span><i class="dot interest"></i>Intereses</span>
+                    <span><i class="line"></i>Saldo pendiente</span>
+                </figcaption>
+            </figure>
+
+            <div class="table-head">
+                <h3>Tabla de amortización</h3>
+                <div class="table-actions">
+                    <div class="segmented" role="group" aria-label="Ver la tabla por">
+                        <button type="button" data-view="mes" aria-pressed="true">Por mes</button>
+                        <button type="button" data-view="año" aria-pressed="false">Por año</button>
+                    </div>
+                    <button type="button" class="chip" data-csv>Descargar CSV</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="amounts schedule">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-out="unit">Mes</th>
+                            <th scope="col" class="num">Cuota</th>
+                            <th scope="col" class="num">Intereses</th>
+                            <th scope="col" class="num">Capital</th>
+                            <th scope="col" class="num">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody data-out="rows">
+                        {
+                            result.rows.map((row) => (
+                                <tr>
+                                    <th scope="row">{row.n}</th>
+                                    <td class="num">{formatCOP(row.payment)}</td>
+                                    <td class="num">{formatCOP(row.interest)}</td>
+                                    <td class="num">{formatCOP(row.principal)}</td>
+                                    <td class="num">{formatCOP(row.balance)}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tasas" aria-labelledby="tasas-titulo">
+            <header class="head">
+                <h2 id="tasas-titulo">Cuotas de referencia</h2>
+                <p>
+                    Cuota fija mensual con una tasa de ejemplo de 24 % E.A., sin seguros. Tu banco te puede dar otra
+                    tasa; cámbiala arriba para ver tu caso.
+                </p>
+            </header>
+
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Monto</th>
+                            <th scope="col" class="num">12 meses</th>
+                            <th scope="col" class="num">24 meses</th>
+                            <th scope="col" class="num">36 meses</th>
+                            <th scope="col" class="num">60 meses</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            examples.map(({ amount, terms }) => (
+                                <tr>
+                                    <th scope="row">{formatCOP(amount)}</th>
+                                    {terms.map((payment) => (
+                                        <td class="num">{formatCOP(payment)}</td>
+                                    ))}
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="rules">
+                <article>
+                    <h3>La fórmula de la cuota</h3>
+                    <p>
+                        Cuota = monto × i ÷ (1 − (1 + i)<sup>−n</sup>), con i la tasa mensual y n las cuotas. Cada mes, los
+                        intereses son el saldo por la tasa; el resto de la cuota baja la deuda.
+                    </p>
+                </article>
+                <article>
+                    <h3>De E.A. a mensual</h3>
+                    <p>
+                        Mensual = (1 + E.A.)<sup>1/12</sup> − 1. Por eso 24 % E.A. es {formatRate(result.monthly)} al mes y
+                        no 2 %. Al revés: E.A. = (1 + mensual)<sup>12</sup> − 1.
+                    </p>
+                </article>
+                <article>
+                    <h3>Tus derechos</h3>
+                    <p>
+                        Puedes prepagar sin multa (<a href={LAW_1555_URL} rel="noopener">Ley 1555 de 2012</a>), elegir si el
+                        abono reduce cuota o plazo y pedir la tabla de amortización antes de firmar.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    El simulador es una guía; la cuota final la fija tu banco con sus seguros y fechas de corte. ¿Ves un
+                    error? <a href={`mailto:${basics.email}?subject=Simulador%20de%20cr%C3%A9dito`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+                <a href={LAW_1555_URL} rel="noopener">Ley 1555 de 2012</a> y
+                <a href={SFC_URL} rel="noopener">Superintendencia Financiera</a>.
+            </p>
+            <p>
+                También te sirve: <a href="/interes-compuesto">Interés compuesto</a> ·
+                <a href="/salario-minimo-2027">Salario mínimo 2027</a> ·
+                <a href="/liquidacion-laboral">Liquidación laboral</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import {
+        byYear,
+        chartSVG,
+        extraSavings,
+        formatCOP,
+        formatNumber,
+        formatRate,
+        parseCOP,
+        parseDecimal,
+        plazoLabel,
+        simulate,
+        type Method,
+        type RateType,
+        type Row,
+    } from "@/lib/credito";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const input = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const chips = [...document.querySelectorAll<HTMLButtonElement>("[data-term]")];
+    let view: "mes" | "año" = "mes";
+    let lastRows: Row[] = [];
+
+    // Agrupa de a tres mientras se escribe, sin mover el cursor al final
+    for (const name of ["monto", "seguros", "extra"]) {
+        const field = input(name);
+        field.addEventListener("input", () => {
+            const digitsBefore = field.value.slice(0, field.selectionStart ?? 0).replace(/\D/g, "").length;
+            const value = parseCOP(field.value);
+            field.value = value ? formatNumber(value) : "";
+            let pos = 0;
+            for (let seen = 0; pos < field.value.length && seen < digitsBefore; pos++) if (/\d/.test(field.value[pos])) seen++;
+            field.setSelectionRange(pos, pos);
+        });
+    }
+
+    function renderRows(rows: Row[]) {
+        const list = view === "año" ? byYear(rows) : rows;
+        out("unit").textContent = view === "año" ? "Año" : "Mes";
+        out("rows").innerHTML = list
+            .map(
+                (row) =>
+                    `<tr><th scope="row">${row.n}</th><td class="num">${formatCOP(row.payment + (view === "mes" ? row.extra : 0))}</td><td class="num">${formatCOP(row.interest)}</td><td class="num">${formatCOP(row.principal + row.extra)}</td><td class="num">${formatCOP(row.balance)}</td></tr>`,
+            )
+            .join("");
+    }
+
+    function update(): void {
+        const amount = Math.min(parseCOP(input("monto").value), 100_000_000_000);
+        const months = Math.min(360, Math.max(1, Math.round(Number(input("plazo").value) || 1)));
+        const rate = Math.min(parseDecimal(input("tasa").value), 500) / 100;
+        const rateType = (form.elements.namedItem("tipo") as HTMLSelectElement).value as RateType;
+        const method = (form.querySelector<HTMLInputElement>('[name="metodo"]:checked')?.value ?? "fija") as Method;
+        const fees = parseCOP(input("seguros").value);
+        const extra = parseCOP(input("extra").value);
+
+        document.querySelector("[data-term-label]")!.textContent = plazoLabel(months);
+        for (const chip of chips) chip.setAttribute("aria-pressed", String(Number(chip.dataset.term) === months));
+        if (!amount) return;
+
+        const savings = extraSavings({ amount, months, rate, rateType, method, fees, extra });
+        const result = savings.withExtra;
+        lastRows = result.rows;
+
+        const typeLabel = { ea: "E.A.", mv: "mensual", nmv: "N.A.M.V." }[rateType];
+        document.querySelector("[data-rate-hint]")!.textContent =
+            rateType === "ea"
+                ? `Equivale a ${formatRate(result.rates.mv, 3)} mensual y ${formatRate(result.rates.nmv)} N.A.M.V. Pídele al banco la tasa E.A.; es la única que sirve para comparar.`
+                : `Una tasa ${typeLabel} de ${formatRate(rate, 2)} equivale a ${formatRate(result.rates.ea)} E.A. Esa es la que debes comparar con otras ofertas y con la usura.`;
+
+        const varying = method === "capital";
+        out("kicker").textContent = varying ? "Tu primera cuota" : "Tu cuota mensual";
+        out("payment").textContent = formatCOP(result.firstPayment);
+        out("sub").textContent = varying
+            ? `Baja cada mes hasta ${formatCOP(result.lastPayment)} en la cuota ${result.months}`
+            : `${result.months} cuotas${fees ? `, con ${formatCOP(fees)} de seguros` : ""}${extra ? ` más ${formatCOP(extra)} de abono` : ""}`;
+        out("amount").textContent = formatCOP(amount);
+        out("interest").textContent = formatCOP(result.interest);
+        out("fees").textContent = formatCOP(result.fees);
+        document.querySelector<HTMLElement>("[data-fees-row]")!.hidden = !fees;
+        out("total").textContent = formatCOP(result.total);
+        out("seg-capital").style.setProperty("--w", String(amount / result.total));
+        out("seg-interest").style.setProperty("--w", String(result.interest / result.total));
+        out("seg-fees").style.setProperty("--w", String(result.fees / result.total));
+        out("factor").innerHTML = `Por cada $1 que te prestan devuelves <b>$${result.factor.toFixed(2).replace(".", ",")}</b>.`;
+
+        const box = out("savings");
+        box.hidden = !(extra && savings.interest > 0);
+        if (!box.hidden) {
+            box.innerHTML = `<p>Con el abono extra terminas <b>${savings.months} ${savings.months === 1 ? "mes" : "meses"} antes</b> y te ahorras <b>${formatCOP(savings.interest)}</b> en intereses.</p>`;
+        }
+
+        const crossover = result.crossover;
+        out("crossover").textContent =
+            crossover > 1
+                ? `Hasta la cuota ${crossover} pagas más intereses que capital. Desde ahí, cada cuota baja más la deuda. La línea es lo que todavía debes.`
+                : "Desde la primera cuota pagas más capital que intereses, así que la deuda baja rápido. La línea es lo que todavía debes.";
+
+        out("chart").innerHTML = chartSVG(result.rows, amount);
+        renderRows(result.rows);
+        live.textContent = `Cuota de ${formatCOP(result.firstPayment)}. Intereses: ${formatCOP(result.interest)}.`;
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+
+    for (const chip of chips) {
+        chip.addEventListener("click", () => {
+            input("plazo").value = chip.dataset.term!;
+            update();
+        });
+    }
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-view]")) {
+        button.addEventListener("click", () => {
+            view = button.dataset.view as "mes" | "año";
+            for (const other of document.querySelectorAll("[data-view]")) other.setAttribute("aria-pressed", String(other === button));
+            renderRows(lastRows);
+        });
+    }
+
+    document.querySelector("[data-csv]")!.addEventListener("click", () => {
+        const lines = [
+            "cuota;valor_cuota;intereses;capital;abono_extra;seguros;saldo",
+            ...lastRows.map((row) =>
+                [row.n, row.payment + row.extra, row.interest, row.principal, row.extra, row.fees, row.balance]
+                    .map((value, index) => (index === 0 ? value : Math.round(value)))
+                    .join(";"),
+            ),
+        ];
+        const blob = new Blob([`﻿${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+        const link = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "tabla-de-amortizacion.csv" });
+        link.click();
+        URL.revokeObjectURL(link.href);
+    });
+
+    update();
+</script>
+
+<style>
+    .money .unit {
+        color: var(--muted);
+        font-family: var(--font-body);
+        font-size: 0.92rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        min-width: 44px;
+        padding: 7px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        font-variant-numeric: tabular-nums;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .chip[aria-pressed="true"] {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: #fff;
+    }
+
+    .more {
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .more .field {
+        padding-bottom: 22px;
+    }
+
+    /* Resultado */
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .result-card {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 18px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .result-kicker {
+        color: var(--amber);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .result-big {
+        margin-top: 8px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 2rem + 2.4vw, 3.8rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+    }
+
+    .result-sub {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.92rem;
+    }
+
+    .split {
+        display: flex;
+        gap: 3px;
+        height: 14px;
+        margin-top: 22px;
+    }
+
+    .seg {
+        flex: var(--w) 1 0;
+        min-width: 0;
+        border-radius: 4px;
+        transition: flex-grow 300ms var(--ease-out);
+    }
+
+    .capital {
+        background: #fff;
+    }
+
+    .interest {
+        background: #e0705f;
+    }
+
+    .fees {
+        background: var(--amber);
+    }
+
+    .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 3px;
+        vertical-align: 0;
+    }
+
+    .result-grid {
+        display: grid;
+        margin-top: 16px;
+    }
+
+    .result-grid div {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .result-grid div[hidden] {
+        display: none;
+    }
+
+    .result-grid dt {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+    }
+
+    .result-grid dd {
+        margin: 0;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+    }
+
+    .factor {
+        margin-top: 16px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.92rem;
+    }
+
+    .factor :global(b) {
+        color: var(--amber);
+    }
+
+    .savings {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(126, 224, 161, 0.12);
+    }
+
+    .savings[hidden] {
+        display: none;
+    }
+
+    .savings :global(p) {
+        color: #c9f2d7;
+        font-size: 0.92rem;
+    }
+
+    .savings :global(b) {
+        color: #fff;
+    }
+
+    /* Gráfica */
+    .chart {
+        padding: clamp(16px, 3vw, 28px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--sheet);
+    }
+
+    .chart-svg :global(svg) {
+        display: block;
+        width: 100%;
+        height: clamp(180px, 28vw, 300px);
+    }
+
+    .chart-svg :global(.c-capital) {
+        fill: var(--ink);
+    }
+
+    .chart-svg :global(.c-interest) {
+        fill: var(--red);
+    }
+
+    .chart-svg :global(.c-balance) {
+        stroke: var(--amber);
+        stroke-width: 3;
+        vector-effect: non-scaling-stroke;
+    }
+
+    .chart-svg :global(text) {
+        fill: var(--muted);
+        font-size: 12px;
+    }
+
+    .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 14px;
+        color: var(--text-soft);
+        font-size: 0.88rem;
+    }
+
+    .chart-legend .capital {
+        background: var(--ink);
+    }
+
+    .chart-legend .interest {
+        background: var(--red);
+    }
+
+    .chart-legend .line {
+        display: inline-block;
+        width: 18px;
+        height: 3px;
+        margin-right: 6px;
+        border-radius: 2px;
+        background: var(--amber);
+        vertical-align: 3px;
+    }
+
+    .table-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin: clamp(2.5rem, 5vw, 3.5rem) 0 14px;
+    }
+
+    .table-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .segmented {
+        display: inline-flex;
+        padding: 3px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+    }
+
+    .segmented button {
+        padding: 5px 14px;
+        border: 0;
+        border-radius: 999px;
+        background: none;
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .segmented button[aria-pressed="true"] {
+        background: var(--ink);
+        color: #fff;
+    }
+
+    .table-wrap {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .schedule {
+        min-width: 560px;
+    }
+
+    .table-wrap:has(.schedule) {
+        max-height: 560px;
+        overflow-y: auto;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .schedule thead th {
+        position: sticky;
+        top: 0;
+        background: var(--background);
+    }
+
+    #tasas .table-wrap {
+        margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
+    }
+
+    #tasas table {
+        min-width: 520px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .result-card {
+            max-width: 520px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .options {
+            --cols: 1;
+        }
+    }
+</style>

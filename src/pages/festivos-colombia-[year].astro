@@ -22,10 +22,18 @@ import {
     isWeekend,
     joinList,
     weekdayOf,
+    FESTIVOS_YEARS,
+    sundaySurcharge,
     type Holiday,
 } from "@/lib/festivos";
 
-const YEAR = 2027;
+export function getStaticPaths() {
+    return FESTIVOS_YEARS.map((year) => ({ params: { year: String(year) } }));
+}
+
+const YEAR = Number(Astro.params.year);
+const slug = `/festivos-colombia-${YEAR}`;
+const [surchargeBefore, surchargeAfter] = sundaySurcharge(YEAR);
 
 const LAW_51_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=4954";
 const LAW_2578_URL =
@@ -44,6 +52,13 @@ const fixed = holidays.filter(({ kind }) => kind === "fijo");
 const holyWeek = holidays.filter(({ kind }) => kind === "semana-santa");
 const onSaturday = holidays.filter(({ date }) => weekdayOf(date) === 6);
 const onSunday = holidays.filter(({ movedFrom }) => movedFrom != null && weekdayOf(movedFrom) === 0);
+// Festivos fijos que caen domingo: no se corren y se pierden
+const fixedOnSunday = holidays.filter(({ date, kind }) => kind === "fijo" && weekdayOf(date) === 0);
+const lostDays = [...onSaturday, ...fixedOnSunday];
+const lostText =
+    lostDays.length === 0
+        ? `En ${YEAR} ningún festivo fijo cae en fin de semana, así que ninguno se pierde.`
+        : `En ${YEAR}, ${joinList(lostDays.map(({ date }) => `el ${formatLong(date).replace(/^\S+ /, "")}`))} ${lostDays.length === 1 ? `cae ${WEEKDAYS[weekdayOf(lostDays[0].date)]}` : lostDays.every(({ date }) => weekdayOf(date) === 6) ? "caen sábado" : "caen en fin de semana"} y no da${lostDays.length === 1 ? "" : "n"} puente.`;
 const onWeekdays = holidays.filter(({ date }) => !isWeekend(date)).length;
 const newest = holidays.find(({ since }) => since != null && since >= YEAR - 1);
 const first = holidays[0];
@@ -115,7 +130,11 @@ const faqs = [
     },
     {
         question: `¿Qué festivos de ${YEAR} caen en fin de semana?`,
-        answer: `${joinList(onSaturday.map(({ name, date }) => `${name} (${formatLong(date).replace("sábado ", "")})`))} caen sábado y no se corren al lunes.${onSunday.map(({ name, date, movedFrom }) => ` ${name} cae ${formatLong(movedFrom!)}, pero por la Ley Emiliani se descansa el ${formatLong(date)}.`).join("")}`,
+        answer: `${
+            lostDays.length === 0
+                ? `Ningún festivo fijo cae sábado ni domingo en ${YEAR}.`
+                : `${joinList(lostDays.map(({ name, date }) => `${name} (${formatLong(date)})`))} ${lostDays.length === 1 ? "cae en fin de semana y no se corre" : "caen en fin de semana y no se corren"} al lunes.`
+        }${onSunday.map(({ name, date, movedFrom }) => ` ${name} cae ${formatLong(movedFrom!)}, pero por la Ley Emiliani se descansa el ${formatLong(date)}.`).join("")}`,
     },
     {
         question: `¿Cuántos días hábiles tiene ${YEAR} en Colombia?`,
@@ -127,11 +146,14 @@ const faqs = [
     },
     {
         question: `¿Cuánto pagan por trabajar un festivo en ${YEAR}?`,
-        answer: `Con la reforma laboral (Ley 2466 de 2025), el recargo por trabajar un domingo o festivo es del 90 % sobre el valor de la hora ordinaria hasta el 30 de junio de ${YEAR}, y del 100 % desde el 1 de julio de ${YEAR}.`,
+        answer:
+            surchargeBefore === surchargeAfter
+                ? `Con la reforma laboral (Ley 2466 de 2025), el recargo por trabajar un domingo o festivo es del ${surchargeAfter} % sobre el valor de la hora ordinaria durante todo ${YEAR}.`
+                : `Con la reforma laboral (Ley 2466 de 2025), el recargo por trabajar un domingo o festivo es del ${surchargeBefore} % sobre el valor de la hora ordinaria hasta el 30 de junio de ${YEAR}, y del ${surchargeAfter} % desde el 1 de julio de ${YEAR}.`,
     },
     {
         question: "¿El 24 y el 31 de diciembre son festivos?",
-        answer: `No. En ${YEAR} el 24 y el 31 de diciembre caen ${WEEKDAYS[weekdayOf(`${YEAR}-12-24`)]} y son días hábiles, aunque algunas empresas dan el día. El festivo de esa semana es la Navidad, el ${formatLong(`${YEAR}-12-25`)}.`,
+        answer: `No. En ${YEAR} el 24 y el 31 de diciembre caen ${WEEKDAYS[weekdayOf(`${YEAR}-12-24`)]}${isWeekend(`${YEAR}-12-24`) ? "" : " y son días hábiles, aunque algunas empresas dan el día"}. El festivo de esa semana es la Navidad, el ${formatLong(`${YEAR}-12-25`)}.`,
     },
     {
         question: "¿El Día de la Madre es festivo?",
@@ -140,10 +162,11 @@ const faqs = [
 ];
 
 const site = Astro.site?.href ?? "/";
-const pageUrl = new URL("/festivos-colombia-2027", site).href;
+const pageUrl = new URL(slug, site).href;
 const title = `Festivos en Colombia ${YEAR}: lista, calendario y puentes`;
-const description = `Los ${holidays.length} festivos de Colombia en ${YEAR} con su día de la semana, los ${longWeekends.length} puentes, Semana Santa y el nuevo festivo de la Virgen de Chiquinquirá.`;
-const image = new URL("/og/festivos-colombia-2027.png", site).href;
+const description = `Los ${holidays.length} festivos de Colombia en ${YEAR} con su día de la semana, los ${longWeekends.length} puentes, Semana Santa y ${newest ? "el nuevo festivo" : "el festivo"} de la Virgen de Chiquinquirá.`;
+const ogPath = `/og/festivos-colombia-${YEAR}.png`;
+const image = new URL(ogPath, site).href;
 const personId = new URL("/#person", site).href;
 
 const jsonLd = {
@@ -191,12 +214,12 @@ const jsonLd = {
                 {
                     "@type": "DataDownload",
                     encodingFormat: "text/calendar",
-                    contentUrl: new URL("/festivos-colombia-2027.ics", site).href,
+                    contentUrl: new URL(`${slug}.ics`, site).href,
                 },
                 {
                     "@type": "DataDownload",
                     encodingFormat: "application/json",
-                    contentUrl: new URL("/festivos-colombia-2027.json", site).href,
+                    contentUrl: new URL(`${slug}.json`, site).href,
                 },
             ],
         },
@@ -231,7 +254,7 @@ const jsonLd = {
 <Layout
     title={title}
     description={description}
-    image="/og/festivos-colombia-2027.png"
+    image={ogPath}
     imageAlt={`Calendario de los ${holidays.length} festivos de Colombia en ${YEAR}`}
     imageWidth={1200}
     imageHeight={630}
@@ -261,6 +284,17 @@ const jsonLd = {
 
         <section class="hero">
             <div class="intro">
+                <nav class="years no-print" aria-label="Festivos de otros años">
+                    {
+                        FESTIVOS_YEARS.map((year) =>
+                            year === YEAR ? (
+                                <span aria-current="page">{year}</span>
+                            ) : (
+                                <a href={`/festivos-colombia-${year}`}>{year}</a>
+                            ),
+                        )
+                    }
+                </nav>
                 <h1>Festivos en Colombia <span>{YEAR}</span></h1>
                 <p class="lead">
                     Colombia tiene <strong>{holidays.length} festivos</strong> en {YEAR}.
@@ -277,7 +311,7 @@ const jsonLd = {
                     }
                 </p>
                 <div class="actions no-print">
-                    <a class="button" href="/festivos-colombia-2027.ics">
+                    <a class="button" href={`${slug}.ics`}>
                         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                             <path
                                 fill="none"
@@ -333,7 +367,7 @@ const jsonLd = {
                 <div><dt>festivos en el año</dt><dd>{holidays.length}</dd></div>
                 <div><dt>fines de semana largos</dt><dd>{longWeekends.length}</dd></div>
                 <div><dt>días hábiles de lunes a viernes</dt><dd>{workdays}</dd></div>
-                <div><dt>festivos caen sábado</dt><dd>{onSaturday.length}</dd></div>
+                <div><dt>{onSaturday.length === 1 ? "festivo cae sábado" : "festivos caen sábado"}</dt><dd>{onSaturday.length}</dd></div>
             </dl>
         </section>
 
@@ -444,7 +478,7 @@ const jsonLd = {
                         <li><i class="key-bridge"></i>Se suma al puente</li>
                         <li><i class="key-sun">7</i>Domingo</li>
                     </ul>
-                    <p class="print print-foot">antojsh.dev/festivos-colombia-2027</p>
+                    <p class="print print-foot">antojsh.dev{slug}</p>
                 </div>
             </section>
 
@@ -548,9 +582,7 @@ const jsonLd = {
                 </p>
                 <p>
                     Los demás nunca se mueven: {joinList(fixed.map(({ name }) => name))}, además del
-                    Jueves y el Viernes Santo. Por eso en {YEAR}
-                    {joinList(onSaturday.map(({ date }) => formatLong(date).replace("sábado ", "")))}
-                    caen sábado y no dan puente.
+                    Jueves y el Viernes Santo. {lostText}
                 </p>
             </div>
 
@@ -635,8 +667,8 @@ const jsonLd = {
             </p>
             <p>
                 Datos abiertos:
-                <a href="/festivos-colombia-2027.ics">festivos-colombia-2027.ics</a> ·
-                <a href="/festivos-colombia-2027.json">.json</a>
+                <a href={`${slug}.ics`}>festivos-colombia-{YEAR}.ics</a> ·
+                <a href={`${slug}.json`}>.json</a>
             </p>
             <p>
                 También te sirve: <a href="/calculadora-prima">Calculadora de prima</a> ·
@@ -846,6 +878,38 @@ const jsonLd = {
         gap: 48px clamp(40px, 7vw, 96px);
         align-items: end;
         padding-top: clamp(2rem, 6vw, 4.5rem);
+    }
+
+    /* Selector de año */
+    .years {
+        display: inline-flex;
+        gap: 4px;
+        margin-bottom: 22px;
+        padding: 4px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+    }
+
+    .years a,
+    .years span {
+        padding: 6px 14px;
+        border-radius: 8px;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        text-decoration: none;
+    }
+
+    .years a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    .years [aria-current] {
+        background: var(--ink);
+        color: #fff;
     }
 
     h1 {

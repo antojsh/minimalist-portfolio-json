@@ -32,6 +32,18 @@ export interface VacationPlan extends RestBlock {
 // Última vez que se revisaron las leyes de festivos
 export const LAST_REVIEW = "2026-11-05";
 
+/** Años con página publicada; agrega el siguiente cuando haga falta */
+export const FESTIVOS_YEARS = [2026, 2027, 2028];
+
+/**
+ * Recargo por trabajar un domingo o festivo (Ley 2466 de 2025): sube cada 1 de julio
+ * hasta llegar al 100 %. Devuelve el porcentaje del primer y del segundo semestre.
+ */
+export function sundaySurcharge(year: number): [number, number] {
+    const at = (y: number) => (y <= 2024 ? 75 : y === 2025 ? 80 : y === 2026 ? 90 : 100);
+    return [at(year - 1), at(year)];
+}
+
 export const MONTHS = [
     "enero",
     "febrero",

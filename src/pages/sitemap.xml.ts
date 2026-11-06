@@ -1,12 +1,17 @@
 import type { APIRoute } from "astro";
-import { LAST_REVIEW } from "@/lib/festivos";
+import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
     { path: "/", changefreq: "monthly", priority: "1.0" },
-    { path: "/festivos-colombia-2027", changefreq: "monthly", priority: "0.9", lastmod: LAST_REVIEW },
+    ...FESTIVOS_YEARS.map((year) => ({
+        path: `/festivos-colombia-${year}`,
+        changefreq: "monthly",
+        priority: "0.9",
+        lastmod: LAST_REVIEW,
+    })),
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
 ];

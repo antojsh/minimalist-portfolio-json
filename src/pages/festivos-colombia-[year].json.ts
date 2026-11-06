@@ -1,9 +1,11 @@
-import type { APIRoute } from "astro";
-import { LAST_REVIEW, WEEKDAYS, getHolidays, weekdayOf } from "@/lib/festivos";
+import type { APIRoute, GetStaticPaths } from "astro";
+import { FESTIVOS_YEARS, LAST_REVIEW, WEEKDAYS, getHolidays, weekdayOf } from "@/lib/festivos";
 
-const YEAR = 2027;
+export const getStaticPaths = (() =>
+    FESTIVOS_YEARS.map((year) => ({ params: { year: String(year) } }))) satisfies GetStaticPaths;
 
-export const GET: APIRoute = ({ site }) => {
+export const GET: APIRoute = ({ site, params }) => {
+    const YEAR = Number(params.year);
     const holidays = getHolidays(YEAR).map(({ date, name, kind, movedFrom }) => ({
         date,
         weekday: WEEKDAYS[weekdayOf(date)],
@@ -18,7 +20,7 @@ export const GET: APIRoute = ({ site }) => {
         total: holidays.length,
         updated: LAST_REVIEW,
         sources: ["Ley 51 de 1983 (Ley Emiliani)", "Ley 2578 de 2026"],
-        url: new URL("/festivos-colombia-2027", site).href,
+        url: new URL(`/festivos-colombia-${YEAR}`, site).href,
         holidays,
     };
 

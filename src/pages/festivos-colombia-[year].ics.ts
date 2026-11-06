@@ -1,7 +1,8 @@
-import type { APIRoute } from "astro";
-import { LAST_REVIEW, addDays, formatLong, getHolidays } from "@/lib/festivos";
+import type { APIRoute, GetStaticPaths } from "astro";
+import { FESTIVOS_YEARS, LAST_REVIEW, addDays, formatLong, getHolidays } from "@/lib/festivos";
 
-const YEAR = 2027;
+export const getStaticPaths = (() =>
+    FESTIVOS_YEARS.map((year) => ({ params: { year: String(year) } }))) satisfies GetStaticPaths;
 
 // RFC 5545: texto escapado, líneas de máximo 75 bytes y fin de línea CRLF
 const escape = (text: string) => text.replace(/([\,;])/g, "\$1");
@@ -23,7 +24,8 @@ const fold = (line: string) => {
     return [...parts, current].join("\r\n ");
 };
 
-export const GET: APIRoute = ({ site }) => {
+export const GET: APIRoute = ({ site, params }) => {
+    const YEAR = Number(params.year);
     const host = new URL(site ?? "https://antojsh.dev").hostname;
     const events = getHolidays(YEAR).flatMap(({ date, name, movedFrom }) => [
         "BEGIN:VEVENT",

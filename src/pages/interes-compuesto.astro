@@ -1,0 +1,1548 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import {
+    COMPOUNDINGS,
+    CURRENCIES,
+    FREQUENCIES,
+    INTERES_REVIEW,
+    contributionForGoal,
+    doublingYears,
+    effectiveAnnual,
+    formatAmount,
+    formatCompact,
+    formatMoney,
+    formatPct,
+    growthChart,
+    milestones,
+    simulate,
+} from "@/lib/interes-compuesto";
+
+const DEFAULTS = { initial: 1_000_000, contribution: 200_000, rate: 0.1, years: 20, inflation: 0.03 };
+const base = { initial: DEFAULTS.initial, contribution: DEFAULTS.contribution, rate: DEFAULTS.rate, months: DEFAULTS.years * 12, inflation: DEFAULTS.inflation };
+const sim = simulate(base);
+const keyMoments = milestones(sim);
+const chart = growthChart(sim, DEFAULTS.initial);
+const doubling = doublingYears(sim.netAnnual);
+
+// Ejemplos para el contenido
+const simpleVsCompound = [1, 5, 10, 20, 30].map((years) => ({
+    years,
+    simple: 10_000_000 * (1 + 0.1 * years),
+    compound: 10_000_000 * 1.1 ** years,
+}));
+const rule72 = [0.03, 0.05, 0.08, 0.1, 0.12, 0.15, 0.2].map((rate) => ({ rate, ...doublingYears(rate) }));
+const early = simulate({ initial: 0, contribution: 300_000, rate: 0.1, months: 35 * 12 });
+const late = simulate({ initial: 0, contribution: 300_000, rate: 0.1, months: 25 * 12 });
+const billion20 = contributionForGoal({ initial: 0, contribution: 0, rate: 0.1, months: 240 }, 1e9);
+const billion30 = contributionForGoal({ initial: 0, contribution: 0, rate: 0.1, months: 360 }, 1e9);
+const withFee = simulate({ initial: 0, contribution: 300_000, rate: 0.1, months: 360, fee: 0.01 });
+const noFee = simulate({ initial: 0, contribution: 300_000, rate: 0.1, months: 360 });
+const daily = effectiveAnnual(0.12, 365);
+const monthlyCap = effectiveAnnual(0.12, 12);
+
+const longDate = (date: string) => {
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    return `${Number(date.slice(8))} de ${months[Number(date.slice(5, 7)) - 1]} de ${date.slice(0, 4)}`;
+};
+const cop = (value: number) => formatMoney(value);
+const millions = (value: number) => formatCompact(value).replace(" M", " millones").replace(" mil millones", " mil millones");
+
+const faqs = [
+    {
+        question: "¿Qué es el interés compuesto?",
+        answer: `Es ganar intereses sobre los intereses. Cada periodo, lo que ganaste se suma a tu saldo y el periodo siguiente también rinde. Por eso el crecimiento se acelera con el tiempo: con ${cop(DEFAULTS.contribution)} al mes al 10 % durante 20 años pones ${millions(sim.totalContributed)} y terminas con ${millions(sim.balance)}.`,
+    },
+    {
+        question: "¿Cuál es la fórmula del interés compuesto?",
+        answer: "Sin aportes: VF = P × (1 + i)^n, donde P es el capital inicial, i la tasa de cada periodo y n el número de periodos. Con un aporte fijo A al final de cada periodo se suma A × ((1 + i)^n − 1) ÷ i. La calculadora lo hace mes a mes, así puede manejar aportes que suben, comisiones e impuestos.",
+    },
+    {
+        question: "¿Qué diferencia hay entre interés simple y compuesto?",
+        answer: `En el simple los intereses siempre se calculan sobre el capital inicial; en el compuesto, sobre el saldo que va creciendo. Con ${cop(10_000_000)} al 10 % anual, a 30 años el simple te da ${millions(simpleVsCompound[4].simple)} y el compuesto ${millions(simpleVsCompound[4].compound)}.`,
+    },
+    {
+        question: "¿Qué es la regla del 72?",
+        answer: "Un atajo para saber en cuántos años se duplica tu dinero: divide 72 entre la tasa anual. Al 8 % se duplica en unos 9 años; al 12 %, en unos 6. Funciona bien entre el 6 % y el 10 %; la calculadora te muestra también el valor exacto.",
+    },
+    {
+        question: "¿Cuánto debo ahorrar al mes para tener mil millones?",
+        answer: `Con una rentabilidad de 10 % E.A. y sin capital inicial: ${cop(billion20)} al mes durante 20 años o ${cop(billion30)} al mes durante 30. Diez años más de plazo bajan el aporte a menos de la mitad. Usa el modo «¿Cuánto debo ahorrar?» para tu caso.`,
+    },
+    {
+        question: "¿Importa si los intereses se capitalizan diario o mensual?",
+        answer: `Un poco. Una tasa nominal de 12 % capitalizada cada mes equivale a ${formatPct(monthlyCap)} E.A.; capitalizada a diario, a ${formatPct(daily)}. Lo que de verdad sirve para comparar es la tasa efectiva anual (E.A.).`,
+    },
+    {
+        question: "¿Por qué tengo que tener en cuenta la inflación?",
+        answer: `Porque los precios también suben. Si tu dinero rinde 10 % y la inflación es 3 %, tu poder de compra crece cerca de 6,8 % al año. En el ejemplo de esta página, los ${millions(sim.balance)} del final equivalen a ${millions(sim.real)} de hoy. La meta de inflación del Banco de la República es 3 %.`,
+    },
+    {
+        question: "¿Dónde se gana interés compuesto?",
+        answer: "En CDT si reinviertes los intereses, cuentas de ahorro de alto rendimiento, fondos de inversión colectiva, fondos de pensiones voluntarias y en acciones o ETF que reinvierten dividendos. En estos últimos la rentabilidad no está garantizada. Y funciona igual en tu contra en las deudas, sobre todo en la tarjeta de crédito.",
+    },
+    {
+        question: "¿Una comisión de 1 % al año importa tanto?",
+        answer: `Sí, porque también se compone. Ahorrando ${cop(300_000)} al mes al 10 % durante 30 años, una comisión de 1 % anual te deja ${millions(withFee.balance)} en vez de ${millions(noFee.balance)}: ${millions(noFee.balance - withFee.balance)} menos.`,
+    },
+    {
+        question: "¿Los rendimientos pagan impuestos?",
+        answer: "En Colombia los rendimientos financieros tienen retención en la fuente y se declaran en renta; en otros países hay reglas parecidas. Pon en «Impuesto sobre rendimientos» el porcentaje que te aplica para ver el resultado neto.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/interes-compuesto", site).href;
+const title = "Calculadora de interés compuesto: cuánto crece tu dinero con aportes mensuales";
+const description = `Calcula cuánto tendrás ahorrando cada mes, cuánto necesitas ahorrar para una meta o en cuánto tiempo llegas. Con inflación, comisiones, impuestos y gráfica año a año. Gratis y sin registro.`;
+const ogPath = "/og/interes-compuesto.png";
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: INTERES_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            mainEntity: { "@id": `${pageUrl}#calculadora` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#calculadora`,
+            name: "Calculadora de interés compuesto",
+            url: pageUrl,
+            applicationCategory: "FinanceApplication",
+            operatingSystem: "Web",
+            inLanguage: "es",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Interés compuesto", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt="Calculadora de interés compuesto con gráfica de crecimiento año a año"
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Interés compuesto</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#calculadora">Calculadora</a>
+                <a href="#crecimiento">Gráfica</a>
+                <a href="#tu-plan">Tu plan</a>
+                <a href="#formula">Fórmula</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Interés <span>compuesto</span></h1>
+            <p class="lead">
+                Ahorrando <strong>{cop(DEFAULTS.contribution)} al mes</strong> al 10 % durante 20 años pones
+                {" "}{millions(sim.totalContributed)} de tu bolsillo y terminas con <strong>{millions(sim.balance)}</strong>.
+                Los otros {millions(sim.totalInterest)} los pone el tiempo. Calcula tu caso, en tu moneda, con inflación,
+                comisiones e impuestos.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={INTERES_REVIEW}>{longDate(INTERES_REVIEW)}</time> · Se calcula mes a mes en
+                tu navegador; no guardamos nada
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo">
+            <h2 id="calculadora-titulo" class="sr-only">Calcula tu interés compuesto</h2>
+
+            <form class="form" data-form>
+                <fieldset class="field">
+                    <legend>¿Qué quieres saber?</legend>
+                    <div class="options modes">
+                        <label class="option">
+                            <input type="radio" name="modo" value="tendre" checked />
+                            <span><strong>¿Cuánto tendré?</strong><small>Con lo que ahorro</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="modo" value="ahorrar" />
+                            <span><strong>¿Cuánto ahorrar?</strong><small>Para llegar a una meta</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="modo" value="tiempo" />
+                            <span><strong>¿En cuánto tiempo?</strong><small>Llego a mi meta</small></span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="field" data-modes="ahorrar tiempo" hidden>
+                    <label for="meta">Tu meta</label>
+                    <div class="money big">
+                        <span aria-hidden="true" data-symbol>$</span>
+                        <input id="meta" name="meta" type="text" inputmode="numeric" autocomplete="off" value={formatAmount(500_000_000)} />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="inicial">Capital inicial</label>
+                        <div class="money">
+                            <span aria-hidden="true" data-symbol>$</span>
+                            <input id="inicial" name="inicial" type="text" inputmode="numeric" autocomplete="off" value={formatAmount(DEFAULTS.initial)} placeholder="0" />
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="moneda">Moneda</label>
+                        <select class="input" id="moneda" name="moneda">
+                            {Object.entries(CURRENCIES).map(([code, { label }]) => (
+                                <option value={code} selected={code === "COP"}>{code} · {label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field" data-modes="tendre tiempo">
+                    <label for="aporte">Aporte periódico</label>
+                    <div class="money">
+                        <span aria-hidden="true" data-symbol>$</span>
+                        <input id="aporte" name="aporte" type="text" inputmode="numeric" autocomplete="off" value={formatAmount(DEFAULTS.contribution)} placeholder="0" />
+                        <select name="frecuencia" aria-label="Cada cuánto aportas">
+                            {FREQUENCIES.map(({ value, label }) => (
+                                <option value={value} selected={value === 1}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field" data-modes="ahorrar" hidden>
+                    <label for="frecuencia-meta">¿Cada cuánto vas a aportar?</label>
+                    <select class="input" id="frecuencia-meta" name="frecuencia-meta">
+                        {FREQUENCIES.map(({ value, label }) => (
+                            <option value={value} selected={value === 1}>{label}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="tasa">Rentabilidad anual</label>
+                    <div class="money">
+                        <input id="tasa" name="tasa" type="text" inputmode="decimal" autocomplete="off" value="10" />
+                        <span aria-hidden="true">%</span>
+                        <select name="capitalizacion" aria-label="Tipo de tasa">
+                            {COMPOUNDINGS.map(({ value, label }) => (
+                                <option value={String(value)} selected={value === "ea"}>{label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div class="chips" role="group" aria-label="Rentabilidades de ejemplo">
+                        {[4, 6, 8, 10, 12, 15].map((rate) => (
+                            <button type="button" class="chip" data-rate={rate} aria-pressed={rate === 10 ? "true" : "false"}>{rate} %</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="field" data-modes="tendre ahorrar">
+                    <label for="anos">Plazo: <output data-years-label>{DEFAULTS.years} años</output></label>
+                    <input id="anos" name="anos" type="range" min="1" max="50" step="1" value={DEFAULTS.years} style={`--p: ${(DEFAULTS.years - 1) / 49}`} />
+                    <div class="range-scale" aria-hidden="true"><span>1 año</span><span>25</span><span>50 años</span></div>
+                </div>
+
+                <details class="more">
+                    <summary>Inflación, comisiones, impuestos y aportes que suben</summary>
+                    <div class="grid-2">
+                        <div class="field">
+                            <label for="inflacion">Inflación anual</label>
+                            <div class="money small">
+                                <input id="inflacion" name="inflacion" type="text" inputmode="decimal" value="3" />
+                                <span aria-hidden="true">%</span>
+                            </div>
+                            <p class="hint">Para ver el resultado en dinero de hoy. La meta del Banco de la República es 3 %.</p>
+                        </div>
+                        <div class="field">
+                            <label for="crecimiento">El aporte sube cada año</label>
+                            <div class="money small">
+                                <input id="crecimiento" name="crecimiento" type="text" inputmode="decimal" value="0" />
+                                <span aria-hidden="true">%</span>
+                            </div>
+                            <p class="hint">Por ejemplo, lo mismo que tu aumento de sueldo.</p>
+                        </div>
+                        <div class="field">
+                            <label for="comision">Comisión anual</label>
+                            <div class="money small">
+                                <input id="comision" name="comision" type="text" inputmode="decimal" value="0" />
+                                <span aria-hidden="true">%</span>
+                            </div>
+                            <p class="hint">La de administración de un fondo, sobre el saldo.</p>
+                        </div>
+                        <div class="field">
+                            <label for="impuesto">Impuesto sobre rendimientos</label>
+                            <div class="money small">
+                                <input id="impuesto" name="impuesto" type="text" inputmode="decimal" value="0" />
+                                <span aria-hidden="true">%</span>
+                            </div>
+                            <p class="hint">Parte de lo que ganas que se va en impuestos.</p>
+                        </div>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="inicio" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Aporto al inicio de cada periodo</span>
+                    </label>
+                </details>
+            </form>
+
+            <div class="result">
+                <div class="result-card">
+                    <p class="result-kicker" data-out="kicker">Tendrás en {DEFAULTS.years} años</p>
+                    <p class="result-big" data-out="big">{cop(sim.balance)}</p>
+                    <p class="result-sub" data-out="sub">Tu dinero se multiplica {sim.multiple.toFixed(1).replace(".", ",")} veces</p>
+
+                    <div class="split" aria-hidden="true">
+                        <span class="seg s-initial" data-seg="initial" style={`--w: ${DEFAULTS.initial / sim.balance}`}></span>
+                        <span class="seg s-contrib" data-seg="contrib" style={`--w: ${(sim.totalContributed - DEFAULTS.initial) / sim.balance}`}></span>
+                        <span class="seg s-interest" data-seg="interest" style={`--w: ${sim.totalInterest / sim.balance}`}></span>
+                    </div>
+
+                    <dl class="result-grid">
+                        <div><dt><i class="dot s-initial"></i>Capital inicial</dt><dd data-out="initial">{cop(DEFAULTS.initial)}</dd></div>
+                        <div><dt><i class="dot s-contrib"></i>Tus aportes</dt><dd data-out="contrib">{cop(sim.totalContributed - DEFAULTS.initial)}</dd></div>
+                        <div><dt><i class="dot s-interest"></i>Intereses ganados</dt><dd data-out="interest">{cop(sim.totalInterest)}</dd></div>
+                        <div class="real-row"><dt>En dinero de hoy</dt><dd data-out="real">{cop(sim.real)}</dd></div>
+                    </dl>
+
+                    <p class="result-note" data-out="note">
+                        Rentabilidad neta {formatPct(sim.netAnnual)} E.A. · real {formatPct(sim.realAnnual)} después de inflación.
+                    </p>
+
+                    <div class="result-actions">
+                        <button type="button" class="ghost" data-share>Copiar enlace</button>
+                        <button type="button" class="ghost" data-csv>Descargar CSV</button>
+                    </div>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="crecimiento" aria-labelledby="crecimiento-titulo">
+            <header class="head">
+                <h2 id="crecimiento-titulo">Cómo crece, año a año</h2>
+                <p>
+                    Pasa el dedo o el mouse por la gráfica. El rojo es lo que ganas en intereses; la línea punteada, cuánto
+                    vale el saldo en dinero de hoy.
+                </p>
+            </header>
+
+            <figure class="chart">
+                <div class="chart-box" data-chart>
+                    <div class="chart-svg" data-out="chart" set:html={chart.svg} />
+                    <div class="tooltip" data-tooltip hidden></div>
+                </div>
+                <figcaption class="chart-legend">
+                    <span><i class="dot s-initial"></i>Capital inicial</span>
+                    <span><i class="dot s-contrib"></i>Aportes</span>
+                    <span><i class="dot s-interest"></i>Intereses</span>
+                    <span><i class="dash"></i>En dinero de hoy</span>
+                </figcaption>
+            </figure>
+        </section>
+
+        <section id="tu-plan" aria-labelledby="plan-titulo">
+            <header class="head">
+                <h2 id="plan-titulo">Lo que dice tu plan</h2>
+                <p>Los momentos que cambian la historia de tu ahorro. Se recalculan con cada dato que cambias.</p>
+            </header>
+
+            <div class="insights" data-out="insights">
+                <article>
+                    <p class="i-label">Tu dinero se duplica cada</p>
+                    <p class="i-value">{doubling.exact.toFixed(1).replace(".", ",")} años</p>
+                    <p class="i-text">Con la regla del 72 te da {doubling.rule72.toFixed(1).replace(".", ",")}.</p>
+                </article>
+                <article>
+                    <p class="i-label">El dinero trabaja más que tú</p>
+                    <p class="i-value">Año {keyMoments.workingYear}</p>
+                    <p class="i-text">Desde ahí, los intereses de cada año superan lo que aportas en ese año.</p>
+                </article>
+                <article>
+                    <p class="i-label">Lo ganado supera lo aportado</p>
+                    <p class="i-value">Año {keyMoments.crossover}</p>
+                    <p class="i-text">Los intereses acumulados ya son más que todo lo que has puesto.</p>
+                </article>
+            </div>
+
+            <div class="plan-grid">
+                <div class="scenarios">
+                    <h3>Si la rentabilidad cambia</h3>
+                    <table class="amounts">
+                        <thead>
+                            <tr><th scope="col">Rentabilidad</th><th scope="col" class="num">Resultado</th><th scope="col" class="num">Diferencia</th></tr>
+                        </thead>
+                        <tbody data-out="scenarios">
+                            {[-0.02, 0, 0.02].map((delta) => {
+                                const value = simulate({ ...base, rate: DEFAULTS.rate + delta }).balance;
+                                return (
+                                    <tr class:list={{ current: delta === 0 }}>
+                                        <th scope="row">{formatPct(DEFAULTS.rate + delta)}</th>
+                                        <td class="num strong">{cop(value)}</td>
+                                        <td class="num">{delta === 0 ? "Tu plan" : `${delta > 0 ? "+" : "−"}${cop(Math.abs(value - sim.balance)).slice(0)}`}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="waiting" data-out="waiting">
+                    <h3>El costo de esperar</h3>
+                    <p>Calculando…</p>
+                </div>
+            </div>
+
+            <div class="table-head">
+                <h3>Año por año</h3>
+            </div>
+            <div class="table-wrap">
+                <table class="amounts years">
+                    <thead>
+                        <tr>
+                            <th scope="col">Año</th>
+                            <th scope="col" class="num">Aportas</th>
+                            <th scope="col" class="num">Intereses del año</th>
+                            <th scope="col" class="num">Total aportado</th>
+                            <th scope="col" class="num">Saldo</th>
+                            <th scope="col" class="num">En dinero de hoy</th>
+                        </tr>
+                    </thead>
+                    <tbody data-out="rows">
+                        {
+                            sim.years.map((row) => (
+                                <tr>
+                                    <th scope="row">{row.year}</th>
+                                    <td class="num">{cop(row.contributed)}</td>
+                                    <td class="num">{cop(row.interest - row.fees)}</td>
+                                    <td class="num">{cop(row.totalContributed)}</td>
+                                    <td class="num strong">{cop(row.balance)}</td>
+                                    <td class="num">{cop(row.real)}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="formula" aria-labelledby="formula-titulo">
+            <header class="head">
+                <h2 id="formula-titulo">La fórmula, sin misterio</h2>
+                <p>Es la misma que usan los bancos. Lo que la hace poderosa es el exponente: el tiempo.</p>
+            </header>
+
+            <p class="big-formula" aria-label="Valor final igual a capital por uno más i a la n, más aporte por uno más i a la n menos uno, sobre i">
+                <span>VF</span><span class="op">=</span><span>P·(1+i)<sup>n</sup></span><span class="op">+</span><span>A·<span class="frac"><span>(1+i)<sup>n</sup>−1</span><span>i</span></span></span>
+            </p>
+            <dl class="legend-terms">
+                <div><dt>P</dt><dd>Capital inicial</dd></div>
+                <div><dt>A</dt><dd>Aporte de cada periodo</dd></div>
+                <div><dt>i</dt><dd>Tasa de cada periodo: mensual = (1 + E.A.)<sup>1/12</sup> − 1</dd></div>
+                <div><dt>n</dt><dd>Número de periodos</dd></div>
+            </dl>
+
+            <div class="compare">
+                <div>
+                    <h3>Simple contra compuesto</h3>
+                    <p class="hint">{cop(10_000_000)} al 10 % anual, sin aportes.</p>
+                    <table class="amounts">
+                        <thead>
+                            <tr><th scope="col">Años</th><th scope="col" class="num">Simple</th><th scope="col" class="num">Compuesto</th></tr>
+                        </thead>
+                        <tbody>
+                            {simpleVsCompound.map(({ years, simple, compound }) => (
+                                <tr>
+                                    <th scope="row">{years}</th>
+                                    <td class="num">{cop(simple)}</td>
+                                    <td class="num strong">{cop(compound)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>La regla del 72</h3>
+                    <p class="hint">Años para duplicar tu dinero: 72 ÷ tasa, contra el cálculo exacto.</p>
+                    <table class="amounts">
+                        <thead>
+                            <tr><th scope="col">Tasa</th><th scope="col" class="num">Regla del 72</th><th scope="col" class="num">Exacto</th></tr>
+                        </thead>
+                        <tbody>
+                            {rule72.map(({ rate, rule72: rule, exact }) => (
+                                <tr>
+                                    <th scope="row">{formatPct(rate)}</th>
+                                    <td class="num">{rule.toFixed(1).replace(".", ",")} años</td>
+                                    <td class="num strong">{exact.toFixed(1).replace(".", ",")} años</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rules">
+                <article>
+                    <h3>Empezar temprano gana</h3>
+                    <p>
+                        {cop(300_000)} al mes al 10 % desde los 25 hasta los 60 llegan a {millions(early.balance)}.
+                        Empezando a los 35, a {millions(late.balance)}. Diez años de espera cuestan
+                        {" "}{millions(early.balance - late.balance)}, aunque solo dejaste de aportar {millions(early.totalContributed - late.totalContributed)}.
+                    </p>
+                </article>
+                <article>
+                    <h3>La tasa efectiva manda</h3>
+                    <p>
+                        Para comparar inversiones usa siempre la efectiva anual (E.A.). Una nominal de 12 % capitalizada
+                        a diario es {formatPct(daily)} E.A.; mensual, {formatPct(monthlyCap)}.
+                    </p>
+                </article>
+                <article>
+                    <h3>También juega en contra</h3>
+                    <p>
+                        Las deudas se componen igual. Si inviertes al 10 % mientras pagas una tarjeta al 30 %, primero
+                        paga la tarjeta: es la inversión con mejor rentabilidad garantizada que vas a encontrar.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Los resultados son proyecciones: las rentabilidades pasadas no garantizan las futuras. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=Inter%C3%A9s%20compuesto`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Todo se calcula en tu
+                navegador, mes a mes, con la tasa efectiva equivalente.
+            </p>
+            <p>
+                También te sirve: <a href="/simulador-credito">Simulador de crédito</a> ·
+                <a href="/calculadora-prima">Calculadora de prima</a> ·
+                <a href="/salario-minimo-2027">Salario mínimo 2027</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import {
+        CURRENCIES,
+        contributionForGoal,
+        doublingYears,
+        formatAmount,
+        formatCompact,
+        formatDuration,
+        formatMoney,
+        formatPct,
+        growthChart,
+        milestones,
+        monthsToGoal,
+        parseAmount,
+        parseDecimal,
+        simulate,
+        type Compounding,
+        type CompoundInput,
+        type Currency,
+        type Frequency,
+        type Simulation,
+    } from "@/lib/interes-compuesto";
+
+    type Mode = "tendre" | "ahorrar" | "tiempo";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const el = <T extends Element = HTMLInputElement>(name: string) => form.elements.namedItem(name) as unknown as T;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const rateChips = [...document.querySelectorAll<HTMLButtonElement>("[data-rate]")];
+    const moneyFields = ["meta", "inicial", "aporte"];
+    const decimalFields = ["tasa", "inflacion", "crecimiento", "comision", "impuesto"];
+
+    let current: { sim: Simulation; input: CompoundInput; currency: Currency; chart: ReturnType<typeof growthChart> } | undefined;
+
+    /* Estado en la URL, para compartir el cálculo */
+    const params = new URLSearchParams(location.search);
+    const fromUrl: Record<string, string> = {
+        modo: "m", meta: "meta", inicial: "ini", aporte: "ap", frecuencia: "fr", tasa: "r", capitalizacion: "cap",
+        anos: "a", inflacion: "inf", crecimiento: "crec", comision: "com", impuesto: "imp", moneda: "cur",
+    };
+    for (const [name, key] of Object.entries(fromUrl)) {
+        const value = params.get(key);
+        if (value == null) continue;
+        if (name === "modo") {
+            const radio = form.querySelector<HTMLInputElement>(`[name="modo"][value="${CSS.escape(value)}"]`);
+            if (radio) radio.checked = true;
+        } else {
+            const field = el<HTMLInputElement | HTMLSelectElement>(name);
+            if (field) field.value = moneyFields.includes(name) ? formatAmount(parseAmount(value)) : value;
+        }
+    }
+    if (params.get("fr")) el<HTMLSelectElement>("frecuencia-meta").value = params.get("fr")!;
+    if (params.get("ini0") === "1") el("inicio").checked = true;
+    if (params.has("inf") || params.has("crec") || params.has("com") || params.has("imp")) {
+        const extras = ["crec", "com", "imp"].some((key) => Number(params.get(key)) > 0);
+        if (extras) document.querySelector<HTMLDetailsElement>(".more")!.open = true;
+    }
+
+    // Agrupa de a tres mientras se escribe, sin mover el cursor al final
+    for (const name of moneyFields) {
+        const field = el(name);
+        field.addEventListener("input", () => {
+            const digitsBefore = field.value.slice(0, field.selectionStart ?? 0).replace(/\D/g, "").length;
+            field.value = formatAmount(parseAmount(field.value));
+            let pos = 0;
+            for (let seen = 0; pos < field.value.length && seen < digitsBefore; pos++) if (/\d/.test(field.value[pos])) seen++;
+            field.setSelectionRange(pos, pos);
+        });
+    }
+
+    const pct = (name: string, max = 100) => Math.min(Math.max(parseDecimal(el(name).value), name === "crecimiento" || name === "inflacion" ? -50 : 0), max) / 100;
+    const mode = () => (form.querySelector<HTMLInputElement>('[name="modo"]:checked')?.value ?? "tendre") as Mode;
+    const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+    const times = (n: number) => n.toFixed(n >= 10 ? 0 : 1).replace(".", ",").replace(",0", "");
+
+    function readInput(): { input: CompoundInput; goal: number; currency: Currency; years: number } {
+        const currentMode = mode();
+        const capRaw = el<HTMLSelectElement>("capitalizacion").value;
+        const frequency = Number(currentMode === "ahorrar" ? el<HTMLSelectElement>("frecuencia-meta").value : el<HTMLSelectElement>("frecuencia").value) as Frequency;
+        const years = Math.min(50, Math.max(1, Number(el("anos").value) || 1));
+        return {
+            input: {
+                initial: Math.min(parseAmount(el("inicial").value), 1e15),
+                contribution: Math.min(parseAmount(el("aporte").value), 1e14),
+                frequency,
+                timing: el("inicio").checked ? "inicio" : "fin",
+                growth: pct("crecimiento", 50),
+                rate: pct("tasa", 200),
+                compounding: (capRaw === "ea" ? "ea" : Number(capRaw)) as Compounding,
+                months: years * 12,
+                inflation: pct("inflacion", 100),
+                fee: pct("comision", 20),
+                tax: pct("impuesto", 100),
+            },
+            goal: Math.min(parseAmount(el("meta").value), 1e16),
+            currency: el<HTMLSelectElement>("moneda").value as Currency,
+            years,
+        };
+    }
+
+    function syncUrl(currentMode: Mode) {
+        const query = new URLSearchParams();
+        query.set("m", currentMode);
+        for (const [name, key] of Object.entries(fromUrl)) {
+            if (name === "modo") continue;
+            if (currentMode === "tendre" && name === "meta") continue;
+            if (currentMode === "tiempo" && name === "anos") continue;
+            const field = el<HTMLInputElement | HTMLSelectElement>(name);
+            const value = moneyFields.includes(name) ? String(parseAmount(field.value)) : field.value;
+            if (value && value !== "0") query.set(key, value);
+        }
+        if (currentMode === "ahorrar") query.set("fr", el<HTMLSelectElement>("frecuencia-meta").value);
+        if (el("inicio").checked) query.set("ini0", "1");
+        history.replaceState(null, "", `${location.pathname}?${query}`);
+    }
+
+    function insight(label: string, value: string, text: string) {
+        return `<article><p class="i-label">${label}</p><p class="i-value">${value}</p><p class="i-text">${text}</p></article>`;
+    }
+
+    function update(): void {
+        const currentMode = mode();
+        for (const node of document.querySelectorAll<HTMLElement>("[data-modes]")) node.hidden = !node.dataset.modes!.split(" ").includes(currentMode);
+        const { input, goal, currency, years } = readInput();
+        const money = (value: number) => formatMoney(value, currency);
+        for (const symbol of document.querySelectorAll("[data-symbol]")) symbol.textContent = CURRENCIES[currency].symbol;
+        document.querySelector("[data-years-label]")!.textContent = plural(years, "año", "años");
+        el("anos").style.setProperty("--p", String((years - 1) / 49));
+        const rateValue = parseDecimal(el("tasa").value);
+        for (const chip of rateChips) chip.setAttribute("aria-pressed", String(Number(chip.dataset.rate) === rateValue));
+
+        // Cada modo resuelve una incógnita distinta y luego todo se dibuja con la simulación resultante
+        let plan = input;
+        let kicker = "";
+        let big = "";
+        let sub = "";
+        if (currentMode === "ahorrar") {
+            const needed = contributionForGoal(input, goal);
+            plan = { ...input, contribution: Number.isFinite(needed) ? needed : 0 };
+            const per = { 1: "al mes", 3: "al trimestre", 6: "al semestre", 12: "al año" }[input.frequency ?? 1];
+            kicker = `Para ${money(goal)} en ${plural(years, "año", "años")}`;
+            big = needed === 0 ? "Ya llegas" : Number.isFinite(needed) ? money(needed) : "—";
+            sub = needed === 0 ? "Tu capital inicial alcanza sin aportar más." : `${per}${input.growth ? `, subiendo ${formatPct(input.growth)} cada año` : ""}`;
+        } else if (currentMode === "tiempo") {
+            const months = monthsToGoal(input, goal);
+            plan = { ...input, months: Number.isFinite(months) ? Math.max(12, Math.ceil(months / 12) * 12) : 1200 };
+            kicker = `Para llegar a ${money(goal)}`;
+            big = Number.isFinite(months) ? formatDuration(months) : "Más de 100 años";
+            sub = Number.isFinite(months) ? `Con ${money(input.contribution)} ${{ 1: "al mes", 3: "al trimestre", 6: "al semestre", 12: "al año" }[input.frequency ?? 1]}` : "Sube el aporte o la rentabilidad.";
+        }
+
+        const sim = simulate(plan);
+        if (currentMode === "tendre") {
+            kicker = `Tendrás en ${plural(years, "año", "años")}`;
+            big = money(sim.balance);
+            sub = sim.multiple > 1 ? `Tu dinero se multiplica ${times(sim.multiple)} veces` : "La rentabilidad no alcanza a cubrir los costos";
+        }
+
+        out("kicker").textContent = kicker;
+        out("big").textContent = big;
+        out("sub").textContent = sub;
+        out("big").classList.toggle("text", currentMode === "tiempo");
+
+        const contributed = sim.totalContributed - plan.initial;
+        const total = Math.max(sim.balance, sim.totalContributed, 1);
+        const segs = { initial: plan.initial, contrib: contributed, interest: Math.max(0, sim.totalInterest) };
+        for (const [key, value] of Object.entries(segs)) document.querySelector<HTMLElement>(`[data-seg="${key}"]`)!.style.setProperty("--w", String(value / total));
+        out("initial").textContent = money(plan.initial);
+        out("contrib").textContent = money(contributed);
+        out("interest").textContent = money(sim.totalInterest);
+        out("real").textContent = money(sim.real);
+        out("note").textContent = `Rentabilidad neta ${formatPct(sim.netAnnual)} E.A. · real ${formatPct(sim.realAnnual)} después de inflación${currentMode === "tiempo" ? `. Saldo al final del año ${sim.years.length}: ${money(sim.balance)}` : ""}.`;
+
+        // Gráfica
+        const chart = growthChart(sim, plan.initial, currency, (plan.inflation ?? 0) !== 0);
+        out("chart").innerHTML = chart.svg;
+        current = { sim, input: plan, currency, chart };
+
+        // Momentos clave
+        const doubling = doublingYears(sim.netAnnual);
+        const moments = milestones(sim);
+        const cards = [
+            insight(
+                "Tu dinero se duplica cada",
+                Number.isFinite(doubling.exact) ? `${doubling.exact.toFixed(1).replace(".", ",")} años` : "Nunca",
+                Number.isFinite(doubling.exact) ? `Con la regla del 72 te da ${doubling.rule72.toFixed(1).replace(".", ",")}.` : "Con esta rentabilidad neta el saldo no crece solo.",
+            ),
+            insight(
+                "El dinero trabaja más que tú",
+                moments.workingYear ? `Año ${moments.workingYear}` : "Todavía no",
+                moments.workingYear ? "Desde ahí, los intereses de cada año superan lo que aportas en ese año." : "En este plazo tus aportes pesan más que los intereses. Dale más tiempo.",
+            ),
+            insight(
+                "Lo ganado supera lo aportado",
+                moments.crossover ? `Año ${moments.crossover}` : "Todavía no",
+                moments.crossover ? "Los intereses acumulados ya son más que todo lo que has puesto." : "Con más años o más rentabilidad llega ese punto.",
+            ),
+            ...moments.rounds.map(({ value, month }) =>
+                insight(`Llegas a ${formatCompact(value, currency)}`, formatDuration(month), `Contando desde hoy, con el plan que pusiste.`),
+            ),
+        ];
+        out("insights").innerHTML = cards.slice(0, 6).join("");
+
+        // Escenarios de rentabilidad
+        out("scenarios").innerHTML = [-0.02, 0, 0.02]
+            .map((delta) => {
+                const rate = Math.max(0, plan.rate + delta);
+                const value = simulate({ ...plan, rate }).balance;
+                const diff = value - sim.balance;
+                return `<tr class="${delta === 0 ? "current" : ""}"><th scope="row">${formatPct(rate)}</th><td class="num strong">${money(value)}</td><td class="num">${delta === 0 ? "Tu plan" : `${diff >= 0 ? "+" : "−"}${money(Math.abs(diff))}`}</td></tr>`;
+            })
+            .join("");
+
+        // El costo de esperar 5 años
+        const wait = Math.min(5, Math.floor(plan.months / 12) - 1);
+        if (wait >= 1) {
+            const later = simulate({ ...plan, months: plan.months - wait * 12 });
+            out("waiting").innerHTML = `<h3>El costo de esperar</h3><p class="w-big">−${money(sim.balance - later.balance)}</p><p>Si empiezas en ${plural(wait, "año", "años")} con el mismo plan y la misma fecha final, terminas con ${money(later.balance)} en vez de ${money(sim.balance)}. Solo dejarías de aportar ${money(sim.totalContributed - later.totalContributed)}.</p>`;
+        } else {
+            out("waiting").innerHTML = `<h3>El costo de esperar</h3><p>Con un plazo tan corto, esperar no cambia mucho. Prueba con más años para verlo.</p>`;
+        }
+
+        // Tabla
+        out("rows").innerHTML = sim.years
+            .map(
+                (row) =>
+                    `<tr><th scope="row">${row.year}</th><td class="num">${money(row.contributed)}</td><td class="num">${money(row.interest - row.fees)}</td><td class="num">${money(row.totalContributed)}</td><td class="num strong">${money(row.balance)}</td><td class="num">${money(row.real)}</td></tr>`,
+            )
+            .join("");
+
+        live.textContent = `${kicker}: ${big}.`;
+        syncUrl(currentMode);
+    }
+
+    let frame = 0;
+    const schedule = () => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(update);
+    };
+    form.addEventListener("input", schedule);
+    form.addEventListener("change", schedule);
+
+    for (const chip of rateChips) {
+        chip.addEventListener("click", () => {
+            el("tasa").value = chip.dataset.rate!;
+            update();
+        });
+    }
+
+    /* Tooltip de la gráfica */
+    const box = document.querySelector<HTMLElement>("[data-chart]")!;
+    const tooltip = document.querySelector<HTMLElement>("[data-tooltip]")!;
+    function showAt(clientX: number) {
+        if (!current) return;
+        const svg = box.querySelector("svg");
+        if (!svg) return;
+        const { geometry, points } = current.chart;
+        const rect = svg.getBoundingClientRect();
+        const scale = rect.width / geometry.width;
+        const plotW = geometry.width - geometry.left - geometry.right;
+        const last = points[points.length - 1].year || 1;
+        const local = (clientX - rect.left) / scale;
+        const year = Math.round(Math.min(Math.max((local - geometry.left) / plotW, 0), 1) * last);
+        const point = points[year];
+        if (!point) return;
+        const x = geometry.left + (year / last) * plotW;
+        const plotH = geometry.height - geometry.top - geometry.bottom;
+        const y = geometry.top + plotH - (Math.min(point.balance, geometry.max) / geometry.max) * plotH;
+        const hover = svg.querySelector<SVGGElement>("[data-hover]")!;
+        hover.style.display = "block";
+        hover.querySelector("line")!.setAttribute("x1", String(x));
+        hover.querySelector("line")!.setAttribute("x2", String(x));
+        hover.querySelector("circle")!.setAttribute("cx", String(x));
+        hover.querySelector("circle")!.setAttribute("cy", String(y));
+        const money = (value: number) => formatMoney(value, current!.currency);
+        tooltip.innerHTML = `<p class="t-year">${year === 0 ? "Hoy" : `Año ${year}`}</p><p class="t-balance">${money(point.balance)}</p><dl><div><dt>Aportado</dt><dd>${money(point.contributed)}</dd></div><div><dt>Intereses</dt><dd>${money(point.balance - point.contributed)}</dd></div><div><dt>En dinero de hoy</dt><dd>${money(point.real)}</dd></div></dl>`;
+        tooltip.hidden = false;
+        const left = x * scale;
+        const flip = left > rect.width / 2;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.transform = flip ? "translateX(calc(-100% - 14px))" : "translateX(14px)";
+    }
+    box.addEventListener("pointermove", (event) => showAt(event.clientX));
+    box.addEventListener("pointerdown", (event) => showAt(event.clientX));
+    box.addEventListener("pointerleave", () => {
+        tooltip.hidden = true;
+        const hover = box.querySelector<SVGGElement>("[data-hover]");
+        if (hover) hover.style.display = "none";
+    });
+
+    /* Compartir y descargar */
+    const share = document.querySelector<HTMLButtonElement>("[data-share]")!;
+    share.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(location.href);
+            share.textContent = "Enlace copiado";
+        } catch {
+            share.textContent = "Copia la URL";
+        }
+        setTimeout(() => (share.textContent = "Copiar enlace"), 2000);
+    });
+
+    document.querySelector("[data-csv]")!.addEventListener("click", () => {
+        if (!current) return;
+        const lines = [
+            "año;aportado_en_el_año;intereses_del_año;comisiones_del_año;total_aportado;saldo;saldo_en_dinero_de_hoy",
+            ...current.sim.years.map((row) =>
+                [row.year, row.contributed, row.interest, row.fees, row.totalContributed, row.balance, row.real]
+                    .map((value, index) => (index === 0 ? value : Math.round(value)))
+                    .join(";"),
+            ),
+        ];
+        const blob = new Blob([`﻿${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+        const link = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "interes-compuesto.csv" });
+        link.click();
+        URL.revokeObjectURL(link.href);
+    });
+
+    update();
+</script>
+
+<style>
+    .modes {
+        --cols: 3;
+    }
+
+    .money.small input {
+        font-size: 1.2rem;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px 16px;
+        padding-bottom: 20px;
+    }
+
+    .more {
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .more .switch {
+        margin-bottom: 20px;
+    }
+
+    [data-modes][hidden] {
+        display: none !important;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 6px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.86rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .chip[aria-pressed="true"] {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: #fff;
+    }
+
+    output {
+        color: var(--red);
+    }
+
+    input[type="range"] {
+        --p: 0.4;
+
+        width: 100%;
+        height: 32px;
+        background: transparent;
+        cursor: pointer;
+        appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--ink) calc(var(--p) * 100%), var(--line-strong) 0);
+    }
+
+    input[type="range"]::-moz-range-track {
+        height: 6px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--ink) calc(var(--p) * 100%), var(--line-strong) 0);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 26px;
+        height: 26px;
+        margin-top: -10px;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background: #fff;
+        appearance: none;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background: #fff;
+    }
+
+    input[type="range"]:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 4px;
+    }
+
+    .range-scale {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.8rem;
+    }
+
+    /* Resultado */
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .result-card {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 18px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .result-kicker {
+        color: var(--amber);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .result-big {
+        margin-top: 8px;
+        overflow-wrap: anywhere;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.8rem + 2.4vw, 3.6rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+    }
+
+    .result-big.text {
+        font-size: clamp(2rem, 1.6rem + 1.6vw, 2.8rem);
+    }
+
+    .result-sub {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.95rem;
+    }
+
+    .split {
+        display: flex;
+        gap: 3px;
+        height: 14px;
+        margin-top: 22px;
+    }
+
+    .seg {
+        flex: var(--w) 1 0;
+        min-width: 0;
+        border-radius: 4px;
+        transition: flex-grow 300ms var(--ease-out);
+    }
+
+    .s-initial {
+        background: #8b96a1;
+    }
+
+    .s-contrib {
+        background: #fff;
+    }
+
+    .s-interest {
+        background: #e0705f;
+    }
+
+    .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 7px;
+        border-radius: 3px;
+    }
+
+    .result-grid {
+        display: grid;
+        margin-top: 16px;
+    }
+
+    .result-grid div {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .result-grid dt {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.9rem;
+    }
+
+    .result-grid dd {
+        margin: 0;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.08rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .result-grid .real-row dd {
+        color: var(--amber);
+    }
+
+    .result-note {
+        margin-top: 14px;
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.85rem;
+    }
+
+    .result-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 18px;
+    }
+
+    .ghost {
+        padding: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: transparent;
+        color: #fff;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .ghost:hover {
+        border-color: #fff;
+    }
+
+    /* Gráfica */
+    .chart {
+        margin: 0;
+        padding: clamp(14px, 3vw, 28px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--sheet);
+    }
+
+    .chart-box {
+        position: relative;
+        touch-action: pan-y;
+    }
+
+    .chart-svg :global(svg) {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+    }
+
+    .chart-svg :global(.g-initial) {
+        fill: #8b96a1;
+    }
+
+    .chart-svg :global(.g-contrib) {
+        fill: var(--ink);
+    }
+
+    .chart-svg :global(.g-interest) {
+        fill: var(--red);
+    }
+
+    .chart-svg :global(.g-real) {
+        stroke: #e0a800;
+        stroke-dasharray: 6 5;
+        stroke-width: 3;
+    }
+
+    .chart-svg :global(.g-grid) {
+        stroke: var(--line);
+    }
+
+    .chart-svg :global(.g-axis) {
+        stroke: var(--ink);
+        stroke-width: 1.5;
+    }
+
+    .chart-svg :global(.g-label) {
+        fill: var(--muted);
+        font-family: var(--font-body);
+        font-size: 12px;
+    }
+
+    .chart-svg :global(.g-hover) {
+        display: none;
+        pointer-events: none;
+    }
+
+    .chart-svg :global(.g-cursor) {
+        stroke: var(--ink);
+        stroke-dasharray: 3 3;
+    }
+
+    .chart-svg :global(.g-dot) {
+        fill: #fff;
+        stroke: var(--ink);
+        stroke-width: 3;
+    }
+
+    .tooltip {
+        position: absolute;
+        top: 8px;
+        min-width: 210px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: var(--board);
+        box-shadow: 0 16px 32px -16px rgba(21, 25, 30, 0.6);
+        pointer-events: none;
+    }
+
+    .tooltip[hidden] {
+        display: none;
+    }
+
+    .tooltip :global(.t-year) {
+        color: var(--amber);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .tooltip :global(.t-balance) {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .tooltip :global(dl) {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .tooltip :global(dl div) {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        font-size: 0.82rem;
+    }
+
+    .tooltip :global(dt) {
+        color: rgba(255, 255, 255, 0.65);
+    }
+
+    .tooltip :global(dd) {
+        margin: 0;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 14px;
+        color: var(--text-soft);
+        font-size: 0.88rem;
+    }
+
+    .chart-legend .s-contrib {
+        background: var(--ink);
+    }
+
+    .chart-legend .s-interest {
+        background: var(--red);
+    }
+
+    .dash {
+        display: inline-block;
+        width: 20px;
+        height: 0;
+        margin-right: 7px;
+        border-top: 3px dashed #e0a800;
+        vertical-align: 3px;
+    }
+
+    /* Tu plan */
+    .insights {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px clamp(24px, 4vw, 48px);
+    }
+
+    .insights :global(article) {
+        padding-top: 16px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .insights :global(.i-label) {
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .insights :global(.i-value) {
+        margin-top: 4px;
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(1.7rem, 1.3rem + 1.2vw, 2.3rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+    }
+
+    .insights :global(.i-text) {
+        margin-top: 6px;
+        font-size: 0.92rem;
+    }
+
+    .plan-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+        margin-top: clamp(3rem, 6vw, 4.5rem);
+    }
+
+    .scenarios {
+        min-width: 0;
+        overflow-x: auto;
+    }
+
+    .scenarios h3,
+    .waiting :global(h3) {
+        margin-bottom: 14px;
+    }
+
+    .scenarios :global(tr.current th),
+    .scenarios :global(tr.current td) {
+        background: var(--red-soft);
+    }
+
+    .scenarios :global(tr.current th) {
+        padding-left: 10px;
+    }
+
+    .scenarios :global(tr.current td:last-child) {
+        padding-right: 10px;
+    }
+
+    .waiting {
+        padding: clamp(20px, 3vw, 28px);
+        border-radius: 18px;
+        background: var(--board);
+    }
+
+    .waiting :global(h3) {
+        color: #fff;
+    }
+
+    .waiting :global(.w-big) {
+        color: #f0a598;
+        font-family: var(--font-display);
+        font-size: clamp(1.9rem, 1.5rem + 1.4vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+    }
+
+    .waiting :global(p:not(.w-big)) {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.95rem;
+    }
+
+    .table-head {
+        margin: clamp(3rem, 6vw, 4.5rem) 0 14px;
+    }
+
+    .table-wrap {
+        max-width: 100%;
+        max-height: 560px;
+        overflow: auto;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .years {
+        min-width: 720px;
+    }
+
+    .years thead th {
+        position: sticky;
+        top: 0;
+        background: var(--background);
+    }
+
+    /* Fórmula */
+    .big-formula {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 16px;
+        padding: clamp(22px, 4vw, 36px);
+        border-radius: 18px;
+        background: var(--board);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(1.5rem, 1rem + 2.2vw, 2.8rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .big-formula .op {
+        color: var(--amber);
+    }
+
+    .big-formula sup {
+        font-size: 0.55em;
+    }
+
+    .frac {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        vertical-align: middle;
+        font-size: 0.75em;
+        line-height: 1.15;
+    }
+
+    .frac > span:first-child {
+        padding: 0 4px 4px;
+        border-bottom: 3px solid #fff;
+    }
+
+    .frac > span:last-child {
+        padding-top: 4px;
+    }
+
+    .legend-terms {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px 24px;
+        margin-top: 20px;
+    }
+
+    .legend-terms dt {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        font-weight: 800;
+    }
+
+    .legend-terms dd {
+        margin: 0;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+    }
+
+    .compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 40px clamp(40px, 7vw, 96px);
+        margin: clamp(3rem, 6vw, 4.5rem) 0;
+    }
+
+    .compare .hint {
+        margin: 6px 0 14px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .result-card {
+            max-width: 520px;
+        }
+
+        .plan-grid,
+        .compare {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .legend-terms {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .insights {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .modes {
+            --cols: 1;
+        }
+
+        .chart-svg :global(.g-label) {
+            font-size: 18px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .grid-2 {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>

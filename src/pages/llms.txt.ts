@@ -21,6 +21,7 @@ export const GET: APIRoute = ({ site }) => {
 ## Páginas
 
 - [Portafolio](${url("/")}): experiencia, proyectos personales y contacto.
+- [Herramientas](${url("/herramientas")}): índice de todas las herramientas gratis del sitio.
 ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivos-colombia-${year}`)}): los ${getHolidays(year).length} festivos con su día de la semana, ${getLongWeekends(year).length} puentes, Semana Santa, días hábiles, planes de vacaciones y la Ley Emiliani.`).join("\n")}
 - [Calculadora de prima de servicios](${url("/calculadora-prima")}): calcula la prima de junio o diciembre con auxilio de transporte, pagos variables y días trabajados.
 - [Salario mínimo ${nextWage.year}](${url(`/salario-minimo-${nextWage.year}`)}): ${isRevealed ? "el valor oficial" : "cuándo se define"}, simulador del aumento, salario mínimo vigente y costo de contratar a alguien con el mínimo.

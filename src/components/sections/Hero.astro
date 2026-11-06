@@ -38,6 +38,9 @@ const printInfo = [email, linkedUrl].filter(Boolean).join(" • ");
             <li>
                 <a href="#herramientas">Herramientas</a>
             </li>
+            <li class="keep">
+                <a href="/herramientas">Utilidades</a>
+            </li>
             <li>
                 <a class="nav-cta" href="#contacto">
                     Contacto
@@ -558,7 +561,7 @@ const printInfo = [email, linkedUrl].filter(Boolean).join(" • ");
     }
 
     @media (max-width: 860px) {
-        .topbar li:not(:last-child) {
+        .topbar li:not(:last-child, .keep) {
             display: none;
         }
     }

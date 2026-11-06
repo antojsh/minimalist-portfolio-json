@@ -12,6 +12,7 @@ import { SALARIO_MINIMO_REVIEW, nextWage } from "@/lib/salario-minimo";
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
     { path: "/", changefreq: "monthly", priority: "1.0" },
+    { path: "/herramientas", changefreq: "weekly", priority: "0.8", lastmod: "2026-11-06" },
     ...FESTIVOS_YEARS.map((year) => ({
         path: `/festivos-colombia-${year}`,
         changefreq: "monthly",

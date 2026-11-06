@@ -1,0 +1,423 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import { FESTIVOS_YEARS, getHolidays } from "@/lib/festivos";
+import { countBetween } from "@/lib/dias-habiles";
+import { calculatePrima, formatCOP, getMinimumWage } from "@/lib/prima";
+import { isRevealed, latestWage, nextWage } from "@/lib/salario-minimo";
+import { simulate as simulateCredit } from "@/lib/credito";
+import { formatCompact, simulate as simulateSavings } from "@/lib/interes-compuesto";
+import { wheelSegments } from "@/lib/ruleta";
+
+const REVIEW = "2026-11-06";
+const YEAR = Number(REVIEW.slice(0, 4));
+const wage = getMinimumWage(YEAR);
+const prima = calculatePrima({ salary: wage.salary, transport: true, start: `${YEAR}-07-01`, end: `${YEAR}-12-31`, wage });
+const businessDays = countBetween(`${YEAR}-01-01`, `${YEAR}-12-31`, { includeStart: true }).business;
+const credit = simulateCredit({ amount: 10_000_000, months: 36, rate: 0.24, rateType: "ea" });
+const savings = simulateSavings({ initial: 1_000_000, contribution: 200_000, rate: 0.1, months: 240 });
+const miniWheel = `<svg viewBox="0 0 1000 1000" aria-hidden="true">${wheelSegments(["", "", "", "", "", "", "", ""])}</svg>`;
+
+interface Tool {
+    href: string;
+    title: string;
+    text: string;
+    preview: string;
+    caption: string;
+    tone: "red" | "ink" | "amber" | "green" | "blue" | "paper";
+    wheel?: boolean;
+}
+
+const groups: { title: string; intro: string; tools: Tool[] }[] = [
+    {
+        title: "Fechas y Navidad",
+        intro: "Para planear el año, los puentes y las fiestas de diciembre.",
+        tools: [
+            {
+                href: "/novena-de-aguinaldos",
+                title: "Novena de aguinaldos",
+                text: "La novena completa con la consideración de cada día, gozos, villancicos y un repartidor de lecturas.",
+                preview: "16–24",
+                caption: "de diciembre",
+                tone: "green",
+            },
+            ...FESTIVOS_YEARS.map(
+                (year): Tool => ({
+                    href: `/festivos-colombia-${year}`,
+                    title: `Festivos en Colombia ${year}`,
+                    text: "Todos los festivos con su día de la semana, los puentes, Semana Santa y calendario para tu celular.",
+                    preview: String(getHolidays(year).length),
+                    caption: `festivos en ${year}`,
+                    tone: year === YEAR + 1 ? "red" : "paper",
+                }),
+            ),
+            {
+                href: "/dias-habiles",
+                title: "Contador de días hábiles",
+                text: "Días hábiles entre dos fechas o cuándo vence un plazo, con los festivos de Colombia incluidos.",
+                preview: String(businessDays),
+                caption: `días hábiles en ${YEAR}`,
+                tone: "ink",
+            },
+        ],
+    },
+    {
+        title: "Trabajo en Colombia",
+        intro: "Cuentas laborales hechas con la ley vigente y explicadas paso a paso.",
+        tools: [
+            {
+                href: "/calculadora-prima",
+                title: "Calculadora de prima",
+                text: "Cuánto te pagan de prima en junio o diciembre, con auxilio de transporte y días trabajados.",
+                preview: formatCOP(prima.total),
+                caption: "prima con el mínimo",
+                tone: "amber",
+            },
+            {
+                href: "/liquidacion-laboral",
+                title: "Liquidación laboral",
+                text: "Cesantías, intereses, prima, vacaciones e indemnización cuando renuncias o te despiden.",
+                preview: "5 en 1",
+                caption: "prestaciones y despido",
+                tone: "paper",
+            },
+            {
+                href: `/salario-minimo-${nextWage.year}`,
+                title: `Salario mínimo ${nextWage.year}`,
+                text: "Cuándo se define, simulador del aumento y cuánto cuesta contratar a alguien con el mínimo.",
+                preview: isRevealed ? formatCOP(latestWage().salary) : "$?.???.???",
+                caption: isRevealed ? `mínimo ${nextWage.year}` : "por definir",
+                tone: "ink",
+            },
+        ],
+    },
+    {
+        title: "Plata",
+        intro: "Funcionan con cualquier moneda y se calculan en tu navegador.",
+        tools: [
+            {
+                href: "/interes-compuesto",
+                title: "Interés compuesto",
+                text: "Cuánto tendrás ahorrando cada mes, cuánto ahorrar para una meta o en cuánto tiempo llegas.",
+                preview: formatCompact(savings.balance),
+                caption: "$200.000 al mes por 20 años",
+                tone: "red",
+            },
+            {
+                href: "/simulador-credito",
+                title: "Simulador de crédito",
+                text: "Cuota mensual, intereses, tabla de amortización y cuánto ahorras con abonos a capital.",
+                preview: formatCOP(credit.firstPayment),
+                caption: "cuota de $10 M a 36 meses",
+                tone: "paper",
+            },
+        ],
+    },
+    {
+        title: "Para decidir",
+        intro: "Cuando nadie se pone de acuerdo, que decida la suerte.",
+        tools: [
+            {
+                href: "/ruleta",
+                title: "Ruleta aleatoria",
+                text: "Para rifas, sorteos de Instagram, turnos y saber quién paga. Aleatoria de verdad.",
+                preview: "",
+                caption: "gira y que decida la suerte",
+                tone: "ink",
+                wheel: true,
+            },
+        ],
+    },
+];
+
+const all = groups.flatMap((group) => group.tools);
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/herramientas", site).href;
+const title = "Herramientas gratis: calculadoras, festivos, novena y ruleta";
+const description = `${all.length} herramientas gratis y sin registro: festivos de Colombia, días hábiles, prima, liquidación, salario mínimo, interés compuesto, crédito, novena de aguinaldos y ruleta.`;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "CollectionPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: REVIEW,
+            mainEntity: { "@id": `${pageUrl}#lista` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "ItemList",
+            "@id": `${pageUrl}#lista`,
+            itemListElement: all.map((tool, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                name: tool.title,
+                url: new URL(tool.href, site).href,
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Herramientas", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout title={title} description={description} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Herramientas</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="Categorías">
+                {groups.map(({ title }) => <a href={`#${title.toLowerCase().replace(/\s+/g, "-")}`}>{title}</a>)}
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Herramientas <span>gratis</span></h1>
+            <p class="lead">
+                {all.length} utilidades que hice para resolver cosas que la gente busca todos los días. Sin registro, sin
+                anuncios y, casi siempre, <strong>calculadas en tu navegador</strong>: tus datos no salen de tu equipo.
+            </p>
+        </section>
+
+        {
+            groups.map(({ title, intro, tools }) => (
+                <section id={title.toLowerCase().replace(/\s+/g, "-")} class="group" aria-labelledby={`${title}-titulo`}>
+                    <header class="head">
+                        <h2 id={`${title}-titulo`}>{title}</h2>
+                        <p>{intro}</p>
+                    </header>
+                    <ul class="cards">
+                        {tools.map((tool) => (
+                            <li>
+                                <a class:list={["card", `tone-${tool.tone}`]} href={tool.href}>
+                                    <span class="preview" aria-hidden="true">
+                                        {tool.wheel ? <span class="mini-wheel" set:html={miniWheel} /> : <b>{tool.preview}</b>}
+                                        <small>{tool.caption}</small>
+                                    </span>
+                                    <span class="body">
+                                        <strong>{tool.title}</strong>
+                                        <span>{tool.text}</span>
+                                        <em>Abrir <span aria-hidden="true">→</span></em>
+                                    </span>
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            ))
+        }
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador full stack en {basics.location.city}. ¿Te gustaría una
+                herramienta que no está? <a href={`mailto:${basics.email}?subject=Idea%20de%20herramienta`}>Escríbeme</a>.
+            </p>
+            <p><a href="/">Ver mi portafolio</a></p>
+        </footer>
+    </main>
+</Layout>
+
+<style>
+    .hero h1 {
+        max-width: none;
+    }
+
+    .group {
+        scroll-margin-top: 16px;
+    }
+
+    .tool > .group:first-of-type {
+        margin-top: clamp(3rem, 6vw, 4.5rem);
+    }
+
+    .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+        gap: 16px;
+    }
+
+    .card {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 22px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+        text-decoration: none !important;
+        transition:
+            transform 220ms var(--ease-out),
+            box-shadow 220ms ease;
+    }
+
+    .card:hover {
+        box-shadow:
+            inset 0 0 0 1px var(--ink),
+            0 24px 40px -28px rgba(21, 25, 30, 0.5);
+        transform: translateY(-4px);
+    }
+
+    .card:focus-visible {
+        outline: 3px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .preview {
+        position: relative;
+        display: grid;
+        align-content: end;
+        min-height: 150px;
+        padding: 20px 22px;
+        overflow: hidden;
+    }
+
+    .preview b {
+        font-family: var(--font-display);
+        font-size: clamp(2.3rem, 1.8rem + 1.6vw, 3.1rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .preview small {
+        margin-top: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        opacity: 0.8;
+    }
+
+    .tone-red .preview {
+        background: var(--red);
+        color: #fff;
+    }
+
+    .tone-ink .preview {
+        background: var(--board);
+        color: #fff;
+    }
+
+    .tone-ink .preview b {
+        color: var(--amber);
+    }
+
+    .tone-amber .preview {
+        background: var(--amber);
+        color: var(--ink);
+    }
+
+    .tone-green .preview {
+        background: #1f4d3a;
+        color: #fff;
+    }
+
+    .tone-blue .preview {
+        background: #003893;
+        color: #fff;
+    }
+
+    .tone-paper .preview {
+        background: #efe7d8;
+        color: var(--ink);
+    }
+
+    .tone-paper .preview b {
+        color: var(--red);
+    }
+
+    .mini-wheel {
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 190px;
+        transition: transform 900ms var(--ease-out);
+    }
+
+    .mini-wheel :global(svg) {
+        display: block;
+        width: 100%;
+    }
+
+    .mini-wheel :global(text) {
+        display: none;
+    }
+
+    .card:hover .mini-wheel {
+        transform: rotate(200deg);
+    }
+
+    .body {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        padding: 20px 22px 22px;
+    }
+
+    .body strong {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .body > span {
+        color: var(--text-soft);
+        font-size: 0.95rem;
+        line-height: 1.55;
+    }
+
+    .body em {
+        margin-top: 6px;
+        color: var(--red);
+        font-size: 0.9rem;
+        font-style: normal;
+        font-weight: 700;
+    }
+
+    .body em span {
+        display: inline-block;
+        transition: transform 200ms var(--ease-out);
+    }
+
+    .card:hover .body em span {
+        transform: translateX(4px);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .card,
+        .mini-wheel {
+            transition: none;
+        }
+    }
+</style>

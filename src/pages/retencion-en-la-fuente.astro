@@ -103,7 +103,8 @@ const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora d
                     <button type="button" role="tab" id="tab-terceros" aria-controls="panel-terceros" aria-selected="false" tabindex="-1" data-tab="terceros">Servicios, compras y honorarios</button>
                 </div>
 
-                <form class="form" id="panel-salario" role="tabpanel" aria-labelledby="tab-salario" data-salary>
+                <div class="panel" id="panel-salario" role="tabpanel" aria-labelledby="tab-salario">
+                <form class="form" data-salary>
                     <div class="field">
                         <label for="salario">Salario mensual</label>
                         <div class="money big">
@@ -145,8 +146,10 @@ const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora d
                         </div>
                     </details>
                 </form>
+                </div>
 
-                <form class="form" id="panel-terceros" role="tabpanel" aria-labelledby="tab-terceros" data-third hidden>
+                <div class="panel" id="panel-terceros" role="tabpanel" aria-labelledby="tab-terceros" hidden>
+                <form class="form" data-third>
                     <div class="field">
                         <label for="concepto">Concepto</label>
                         <select class="input" id="concepto" name="concepto">
@@ -176,6 +179,7 @@ const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora d
                         </div>
                     </fieldset>
                 </form>
+                </div>
             </div>
 
             <div class="result">
@@ -450,7 +454,7 @@ const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora d
         color: var(--ink);
     }
 
-    form[hidden],
+    .panel[hidden],
     fieldset[hidden] {
         display: none;
     }
@@ -576,6 +580,10 @@ const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora d
     .amounts :global(tr.current) th,
     .amounts :global(tr.current) td {
         background: var(--red-soft);
+    }
+
+    .amounts :global(tr.current) small {
+        color: var(--text-soft);
     }
 
     .amounts .group-row th {

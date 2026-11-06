@@ -1,0 +1,2180 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import {
+    EFECTIVA_CAP_UVT,
+    FISCAL,
+    GDP_2027,
+    HEALTH_ROWS,
+    IVA_GROUPS,
+    POPULATION,
+    RESCATE_PUBLISHED,
+    RESCATE_REVIEW,
+    RESCATE_STATUS,
+    TABLE_241_NEW,
+    TABLE_241_NOW,
+    UVT_2026,
+    VICES,
+    WAGE_2026,
+    firstTaxedSalary,
+    healthNew,
+    healthNow,
+    newPrice,
+    rentaFor,
+} from "@/lib/ley-rescate";
+import { formatCOP, formatNumber } from "@/lib/uvt";
+import { articleJsonLd, longDate } from "@/lib/seo";
+
+const pct = (value: number) => `${(value * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`;
+const num = (value: number, digits = 1) => value.toLocaleString("es-CO", { maximumFractionDigits: digits });
+const uvtPesos = (uvt: number) => formatCOP(uvt * UVT_2026);
+/** 9.4 → "$9,40" */
+const cents = (value: number) => `$${value.toFixed(2).replace(".", ",")}`;
+
+const firstNow = firstTaxedSalary("now");
+const firstNew = firstTaxedSalary("new");
+const deficitPesos = (GDP_2027 * FISCAL.deficit2027) / 100;
+const perPerson = (deficitPesos * 1e12) / POPULATION;
+
+// Valores de arranque de las calculadoras (la página se ve completa sin JavaScript)
+const RENTA_SAMPLE = 6_000_000;
+const rentaNow = rentaFor(RENTA_SAMPLE, 0, "now");
+const rentaNew = rentaFor(RENTA_SAMPLE, 0, "new");
+const HEALTH_SAMPLE = 5_000_000;
+const ivaToday = IVA_GROUPS.reduce((sum, group) => sum + group.sample, 0);
+const ivaAfter = IVA_GROUPS.reduce((sum, group) => sum + newPrice(group.sample, group.from, group.to), 0);
+const vice = VICES[0];
+
+const tableRows = (table: typeof TABLE_241_NOW) =>
+    table.map(({ from, to, rate, plus }) => ({
+        range: to === Infinity ? `Más de ${formatNumber(from)}` : from === 0 ? `Hasta ${formatNumber(to)}` : `${formatNumber(from)} a ${formatNumber(to)}`,
+        rate: rate ? pct(rate) : "0 %",
+        plus,
+    }));
+
+const faqs = [
+    {
+        question: "¿La Ley de Rescate Económico ya es ley?",
+        answer: "No. Es el Proyecto de Ley 477 de 2026, radicado en la Cámara el 29 de octubre de 2026. El Gobierno pidió trámite de urgencia para que las comisiones económicas de Cámara y Senado lo discutan juntas. Para que rija en 2027 debe aprobarse antes de que termine la legislatura, el 16 de diciembre, y en el camino el Congreso puede cambiarlo.",
+    },
+    {
+        question: "¿Cuándo empezaría a aplicar?",
+        answer: "Por partes. Los cambios en salud y parafiscales arrancarían el 1 de enero de 2027. El IVA de licores, compras internacionales de menos de US$200 y apuestas en línea, apenas entre en vigencia. El IVA de la canasta (frutas, verduras, café, azúcar, aceite) desde el 1 de enero de 2028. La nueva tabla de renta aplicaría al año gravable 2027, que se declara en 2028.",
+    },
+    {
+        question: "¿Sube el IVA del arroz, la carne, los huevos o la leche?",
+        answer: "No. Según el proyecto, carne, pollo, pescado, leche, huevos, arroz, papa, yuca, pan, arepa y panela siguen sin IVA, igual que el agua, el gas y la luz. Lo que sube a 19 % desde 2028 son las frutas, verduras y hortalizas, y los productos que hoy pagan 5 %, como café, azúcar, aceite, pastas y chocolate.",
+    },
+    {
+        question: "¿Desde qué sueldo pagaría impuesto de renta?",
+        answer: `Con la tabla actual, un empleado sin otros ingresos ni deducciones empieza a pagar renta con un sueldo de unos ${formatCOP(firstNow)} al mes. Con la tabla del proyecto, desde unos ${formatCOP(firstNew)}, porque aparece un tramo nuevo del 9 % que arranca en 720 UVT de renta líquida al año. Las cuentas van en pesos de 2026.`,
+    },
+    {
+        question: "¿Cuánto más me descontarían de salud?",
+        answer: "Quien gana hasta 2 salarios mínimos sigue pagando 4 %. De ahí en adelante el aporte sube por escalones: 5,5 % entre 2 y 4 mínimos, 6 % entre 4 y 5, 6,5 % entre 5 y 10, y así hasta 8 % para quien gana entre 20 y 25 mínimos. Los independientes pasarían de 12,5 % a entre 13 % y 15,5 %. Arrancaría el 1 de enero de 2027.",
+    },
+    {
+        question: "¿Qué es EfectIVA?",
+        answer: `Es el mecanismo con el que el proyecto devolvería el IVA a los hogares de menos ingresos desde 2028: el 100 % a las personas en pobreza y entre el 30 % y el 50 % a la población vulnerable, con un tope de ${num(EFECTIVA_CAP_UVT)} UVT por persona al mes. El Gobierno calcula que cubriría a unos 19 millones de personas con devolución total.`,
+    },
+    {
+        question: "¿La plata sale de recortes o de impuestos?",
+        answer: "Depende de quién haga la cuenta. El Gobierno dice que siete de cada diez pesos del ajuste salen del gasto. Análisis como el de La Silla Vacía o Citi encuentran que los recortes directos son entre una quinta y una cuarta parte, porque el Gobierno cuenta como menor gasto el quitar beneficios tributarios. Las dos cosas pueden ser ciertas según qué se llame gasto.",
+    },
+    {
+        question: "¿Qué pasa si el Congreso no la aprueba?",
+        answer: `El presupuesto de 2027 quedaría desfinanciado. El Gobierno proyecta un déficit de ${num(FISCAL.deficit2027)} % del PIB sin la ley, y tendría que recortar más gasto, endeudarse más caro o volver a intentarlo en 2027. Para el mercado sería una mala señal: más riesgo de rebaja en la calificación, tasas de interés más altas y presión sobre el dólar.`,
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/blog/ley-de-rescate-economico";
+const title = "Ley de Rescate Económico explicada fácil: IVA, renta y salud (con calculadoras)";
+const description =
+    "Qué propone la Ley de Rescate de De la Espriella en IVA, renta, salud y gasto, cuánto te cambia el bolsillo y qué podría pasar con la economía. Con calculadoras.";
+const ogPath = "/og/ley-de-rescate-economico.png";
+const jsonLd = articleJsonLd({
+    site,
+    path,
+    title,
+    description,
+    crumb: "Ley de Rescate Económico",
+    published: RESCATE_PUBLISHED,
+    modified: RESCATE_REVIEW,
+    image: ogPath,
+    keywords: ["Ley de Rescate Económico", "reforma tributaria 2026", "Abelardo de la Espriella", "IVA 19 %", "renta personas naturales", "aportes a salud", "EfectIVA", "RUGE"],
+    faqs,
+});
+
+const debtMarks = [
+    { value: 55, label: "Ancla" },
+    { value: 63, label: "Alerta" },
+    { value: 71, label: "Límite" },
+];
+const debtBars = [
+    { label: "Junio de 2026", value: FISCAL.debt2026q2 },
+    { label: "2027 sin la ley", value: FISCAL.debt2027 },
+    { label: "2027 con la ley", value: FISCAL.debtWithLaw },
+];
+const funding = [
+    { who: "Lo que dice el Gobierno", cuts: 70, note: "Cuenta como menor gasto quitar beneficios tributarios." },
+    { who: "Citi", cuts: 25, note: "Recortes directos: cerca de una cuarta parte." },
+    { who: "La Silla Vacía", cuts: 21, note: "Recortes efectivos: 0,74 % del PIB, unos $16,7 billones." },
+];
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt="La Ley de Rescate Económico explicada fácil" imageWidth={1200} imageHeight={630} canvas={false} type="article" jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool post">
+        <Topbar
+            parent={{ href: "/blog", label: "Blog" }}
+            crumb="Ley de Rescate"
+            links={[
+                { href: "#resumen", label: "Resumen" },
+                { href: "#iva", label: "IVA" },
+                { href: "#renta", label: "Renta" },
+                { href: "#salud", label: "Salud" },
+                { href: "#consecuencias", label: "Consecuencias" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <header class="hero">
+            <p class="kicker">Economía explicada fácil</p>
+            <h1>La Ley de Rescate, <span>explicada fácil</span></h1>
+            <p class="lead">
+                El gobierno de Abelardo de la Espriella le pidió al Congreso <strong>una reforma para tapar el hueco de las cuentas del Estado</strong>:
+                sube impuestos, recorta gasto y cambia lo que pagas de salud. Aquí te explico, sin enredos, qué propone, a quién le toca
+                pagar y qué podría pasar con la economía. Con calculadoras para que veas tu caso.
+            </p>
+            <p class="updated">
+                Por <a href="/">Antonio Sierra</a> · <time datetime={RESCATE_PUBLISHED}>{longDate(RESCATE_PUBLISHED)}</time> · Lectura de 20 minutos
+            </p>
+            <div class:list={["status", { law: RESCATE_STATUS.isLaw }]}>
+                <span class="status-dot" aria-hidden="true"></span>
+                <p><strong>{RESCATE_STATUS.label}.</strong> {RESCATE_STATUS.detail}</p>
+            </div>
+        </header>
+
+        <section id="resumen" aria-labelledby="resumen-titulo">
+            <header class="head">
+                <h2 id="resumen-titulo">Si solo tienes un minuto</h2>
+                <p>Lo que más se siente en el bolsillo, según el proyecto radicado. Todo puede cambiar en el Congreso.</p>
+            </header>
+            <ul class="facts">
+                <li>
+                    <b>5&nbsp;% → 19&nbsp;%</b>
+                    <span>IVA del café, el azúcar, el aceite y las pastas desde 2028. Frutas y verduras pasan de 0&nbsp;% a 19&nbsp;%.</span>
+                </li>
+                <li>
+                    <b>9&nbsp;%</b>
+                    <span>Tramo nuevo de renta. Un empleado empezaría a pagar con unos {formatCOP(firstNew)} de sueldo, no {formatCOP(firstNow)}.</span>
+                </li>
+                <li>
+                    <b>4&nbsp;% → 5,5&nbsp;%</b>
+                    <span>Aporte a salud para quien gana más de 2 mínimos, y sube por escalones hasta 8&nbsp;%. Desde enero de 2027.</span>
+                </li>
+                <li>
+                    <b>+47&nbsp;%</b>
+                    <span>Precio estimado de los cigarrillos. La cerveza pasaría de unos $3.500 a cerca de $5.000.</span>
+                </li>
+                <li>
+                    <b>35&nbsp;% → 31&nbsp;%</b>
+                    <span>Impuesto de renta de las empresas, en dos años. Las megainversiones podrían pagar 20&nbsp;%.</span>
+                </li>
+                <li>
+                    <b>−20&nbsp;%</b>
+                    <span>Gastos de personal del Estado a 2028, y la mitad menos en contratos de prestación de servicios.</span>
+                </li>
+            </ul>
+
+            <nav class="index" aria-label="Contenido del artículo">
+                <p>Lo que vas a encontrar</p>
+                <ul>
+                    <li><a href="#por-que">Por qué el Gobierno dice que hay que rescatar las cuentas</a></li>
+                    <li><a href="#de-donde">De dónde saldría la plata</a></li>
+                    <li><a href="#iva">IVA: qué productos suben y cuánto te cuesta</a></li>
+                    <li><a href="#renta">Renta: el tramo nuevo del 9&nbsp;%</a></li>
+                    <li><a href="#salud">Salud: lo que te descuentan y lo que le cuestas a tu empresa</a></li>
+                    <li><a href="#vicios">Cerveza, licores y cigarrillos</a></li>
+                    <li><a href="#empresas">Empresas, grandes inversiones y deudas con la DIAN</a></li>
+                    <li><a href="#recortes">El recorte del Estado y la nueva regla fiscal</a></li>
+                    <li><a href="#consecuencias">Qué podría pasar con la economía</a></li>
+                    <li><a href="#glosario">Glosario sin tecnicismos</a></li>
+                </ul>
+            </nav>
+        </section>
+
+        <section id="por-que" aria-labelledby="por-que-titulo">
+            <header class="head">
+                <h2 id="por-que-titulo">¿Por qué un “rescate”?</h2>
+                <p>Porque el Estado gasta mucho más de lo que le entra, y el hueco crece.</p>
+            </header>
+
+            <div class="split">
+                <div class="prose">
+                    <aside class="analogy">
+                        <p class="analogy-head">Piénsalo como una casa</p>
+                        <p>
+                            Una familia gana un sueldo, pero cada mes paga más de lo que entra: mercado, arriendo, colegio y las cuotas de
+                            las tarjetas. La diferencia la cubre con más tarjetas. Al principio funciona; después, buena parte del sueldo se va
+                            en intereses y los bancos le prestan más caro. Para salir tiene dos caminos, y casi siempre usa los dos:
+                            <strong>ganar más o gastar menos</strong>.
+                        </p>
+                    </aside>
+                    <p>
+                        Con el Estado pasa lo mismo. A lo que le falta cada año se le llama <dfn>déficit</dfn> y a lo que acumula, <dfn>deuda</dfn>.
+                        El nuevo gobierno revisó las cuentas en agosto y encontró que el déficit de 2027 llegaría al
+                        <strong>{num(FISCAL.deficit2027)}&nbsp;% del PIB</strong> si no se hace nada. En palabras sencillas: por cada $100 que produce
+                        el país en un año, el Gobierno gastaría {cents(FISCAL.deficit2027)} más de
+                        lo que recauda.
+                    </p>
+                    <p>
+                        En pesos son unos <strong>${formatNumber(deficitPesos)} billones</strong> en un solo año, cerca de
+                        <strong>{formatCOP(Math.round(perPerson / 100_000) * 100_000)} por cada colombiano</strong>. El presupuesto de 2027 es de
+                        ${FISCAL.budget2027} billones, el más grande frente al tamaño de la economía desde la pandemia.
+                    </p>
+                    <p>
+                        La deuda neta ya estaba en {num(FISCAL.debt2026q2)}&nbsp;% del PIB a mitad de 2026, por encima del {debtMarks[0].value}&nbsp;% que la
+                        ley considera sano. Cuando un país debe mucho, quienes le prestan cobran más intereses, las calificadoras le bajan la nota
+                        y ese costo termina llegando a los créditos de todos.
+                    </p>
+                    <p>
+                        El proyecto se llama <strong>Ley de Rescate Económico</strong> (Proyecto de Ley 477 de 2026). Lo radicaron el vicepresidente
+                        José Manuel Restrepo y el ministro de Hacienda, Miguel Gómez Martínez, el 29 de octubre. Tiene 106 artículos y busca un
+                        ajuste de {num(FISCAL.adjustment2027)}&nbsp;% del PIB en 2027, unos ${FISCAL.adjustmentPesos} billones, que crecería a
+                        {num(FISCAL.adjustment2028, 2)}&nbsp;% en 2028 y {num(FISCAL.adjustment2030, 2)}&nbsp;% en 2030.
+                    </p>
+                </div>
+
+                <div class="charts">
+                    <figure class="chart">
+                        <figcaption>
+                            <b>Déficit del Gobierno</b>
+                            <span>Por cada $100 que produce el país</span>
+                        </figcaption>
+                        <ul class="bars">
+                            {
+                                [
+                                    { label: "2026", value: FISCAL.deficit2026 },
+                                    { label: "2027 sin la ley", value: FISCAL.deficit2027, hot: true },
+                                    { label: "2027 con la ley", value: FISCAL.deficitWithLaw, good: true },
+                                ].map(({ label, value, hot, good }) => (
+                                    <li class:list={{ hot, good }} style={`--v: ${value / 10}`}>
+                                        <span>{label}</span>
+                                        <span class="bar" aria-hidden="true"></span>
+                                        <b>{cents(value)}</b>
+                                    </li>
+                                ))
+                            }
+                        </ul>
+                        <p class="chart-note">Proyecciones del Ministerio de Hacienda. El “con la ley” es su estimación preliminar.</p>
+                    </figure>
+
+                    <figure class="chart">
+                        <figcaption>
+                            <b>Deuda neta del Gobierno</b>
+                            <span>Como porcentaje del PIB, frente a la regla fiscal</span>
+                        </figcaption>
+                        <div class="gauge">
+                            {
+                                debtBars.map(({ label, value }) => (
+                                    <div class="gauge-row" style={`--v: ${(value - 40) / 40}`}>
+                                        <span>{label}</span>
+                                        <span class="gauge-track" aria-hidden="true">
+                                            <span class="gauge-fill"></span>
+                                            {debtMarks.map(({ value: mark }) => (
+                                                <i style={`--m: ${(mark - 40) / 40}`}></i>
+                                            ))}
+                                        </span>
+                                        <b>{num(value)}&nbsp;%</b>
+                                    </div>
+                                ))
+                            }
+                            <div class="gauge-legend">
+                                {debtMarks.map(({ value, label }) => <span>{label} {value}&nbsp;%</span>)}
+                            </div>
+                        </div>
+                        <p class="chart-note">La escala arranca en 40&nbsp;%. Deuda de junio: Citi. 2027: Ministerio de Hacienda.</p>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        <section id="de-donde" aria-labelledby="de-donde-titulo">
+            <header class="head">
+                <h2 id="de-donde-titulo">¿De dónde saldría la plata?</h2>
+                <p>Aquí está la gran discusión: ¿es un recorte del Estado o una reforma tributaria?</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        El ministro Gómez dice que entre $30 y $35 billones del ajuste salen de austeridad, y el Gobierno repite que
+                        <strong>siete de cada diez pesos</strong> vienen del gasto. Pero varios análisis llegan a otra cuenta.
+                    </p>
+                    <p>
+                        La diferencia está en qué se llama “gasto”. Cuando el Estado deja de cobrarle IVA a un producto, renuncia a una plata:
+                        a eso se le dice <dfn>gasto tributario</dfn>. El Gobierno cuenta quitar esas exenciones como un recorte. Quien paga el café
+                        con IVA del 19&nbsp;%, en cambio, lo siente como un impuesto nuevo.
+                    </p>
+                    <p>
+                        Con la cuenta de La Silla Vacía, los recortes efectivos son 0,74&nbsp;% del PIB en 2028, unos $16,7 billones: el 21&nbsp;% del efecto
+                        de la ley. Citi llega a una conclusión parecida, cerca de una cuarta parte.
+                    </p>
+                    <p>
+                        Ninguna de las dos cuentas está “mal”: miden cosas distintas. Lo útil para ti es saber que
+                        <strong>la mayor parte del ajuste se sentiría en lo que pagas</strong>, más que en lo que deja de gastar el Estado.
+                    </p>
+                </div>
+                <figure class="chart">
+                    <figcaption>
+                        <b>¿Quién pone la plata?</b>
+                        <span>Parte del ajuste que sale de recortes y parte que sale de impuestos y aportes</span>
+                    </figcaption>
+                    <ul class="stack">
+                        {
+                            funding.map(({ who, cuts, note }) => (
+                                <li>
+                                    <p>{who}</p>
+                                    <span class="stack-bar" style={`--c: ${cuts}`}>
+                                        <span class="stack-cuts">{cuts}&nbsp;%</span>
+                                        <span class="stack-tax">{100 - cuts}&nbsp;%</span>
+                                    </span>
+                                    <small>{note}</small>
+                                </li>
+                            ))
+                        }
+                    </ul>
+                    <p class="legend">
+                        <span><i class="swatch cuts"></i>Recorte del gasto</span>
+                        <span><i class="swatch tax"></i>Impuestos y aportes</span>
+                    </p>
+                </figure>
+            </div>
+        </section>
+
+        <section id="iva" aria-labelledby="iva-titulo">
+            <header class="head">
+                <h2 id="iva-titulo">IVA: lo que más se siente en el mercado</h2>
+                <p>Es la medida que más recauda: unos $25 billones al año, según La Silla Vacía.</p>
+            </header>
+
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        El <dfn>IVA</dfn> es el impuesto que va escondido en el precio de casi todo lo que compras. Hoy hay tres tarifas: 19&nbsp;% para
+                        la mayoría de cosas, 5&nbsp;% para algunos alimentos y servicios, y 0&nbsp;% para lo más básico. El proyecto
+                        <strong>casi elimina la tarifa del 5&nbsp;%</strong> y saca muchos productos de la lista de los que no pagan.
+                    </p>
+                    <p>
+                        Cuando algo pasa de 5&nbsp;% a 19&nbsp;%, el precio no sube 14&nbsp;%, sube un poco menos: <strong>13,3&nbsp;%</strong>. Lo que hoy cuesta
+                        $10.500 con IVA (10.000 + 5&nbsp;%) pasaría a $11.900 (10.000 + 19&nbsp;%). Si pasa de 0&nbsp;% a 19&nbsp;%, sube el 19&nbsp;% completo.
+                    </p>
+                    <p>
+                        Para que no golpee a los hogares más pobres, el proyecto crea <dfn>EfectIVA</dfn>: desde 2028 devolvería el 100&nbsp;% del IVA a
+                        las personas en pobreza (unos 19 millones) y entre el 30&nbsp;% y el 50&nbsp;% a la población vulnerable (otros 16,5 millones), con un
+                        tope de {num(EFECTIVA_CAP_UVT)} UVT por persona al mes ({uvtPesos(EFECTIVA_CAP_UVT)} en pesos de 2026). Costaría unos
+                        $20 billones al año.
+                    </p>
+                </div>
+                <div class="lists">
+                    <div class="list up">
+                        <h3>Pasan a 19&nbsp;%</h3>
+                        <ul>
+                            <li><b>Café, chocolate, azúcar, aceites y pastas</b> <span>5&nbsp;% → 19&nbsp;% · 2028</span></li>
+                            <li><b>Frutas, verduras y hortalizas</b> <span>0&nbsp;% → 19&nbsp;% · 2028</span></li>
+                            <li><b>Queso fresco, camarón de cultivo y ganado</b> <span>0&nbsp;% → 19&nbsp;% · 2028</span></li>
+                            <li><b>Medicina prepagada</b> <span>5&nbsp;% → 19&nbsp;% · 2028</span></li>
+                            <li><b>Licores y vinos</b> <span>5&nbsp;% → 19&nbsp;% · al aprobarse</span></li>
+                            <li><b>Compras internacionales de menos de US$200</b> <span>0&nbsp;% → 19&nbsp;% · al aprobarse</span></li>
+                            <li><b>Apuestas en línea</b> <span>0&nbsp;% → 19&nbsp;% · al aprobarse</span></li>
+                            <li><b>Carros eléctricos</b> <span>5&nbsp;% → 19&nbsp;% · al aprobarse</span></li>
+                        </ul>
+                    </div>
+                    <div class="list keep">
+                        <h3>Siguen sin IVA</h3>
+                        <p>Carne, pollo, pescado, leche, huevos, arroz, papa, yuca, pan, arepa, panela, agua, gas y luz.</p>
+                        <p class="list-note">Y salchichón, butifarra y mortadela bajarían de 5&nbsp;% a 0&nbsp;% en 2028.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workbench" data-calc="iva">
+                <form class="form" data-form>
+                    <div class="calc-head">
+                        <h3>Calcula tu mercado con la reforma</h3>
+                        <p class="hint">Escribe cuánto gastas hoy al mes en cada grupo. Ponle $0 a lo que no compras.</p>
+                    </div>
+                    <div class="grid-2">
+                        {
+                            IVA_GROUPS.map((group) => (
+                                <div class="field">
+                                    <label for={`iva-${group.id}`}>{group.label}</label>
+                                    <div class="money">
+                                        <span aria-hidden="true">$</span>
+                                        <input
+                                            id={`iva-${group.id}`}
+                                            name={group.id}
+                                            type="text"
+                                            inputmode="numeric"
+                                            autocomplete="off"
+                                            value={group.sample ? formatNumber(group.sample) : ""}
+                                            placeholder="0"
+                                            data-from={group.from}
+                                            data-to={group.to}
+                                        />
+                                    </div>
+                                    <p class="hint">
+                                        {group.examples} · <span class="when">{group.when}</span>
+                                    </p>
+                                </div>
+                            ))
+                        }
+                    </div>
+                    <div class="row">
+                        <div class="field">
+                            <label for="iva-personas">Personas en tu hogar</label>
+                            <select class="input" id="iva-personas" name="personas">
+                                {[1, 2, 3, 4, 5, 6].map((value) => <option value={value} selected={value === 3}>{value}</option>)}
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="iva-efectiva">¿Recibirías EfectIVA?</label>
+                            <select class="input" id="iva-efectiva" name="efectiva">
+                                <option value="0">No, no lo recibiría</option>
+                                <option value="0.3">Sí, devolución del 30&nbsp;%</option>
+                                <option value="0.4">Sí, devolución del 40&nbsp;%</option>
+                                <option value="0.5">Sí, devolución del 50&nbsp;%</option>
+                                <option value="1">Sí, estoy en pobreza (100&nbsp;%)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+                <div class="result">
+                    <div class="ticket">
+                        <p class="ticket-head">Tu mercado del mes</p>
+                        <dl class="ticket-lines">
+                            <div><dt>Hoy pagas</dt><dd data-out="today">{formatCOP(ivaToday)}</dd></div>
+                            <div><dt>Con la reforma</dt><dd data-out="after">{formatCOP(Math.round(ivaAfter))}</dd></div>
+                            <div data-refund-row hidden><dt>EfectIVA te devolvería</dt><dd data-out="refund">$0</dd></div>
+                        </dl>
+                        <div class="ticket-big">
+                            <span data-out="label">Pagarías de más al mes</span>
+                            <b data-out="extra">{formatCOP(Math.round(ivaAfter - ivaToday))}</b>
+                        </div>
+                        <p class="ticket-foot">Al año: <b data-out="year">{formatCOP(Math.round((ivaAfter - ivaToday) * 12))}</b></p>
+                    </div>
+                    <p class="hint result-note">
+                        Supone que los comercios trasladan todo el IVA al precio. La devolución real de EfectIVA se calcularía sobre todo el IVA
+                        que pagas, no solo sobre estos productos.
+                    </p>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="renta" aria-labelledby="renta-titulo">
+            <header class="head">
+                <h2 id="renta-titulo">Renta: aparece un tramo del 9&nbsp;%</h2>
+                <p>Más personas de clase media empezarían a pagar impuesto de renta.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        El impuesto de renta se cobra por <dfn>tramos</dfn>, como los pisos de un edificio: cada peso paga la tarifa del piso en
+                        el que cae. Hoy, los primeros 1.090 <dfn>UVT</dfn> de renta líquida al año no pagan nada. Con el proyecto, ese primer piso
+                        libre baja a <strong>720&nbsp;UVT</strong> ({uvtPesos(720)} al año, unos {uvtPesos(60)} al mes en pesos de 2026) y entre 720 y
+                        1.090&nbsp;UVT se paga 9&nbsp;%.
+                    </p>
+                    <p>
+                        Ojo: <strong>renta líquida no es tu sueldo</strong>. Es lo que queda después de restar lo que te descuentan de salud y
+                        pensión y las rentas exentas, como el 25&nbsp;% del salario. Por eso alguien con un sueldo de unos {formatCOP(firstNew)} al mes
+                        llegaría justo a ese piso.
+                    </p>
+                    <p>Además, el proyecto aprieta los alivios que hoy bajan la base:</p>
+                    <ul>
+                        <li>La renta exenta del 25&nbsp;% del salario tendría un tope de 630&nbsp;UVT al año, no 790.</li>
+                        <li>El tope total de exenciones y deducciones bajaría de 1.340 a 1.180&nbsp;UVT al año.</li>
+                        <li>Desaparece la deducción de 72&nbsp;UVT por cada dependiente, de hasta cuatro personas.</li>
+                        <li>Los premios de lotería pagarían 30&nbsp;% de ganancia ocasional, no 20&nbsp;%.</li>
+                        <li>Arriba, todo lo que pase de 8.670&nbsp;UVT pagaría 39&nbsp;%, que hoy solo aplica desde 31.000&nbsp;UVT.</li>
+                    </ul>
+                    <p>
+                        La retención en la fuente de cada mes también tendría un tramo del 9&nbsp;%, así que el cambio se notaría en la nómina, no solo
+                        al declarar. Si se aprueba en 2026, la tabla aplicaría a lo que ganes en 2027.
+                    </p>
+                </div>
+                <div class="table-wrap">
+                    <table class="amounts compare-table">
+                        <caption>Tabla de renta de personas naturales (art. 241). Renta líquida al año, en UVT.</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Hoy</th>
+                                <th scope="col" class="num">Tarifa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                tableRows(TABLE_241_NOW).map(({ range, rate }) => (
+                                    <tr>
+                                        <th scope="row">{range}</th>
+                                        <td class="num">{rate}</td>
+                                    </tr>
+                                ))
+                            }
+                        </tbody>
+                    </table>
+                    <table class="amounts compare-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Con el proyecto</th>
+                                <th scope="col" class="num">Tarifa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                tableRows(TABLE_241_NEW).map(({ range, rate }, index) => (
+                                    <tr class:list={{ fresh: index === 1 }}>
+                                        <th scope="row">
+                                            {range}
+                                            {index === 1 && <span class="tag">Nuevo</span>}
+                                        </th>
+                                        <td class="num strong">{rate}</td>
+                                    </tr>
+                                ))
+                            }
+                        </tbody>
+                    </table>
+                    <p class="hint">Tarifa marginal: se cobra solo sobre lo que cae dentro de cada tramo.</p>
+                </div>
+            </div>
+
+            <div class="workbench" data-calc="renta">
+                <form class="form" data-form>
+                    <div class="calc-head">
+                        <h3>¿Cuánta renta pagarías?</h3>
+                        <p class="hint">Para empleados con salario fijo, sin otros ingresos ni deducciones. En pesos de 2026.</p>
+                    </div>
+                    <div class="field">
+                        <label for="renta-salario">Tu salario mensual</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="renta-salario" name="salario" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(RENTA_SAMPLE)} />
+                        </div>
+                        <div class="chips" role="group" aria-label="Salarios de ejemplo">
+                            {[3_500_000, 4_650_000, 6_000_000, 10_000_000, 20_000_000].map((value) => (
+                                <button type="button" class="chip" data-amount={value}>{formatCOP(value)}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="renta-dependientes">Personas que dependen de ti</label>
+                        <select class="input" id="renta-dependientes" name="dependientes">
+                            {[0, 1, 2, 3, 4].map((value) => <option value={value}>{value === 0 ? "Ninguna" : value}</option>)}
+                        </select>
+                        <p class="hint">Hoy cada una te resta 72&nbsp;UVT al año. El proyecto elimina esa deducción.</p>
+                    </div>
+                    <details class="breakdown">
+                        <summary>Ver la cuenta completa</summary>
+                        <table class="amounts">
+                            <thead>
+                                <tr><th scope="col">Al año</th><th scope="col" class="num">Hoy</th><th scope="col" class="num">Proyecto</th></tr>
+                            </thead>
+                            <tbody>
+                                {
+                                    [
+                                        ["income", "Salario"],
+                                        ["health", "− Salud"],
+                                        ["pension", "− Pensión"],
+                                        ["solidarity", "− Fondo de solidaridad"],
+                                        ["exempt", "− Renta exenta (25&nbsp;%)"],
+                                        ["dependents", "− Dependientes"],
+                                    ].map(([key, label]) => (
+                                        <tr>
+                                            <th scope="row">{label}</th>
+                                            <td class="num" data-now={key}>{formatCOP(Math.round(rentaNow[key as keyof typeof rentaNow] as number))}</td>
+                                            <td class="num" data-new={key}>{formatCOP(Math.round(rentaNew[key as keyof typeof rentaNew] as number))}</td>
+                                        </tr>
+                                    ))
+                                }
+                                <tr>
+                                    <th scope="row">Renta líquida en UVT</th>
+                                    <td class="num strong" data-now="uvt">{num(rentaNow.taxableUvt)}</td>
+                                    <td class="num strong" data-new="uvt">{num(rentaNew.taxableUvt)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </details>
+                </form>
+                <div class="result">
+                    <div class="ticket">
+                        <p class="ticket-head">Impuesto de renta al año</p>
+                        <div class="versus">
+                            <div>
+                                <span>Hoy</span>
+                                <b data-out="now">{formatCOP(rentaNow.tax)}</b>
+                                <small data-out="now-bracket">Tramo de {pct(rentaNow.bracket.rate)}</small>
+                            </div>
+                            <div>
+                                <span>Con el proyecto</span>
+                                <b data-out="new">{formatCOP(rentaNew.tax)}</b>
+                                <small data-out="new-bracket">Tramo de {pct(rentaNew.bracket.rate)}</small>
+                            </div>
+                        </div>
+                        <div class="ticket-big">
+                            <span data-out="label">Pagarías de más al año</span>
+                            <b data-out="diff">{formatCOP(rentaNew.tax - rentaNow.tax)}</b>
+                        </div>
+                        <p class="ticket-foot">Equivale a <b data-out="month">{formatCOP(Math.round((rentaNew.tax - rentaNow.tax) / 12))}</b> al mes</p>
+                    </div>
+                    <p class="hint result-note">
+                        Usa la UVT de 2026 ({formatCOP(UVT_2026)}) en los dos lados para comparar contra hoy. Si tienes otros ingresos, intereses
+                        de vivienda o aportes voluntarios, tu resultado cambia.
+                    </p>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="salud" aria-labelledby="salud-titulo">
+            <header class="head">
+                <h2 id="salud-titulo">Salud: más descuento en la nómina</h2>
+                <p>El sistema de salud recauda $29 billones y gasta más de $40 billones, según el Ministerio de Hacienda.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        Hoy todos los empleados aportan el <strong>4&nbsp;%</strong> de su salario a salud, y los independientes el 12,5&nbsp;%. Desde el
+                        1 de enero de 2027, quien gane más de 2 salarios mínimos aportaría más, por escalones: a más sueldo, más porcentaje.
+                    </p>
+                    <p>
+                        La otra mitad del cambio la siente tu empresa. Hoy las sociedades no pagan salud (8,5&nbsp;%), SENA (2&nbsp;%) ni ICBF (3&nbsp;%) por los
+                        trabajadores que ganan menos de 10 mínimos: se llama <dfn>exoneración de parafiscales</dfn>. Con el proyecto, ese alivio
+                        quedaría solo para quien gana hasta 2 mínimos. Entre 2 y 3 mínimos la empresa pagaría 6&nbsp;%, y desde 3 mínimos el 13,5&nbsp;%
+                        completo.
+                    </p>
+                    <p>
+                        ¿Por qué importa si lo paga la empresa? Porque contratarte formalmente se vuelve más caro, y eso puede frenar aumentos o
+                        nuevas contrataciones de salarios medios. Volvemos a esto en <a href="#consecuencias">las consecuencias</a>.
+                    </p>
+                </div>
+                <div class="table-wrap">
+                    <table class="amounts">
+                        <caption>Aporte a salud desde enero de 2027, según lo que ganas</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Salarios mínimos</th>
+                                <th scope="col" class="num">Empleado</th>
+                                <th scope="col" class="num">Independiente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                HEALTH_ROWS.map(({ from, upTo, employee, independent }) => (
+                                    <tr>
+                                        <th scope="row">{from === 0 ? `Hasta ${upTo}` : upTo === Infinity ? `Más de ${from}` : `${from} a ${upTo}`}</th>
+                                        <td class="num strong">{pct(employee)}</td>
+                                        <td class="num">{pct(independent)}</td>
+                                    </tr>
+                                ))
+                            }
+                        </tbody>
+                    </table>
+                    <p class="hint">Hoy: 4&nbsp;% empleados y 12,5&nbsp;% independientes. Salario mínimo de 2026: {formatCOP(WAGE_2026.salary)}.</p>
+                </div>
+            </div>
+
+            <div class="workbench" data-calc="salud">
+                <form class="form" data-form>
+                    <div class="calc-head">
+                        <h3>¿Cuánto te descontarían de salud?</h3>
+                        <p class="hint">Con el salario mínimo de 2026. El de 2027 cambia un poco los cortes.</p>
+                    </div>
+                    <div class="field">
+                        <label for="salud-salario" data-out="salary-label">Tu salario mensual</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="salud-salario" name="salario" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(HEALTH_SAMPLE)} />
+                        </div>
+                        <div class="chips" role="group" aria-label="Salarios de ejemplo">
+                            {[3_000_000, 4_500_000, 6_000_000, 10_000_000, 18_000_000].map((value) => (
+                                <button type="button" class="chip" data-amount={value}>{formatCOP(value)}</button>
+                            ))}
+                        </div>
+                        <p class="hint" data-independent-hint hidden>Como independiente cotizas sobre el 40&nbsp;% de lo que facturas: ese es tu ingreso base.</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="independiente" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Soy independiente</span>
+                    </label>
+                </form>
+                <div class="result">
+                    <div class="ticket">
+                        <p class="ticket-head">Aporte a salud del mes</p>
+                        <dl class="ticket-lines">
+                            <div><dt>Hoy</dt><dd data-out="now">{formatCOP(healthNow(HEALTH_SAMPLE))}</dd></div>
+                            <div><dt data-out="new-label">Con el proyecto ({pct(healthNew(HEALTH_SAMPLE).rate)})</dt><dd data-out="new">{formatCOP(healthNew(HEALTH_SAMPLE).value)}</dd></div>
+                        </dl>
+                        <div class="ticket-big">
+                            <span>Te llegaría menos al mes</span>
+                            <b data-out="diff">{formatCOP(healthNew(HEALTH_SAMPLE).value - healthNow(HEALTH_SAMPLE))}</b>
+                        </div>
+                        <p class="ticket-foot">Al año: <b data-out="year">{formatCOP((healthNew(HEALTH_SAMPLE).value - healthNow(HEALTH_SAMPLE)) * 12)}</b></p>
+                        <div class="employer" data-employer>
+                            <p>A tu empresa le costarías más</p>
+                            <b data-out="employer">+{formatCOP(HEALTH_SAMPLE * 0.135)}</b>
+                            <small data-out="employer-note">Al mes, en salud, SENA e ICBF (13,5&nbsp;%)</small>
+                        </div>
+                    </div>
+                    <p class="hint result-note">
+                        Lo de la empresa aplica a sociedades que hoy usan la exoneración. Si ganas 10 mínimos o más, la empresa ya los paga y no
+                        cambia.
+                    </p>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="vicios" aria-labelledby="vicios-titulo">
+            <header class="head">
+                <h2 id="vicios-titulo">Cerveza, licores y cigarrillos</h2>
+                <p>Los llamados impuestos a los vicios: suben bastante y desde 2027.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        Además del IVA, estos productos pagan un <dfn>impuesto al consumo</dfn> fijo por unidad. El proyecto lo cambia para que
+                        dependa de los grados de alcohol y del precio, y lo sube cada año con la inflación más 4 puntos desde 2028.
+                    </p>
+                    <ul>
+                        <li><strong>Cerveza:</strong> $330 por grado de alcohol cada 330 ml, más 10&nbsp;% del precio.</li>
+                        <li><strong>Licores:</strong> $750 por grado cada 750 ml, más 35&nbsp;% del precio, además del IVA que pasa de 5&nbsp;% a 19&nbsp;%.</li>
+                        <li><strong>Cigarrillos:</strong> $7.823 por cajetilla en 2027 y $11.200 en 2028, más 10&nbsp;% del precio.</li>
+                        <li><strong>Vapeadores:</strong> $1.000 por mililitro en 2027 y $2.000 en 2028, más 30&nbsp;% del precio.</li>
+                        <li><strong>Bebidas ultraprocesadas:</strong> desde 2028, $45 cada 100 ml si tienen menos de 9 g de azúcar y $76 si tienen más.</li>
+                    </ul>
+                    <p>
+                        Las estimaciones de precio que citan los análisis: cigarrillos <strong>+47&nbsp;%</strong>, vapeadores <strong>+53&nbsp;%</strong>,
+                        bebidas alcohólicas <strong>+32,6&nbsp;%</strong> en promedio, y una cerveza que pasaría de unos $3.500 a cerca de $5.000. Solo
+                        el impuesto a la cerveza recaudaría unos $7,1 billones al año.
+                    </p>
+                </div>
+
+                <div class="workbench mini" data-calc="vicios">
+                    <form class="form" data-form>
+                        <div class="calc-head">
+                            <h3>¿Cuánto más pagarías?</h3>
+                        </div>
+                        <fieldset class="field">
+                            <legend>Producto</legend>
+                            <div class="options" style="--cols: 2">
+                                {
+                                    VICES.map((item, index) => (
+                                        <label class="option">
+                                            <input type="radio" name="producto" value={item.id} checked={index === 0} data-price={item.price} data-quantity={item.quantity} data-rise={item.rise} data-unit={item.unit} />
+                                            <span>
+                                                <strong>{item.label}</strong>
+                                                <small>+{pct(item.rise)} estimado</small>
+                                            </span>
+                                        </label>
+                                    ))
+                                }
+                            </div>
+                        </fieldset>
+                        <div class="row">
+                            <div class="field">
+                                <label for="vicio-precio">Precio hoy</label>
+                                <div class="money">
+                                    <span aria-hidden="true">$</span>
+                                    <input id="vicio-precio" name="precio" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(vice.price)} />
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="vicio-cantidad" data-out="unit-label">Cervezas al mes</label>
+                                <input class="input" id="vicio-cantidad" name="cantidad" type="number" min="0" step="1" value={vice.quantity} />
+                            </div>
+                        </div>
+                    </form>
+                    <div class="ticket">
+                        <dl class="ticket-lines">
+                            <div><dt>Precio estimado</dt><dd data-out="price">{formatCOP(Math.round(vice.price * (1 + vice.rise)))}</dd></div>
+                        </dl>
+                        <div class="ticket-big">
+                            <span>Gastarías de más al mes</span>
+                            <b data-out="extra">{formatCOP(Math.round(vice.price * vice.rise * vice.quantity))}</b>
+                        </div>
+                        <p class="ticket-foot">Al año: <b data-out="year">{formatCOP(Math.round(vice.price * vice.rise * vice.quantity * 12))}</b></p>
+                    </div>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="empresas" aria-labelledby="empresas-titulo">
+            <header class="head">
+                <h2 id="empresas-titulo">Empresas, grandes inversiones y deudas con la DIAN</h2>
+                <p>Aquí el proyecto va en la dirección contraria: baja impuestos para atraer inversión.</p>
+            </header>
+            <div class="rules six">
+                <article>
+                    <h3>Renta de empresas: de 35&nbsp;% a 31&nbsp;%</h3>
+                    <p>
+                        La tarifa general bajaría a 33&nbsp;% en 2027 y a 31&nbsp;% desde 2028. La idea: que a las empresas les quede más plata para
+                        invertir y contratar, y que Colombia compita con países que cobran menos.
+                    </p>
+                </article>
+                <article>
+                    <h3>Los bancos pagan un extra</h3>
+                    <p>
+                        Las entidades financieras grandes seguirían con una sobretasa de 5 puntos: 38&nbsp;% en 2027 y 36&nbsp;% entre 2028 y 2030. Hoy
+                        pagan 40&nbsp;%.
+                    </p>
+                </article>
+                <article>
+                    <h3>RUGE: estabilidad por 16 años</h3>
+                    <p>
+                        Un régimen para megainversiones: renta de 20&nbsp;% para las que arranquen en 2027 o 2028 (26&nbsp;% desde 2029), dividendos al
+                        exterior de 8&nbsp;% y reglas congeladas por 16 años. Pide invertir desde unos $135.000 millones en agro hasta $426.000 millones
+                        en infraestructura y energía, y comprar al menos 30&nbsp;% en el país.
+                    </p>
+                </article>
+                <article>
+                    <h3>Patrimonio: menos personas, hasta 2030</h3>
+                    <p>
+                        El impuesto al patrimonio empezaría en 95.500&nbsp;UVT, no en 72.000, con tarifa máxima de 1&nbsp;%, no 1,5&nbsp;%. Y ya no sería
+                        permanente: solo de 2027 a 2030.
+                    </p>
+                </article>
+                <article>
+                    <h3>Ponerse al día con lo escondido</h3>
+                    <p>
+                        Hasta el 30 de junio de 2027, quien tenga bienes sin declarar podría legalizarlos ante la DIAN pagando 15&nbsp;%. Para las
+                        criptomonedas, 5&nbsp;% sobre su valor al 1 de enero de 2027.
+                    </p>
+                </article>
+                <article>
+                    <h3>Descuentos para deudores de la DIAN</h3>
+                    <p>
+                        También hasta junio de 2027: quien pague lo que debe tendría las sanciones al 40&nbsp;% e intereses del 5&nbsp;% anual, o acuerdos
+                        de pago de hasta 12 meses. A cambio, las multas por no facturar subirían fuerte.
+                    </p>
+                </article>
+            </div>
+            <p class="prose aside-note">
+                Otros cambios: el impuesto al carbono sube año a año hasta 2029, se elimina el impuesto a los plásticos de un solo uso y bajan los
+                montos desde los que esconder bienes o no declarar es delito.
+            </p>
+        </section>
+
+        <section id="recortes" aria-labelledby="recortes-titulo">
+            <header class="head">
+                <h2 id="recortes-titulo">El recorte del Estado y la nueva regla fiscal</h2>
+                <p>La parte de “gastar menos”, y un candado para que el hueco no vuelva a abrirse.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>El proyecto obliga al Gobierno a apretarse el cinturón:</p>
+                    <ul>
+                        <li><strong>Gastos de personal:</strong> 20&nbsp;% menos a 2028, unos $9,6 billones.</li>
+                        <li><strong>Contratos de prestación de servicios:</strong> la mitad en 2027 frente a 2026.</li>
+                        <li><strong>Facultades extraordinarias:</strong> seis meses para que el presidente fusione o elimine ministerios y entidades, con la meta de reducir el Estado un 15&nbsp;%.</li>
+                        <li><strong>Revisión</strong> de más de 250 transferencias y 50 fondos públicos.</li>
+                    </ul>
+                    <p>
+                        La <dfn>regla fiscal</dfn> es como un tope en la tarjeta de crédito del Estado: una ley que le dice cuánto puede deberse.
+                        Hoy la meta es una deuda de 55&nbsp;% del PIB y el límite, 71&nbsp;%. El proyecto agrega una <strong>alerta en 63&nbsp;%</strong>: si la
+                        deuda la pasa, se activan recortes automáticos, como que los gastos de personal solo puedan crecer la inflación más medio
+                        punto.
+                    </p>
+                    <p>
+                        También amplía a siete miembros el comité independiente que vigila las cuentas (el Carf) y obliga a cada nuevo presidente
+                        a fijar sus metas antes del 15 de diciembre de su primer año.
+                    </p>
+                </div>
+                <aside class="analogy">
+                    <p class="analogy-head">Lo que dicen los que saben</p>
+                    <p>
+                        <strong>Citi:</strong> la ley estabilizaría la deuda cerca de 64&nbsp;% del PIB en 2030, pero no la bajaría. Sigue por encima de
+                        la nueva alerta.
+                    </p>
+                    <p>
+                        <strong>Leonardo Villar, gerente del Banco de la República:</strong> pidió al Congreso estudiarla con cuidado y dijo que un
+                        ajuste fiscal ayuda a bajar la inflación.
+                    </p>
+                    <p>
+                        <strong>Marc Hofstetter, Universidad de los Andes:</strong> la devolución del IVA podría mitigar que la reforma golpee más a
+                        los más pobres.
+                    </p>
+                    <p>
+                        <strong>El mercado:</strong> los inversionistas esperan que el Congreso la recorte. Antes de radicarla, el Gobierno colocó
+                        US$5.200 millones en bonos y explora financiamiento con el FMI, sin un programa aprobado.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section id="consecuencias" aria-labelledby="consecuencias-titulo">
+            <header class="head">
+                <h2 id="consecuencias-titulo">¿Qué podría pasar con la economía?</h2>
+                <p>Nadie sabe el futuro, pero sí hacia dónde empuja cada medida. Lo bueno y lo malo, sin tomar partido.</p>
+            </header>
+
+            <div class="effects">
+                <article>
+                    <p class="effect-tag up">Sube</p>
+                    <h3>Los precios</h3>
+                    <p>
+                        El propio Gobierno estima que la inflación subiría unos <strong>{num(FISCAL.inflation2027)} puntos en 2027</strong> por
+                        licores y cigarrillos, y <strong>{num(FISCAL.inflation2028)} puntos en 2028</strong> cuando llegue el IVA de la canasta. Es
+                        un salto de una vez, no una inflación que se repite cada año, pero se siente en el mercado.
+                    </p>
+                </article>
+                <article>
+                    <p class="effect-tag mixed">Depende</p>
+                    <h3>Los créditos</h3>
+                    <p>
+                        Si los precios suben, el Banco de la República podría demorarse en bajar sus tasas, y los créditos seguirían caros por más
+                        tiempo. Pero si las cuentas del Estado se ordenan, el país se endeuda más barato y, con los años, eso también abarata los
+                        créditos de todos.
+                    </p>
+                </article>
+                <article>
+                    <p class="effect-tag down">Riesgo</p>
+                    <h3>El empleo formal</h3>
+                    <p>
+                        Contratar a alguien que gana más de 2 mínimos le costaría más a la empresa, y al trabajador le llegaría menos. Ese doble
+                        golpe a los salarios medios puede empujar a más gente a la informalidad o a contratos por prestación de servicios.
+                    </p>
+                </article>
+                <article>
+                    <p class="effect-tag down">Riesgo</p>
+                    <h3>El consumo y los negocios</h3>
+                    <p>
+                        Con productos más caros, la gente compra menos. La Federación de Cafeteros advirtió que el IVA del 19&nbsp;% podría frenar el
+                        consumo de café colombiano. Impuestos tan altos a licores y cigarrillos también suelen alimentar el contrabando.
+                    </p>
+                </article>
+                <article>
+                    <p class="effect-tag good">Ayuda</p>
+                    <h3>La confianza y el dólar</h3>
+                    <p>
+                        Un Estado que muestra cómo va a pagar sus deudas da tranquilidad a quienes le prestan. Eso puede evitar que las
+                        calificadoras bajen la nota de Colombia, bajar las tasas de los TES y quitarle presión al dólar.
+                    </p>
+                </article>
+                <article>
+                    <p class="effect-tag good">Ayuda</p>
+                    <h3>La inversión</h3>
+                    <p>
+                        Bajar la renta de las empresas y ofrecer reglas estables por 16 años busca atraer grandes proyectos. Si llegan, traen
+                        empleo y crecimiento; los críticos dicen que es renunciar a impuestos de quienes más tienen.
+                    </p>
+                </article>
+            </div>
+
+            <h3 class="sub">Tres escenarios posibles</h3>
+            <div class="scenarios">
+                <article>
+                    <h4>Se aprueba casi igual</h4>
+                    <p>
+                        El déficit de 2027 bajaría hacia 7,2&nbsp;% del PIB, según Hacienda. Más impuestos para la clase media y los consumidores, más
+                        tranquilidad para los mercados. La deuda se estabilizaría, pero no bajaría.
+                    </p>
+                </article>
+                <article>
+                    <h4>El Congreso la recorta</h4>
+                    <p>
+                        Es lo que espera el mercado. Suelen caerse las medidas más impopulares, como el IVA de los alimentos. El hueco se cierra
+                        menos y vendrían más recortes de gasto o una nueva reforma más adelante.
+                    </p>
+                </article>
+                <article>
+                    <h4>Se hunde</h4>
+                    <p>
+                        El presupuesto de 2027 quedaría desfinanciado y el déficit cerca de {num(FISCAL.deficit2027)}&nbsp;% del PIB. Lo más probable:
+                        recortes de emergencia, deuda más cara, riesgo de rebaja en la calificación y un dólar más alto.
+                    </p>
+                </article>
+            </div>
+
+            <h3 class="sub">¿A quién le pega y a quién le ayuda?</h3>
+            <div class="table-wrap">
+                <table class="amounts who">
+                    <thead>
+                        <tr>
+                            <th scope="col">Quién</th>
+                            <th scope="col">Cómo le iría</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><th scope="row">Hogares en pobreza</th><td>Pagan más IVA desde 2028, pero EfectIVA les devolvería todo, con tope.</td></tr>
+                        <tr><th scope="row">Quien gana hasta 2 mínimos</th><td>Mismo aporte a salud y no paga renta. Siente el IVA del mercado y de los vicios.</td></tr>
+                        <tr><th scope="row">Clase media (2 a 10 mínimos)</th><td>La más golpeada: más salud, tramo de renta del 9&nbsp;%, menos exenciones y más IVA.</td></tr>
+                        <tr><th scope="row">Ingresos altos</th><td>39&nbsp;% de renta desde 8.670&nbsp;UVT y hasta 8&nbsp;% de salud. El impuesto al patrimonio lo pagarían menos personas.</td></tr>
+                        <tr><th scope="row">Independientes</th><td>Aporte a salud de hasta 15,5&nbsp;% y la misma tabla de renta.</td></tr>
+                        <tr><th scope="row">Empresas</th><td>Pagan menos renta, pero más parafiscales por los salarios medios.</td></tr>
+                        <tr><th scope="row">Grandes inversionistas</th><td>Los más favorecidos: renta de 20&nbsp;% a 26&nbsp;% y reglas fijas por 16 años.</td></tr>
+                        <tr><th scope="row">Bancos</th><td>Pagan algo menos que hoy, pero siguen con sobretasa hasta 2030.</td></tr>
+                        <tr><th scope="row">Funcionarios y contratistas</th><td>Menos contratos de prestación de servicios y posibles fusiones de entidades.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <aside class="analogy wide">
+                <p class="analogy-head">Lo que vale la pena vigilar</p>
+                <p>
+                    En campaña, De la Espriella dijo que Colombia no necesitaba más cargas tributarias, y el proyecto sube varias. Sus defensores,
+                    como el expresidente Iván Duque, dicen que gobernar es hacer lo necesario aunque no sea popular. Sus críticos, como la senadora
+                    Patricia Caicedo, la llaman regresiva. Fíjate en tres cosas durante el debate: si el IVA de los alimentos sobrevive, si el tramo
+                    del 9&nbsp;% se mantiene y si los recortes del Estado se vuelven reales o se quedan en el papel.
+                </p>
+            </aside>
+        </section>
+
+        <section id="tramite" aria-labelledby="tramite-titulo">
+            <header class="head">
+                <h2 id="tramite-titulo">Así va el trámite</h2>
+                <p>Para que rija en 2027, el Congreso tiene que votarla antes del 16 de diciembre.</p>
+            </header>
+            <ol class="timeline">
+                <li class="done"><time>7 ago 2026</time><p>De la Espriella se posesiona y anuncia una reforma para simplificar los impuestos.</p></li>
+                <li class="done"><time>Ago 2026</time><p>Hacienda revela un déficit de {num(FISCAL.deficit2027)}&nbsp;% del PIB para 2027 sin ajuste.</p></li>
+                <li class="done"><time>29 oct 2026</time><p>Se radica el proyecto de ley 477 de 2026 en la Cámara.</p></li>
+                <li class="done"><time>3 nov 2026</time><p>El Gobierno pide trámite de urgencia: comisiones económicas conjuntas.</p></li>
+                <li><time>Nov 2026</time><p>Primer debate en las comisiones terceras y cuartas de Cámara y Senado.</p></li>
+                <li><time>16 dic 2026</time><p>Último día de la legislatura para aprobarla en plenarias.</p></li>
+                <li><time>1 ene 2027</time><p>Si se aprueba: arrancan los cambios en salud, parafiscales y vicios.</p></li>
+                <li><time>1 ene 2028</time><p>Llega el IVA de la canasta y empieza EfectIVA.</p></li>
+            </ol>
+        </section>
+
+        <section id="glosario" aria-labelledby="glosario-titulo">
+            <header class="head">
+                <h2 id="glosario-titulo">Glosario sin tecnicismos</h2>
+                <p>Las palabras que vas a oír en las noticias, en una línea.</p>
+            </header>
+            <dl class="glossary">
+                <div><dt>PIB</dt><dd>Todo lo que produce el país en un año. Sirve de regla para medir si una deuda es grande o chica.</dd></div>
+                <div><dt>Déficit</dt><dd>Lo que le falta al Estado en un año: gasta más de lo que le entra.</dd></div>
+                <div><dt>Deuda</dt><dd>La suma de todos los déficits que se han ido pagando con préstamos.</dd></div>
+                <div><dt>Regla fiscal</dt><dd>La ley que pone tope a cuánto puede deberse el Estado.</dd></div>
+                <div><dt>UVT</dt><dd>Una medida de la DIAN que se ajusta cada año. En 2026 vale {formatCOP(UVT_2026)}. <a href="/uvt">Conviértela aquí</a>.</dd></div>
+                <div><dt>IVA excluido y exento</dt><dd>Los dos no pagan IVA, pero el productor de un exento puede pedir de vuelta el IVA de sus insumos.</dd></div>
+                <div><dt>Renta líquida</dt><dd>Lo que queda de tus ingresos después de restar aportes, exenciones y deducciones. Sobre eso se cobra renta.</dd></div>
+                <div><dt>Parafiscales</dt><dd>Lo que pagan las empresas al SENA, al ICBF y a salud por cada trabajador.</dd></div>
+                <div><dt>Gasto tributario</dt><dd>La plata que el Estado deja de recibir por exenciones y tarifas bajas.</dd></div>
+                <div><dt>Calificadoras</dt><dd>Empresas que ponen nota a qué tan buen pagador es un país. Una nota baja encarece su deuda.</dd></div>
+                <div><dt>TES</dt><dd>Los bonos con los que el Gobierno se presta plata. Su tasa es la referencia de muchos créditos.</dd></div>
+                <div><dt>Mensaje de urgencia</dt><dd>Un pedido del presidente para que Cámara y Senado discutan un proyecto al tiempo y más rápido.</dd></div>
+            </dl>
+        </section>
+
+        <Faq faqs={faqs} subject="Ley de Rescate Económico" note="Es una explicación informativa de un proyecto que todavía puede cambiar en el Congreso. No reemplaza la asesoría de un contador." />
+
+        <Colophon
+            sources={[
+                { href: "https://www.portafolio.co/economia/gobierno-de-la-espriella-radico-la-ley-de-rescate-fiscal-estos-son-los-puntos-clave-505387", label: "Portafolio" },
+                { href: "https://actualicese.com/ley-rescate-economico-principales-cambios/", label: "Actualícese" },
+                { href: "https://www.lasillavacia.com/silla-nacional/mas-tributaria-que-recorte-claves-de-la-ley-de-rescate-de-abelardo/", label: "La Silla Vacía" },
+                { href: "https://www.infobae.com/colombia/2026/10/30/reforma-tributaria-de-abelardo-de-la-espriella-haria-que-trabajadores-paguen-mas-al-sistema-de-salud-desde-el-2027-esta-es-la-cifra-que-proponen-aumentar/", label: "Infobae" },
+                { href: "https://www.eltiempo.com/economia/ley-de-rescate-fiscal-ultimas-noticias-reacciones-y-puntos-clave-del-proyecto-radicado-por-el-gobierno-de-abelardo-de-la-espriella-3597387", label: "El Tiempo" },
+                { href: "https://www.larepublica.co/economia/ley-de-rescate-modificaria-regla-fiscal-y-pondria-techo-al-gasto-si-la-deuda-supera-63-del-pib-4514413", label: "La República" },
+                { href: "https://www.portafolio.co/economia/impuestos/banca-internacional-opina-citi-advierte-que-la-ley-de-rescate-podria-estabilizar-la-deuda-pero-no-reducirla-505442", label: "Citi vía Portafolio" },
+                { href: "https://www.elcolombiano.com/negocios/de-la-espriella-ley-ajuste-fiscal-reforma-iva-renta-salud-impuestos-PH42988061", label: "El Colombiano" },
+            ]}
+            related={[
+                { href: "/declarar-renta", label: "¿Debo declarar renta?" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/calculadora-iva", label: "Calculadora de IVA" },
+                { href: "/uvt", label: "UVT" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { IVA_GROUPS, EFECTIVA_CAP_UVT, UVT_2026, employerNew, employerNow, healthNew, healthNow, newPrice, rentaFor } from "@/lib/ley-rescate";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/uvt";
+
+    const pct = (value: number) => `${(value * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`;
+
+    /** Conecta una calculadora: formatea los campos de dinero y recalcula en cada cambio */
+    function wire(name: string, update: (form: HTMLFormElement, out: (key: string) => HTMLElement, root: HTMLElement) => string) {
+        const root = document.querySelector<HTMLElement>(`[data-calc="${name}"]`);
+        if (!root) return;
+        const form = root.querySelector<HTMLFormElement>("[data-form]")!;
+        const live = root.querySelector<HTMLElement>("[data-live]")!;
+        const out = (key: string) => root.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+        const run = () => {
+            live.textContent = update(form, out, root);
+        };
+        for (const input of form.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]')) {
+            input.addEventListener("input", () => {
+                const value = parseCOP(input.value);
+                input.value = value ? formatNumber(value) : "";
+            });
+        }
+        for (const chip of root.querySelectorAll<HTMLButtonElement>("[data-amount]")) {
+            chip.addEventListener("click", () => {
+                const input = chip.closest(".field")!.querySelector<HTMLInputElement>("input")!;
+                input.value = formatNumber(Number(chip.dataset.amount));
+                run();
+            });
+        }
+        form.addEventListener("input", run);
+        form.addEventListener("change", run);
+        run();
+    }
+
+    const money = (form: HTMLFormElement, name: string) => parseCOP((form.elements.namedItem(name) as HTMLInputElement).value);
+
+    wire("iva", (form, out, root) => {
+        let today = 0;
+        let after = 0;
+        let iva = 0;
+        for (const group of IVA_GROUPS) {
+            const spent = money(form, group.id);
+            const price = newPrice(spent, group.from, group.to);
+            today += spent;
+            after += price;
+            iva += (price * group.to) / (1 + group.to);
+        }
+        const people = Number((form.elements.namedItem("personas") as HTMLSelectElement).value);
+        const share = Number((form.elements.namedItem("efectiva") as HTMLSelectElement).value);
+        const refund = Math.min(iva * share, EFECTIVA_CAP_UVT * UVT_2026 * people);
+        const extra = after - today - refund;
+        root.querySelector<HTMLElement>("[data-refund-row]")!.hidden = share === 0;
+        out("today").textContent = formatCOP(today);
+        out("after").textContent = formatCOP(Math.round(after));
+        out("refund").textContent = `−${formatCOP(Math.round(refund))}`;
+        out("label").textContent = extra < 0 ? "Quedarías a favor al mes" : "Pagarías de más al mes";
+        out("extra").textContent = formatCOP(Math.round(Math.abs(extra)));
+        out("year").textContent = formatCOP(Math.round(Math.abs(extra) * 12));
+        return extra < 0 ? `Quedarías ${formatCOP(Math.round(-extra))} a favor al mes.` : `Pagarías ${formatCOP(Math.round(extra))} más al mes.`;
+    });
+
+    wire("renta", (form, out) => {
+        const salary = money(form, "salario");
+        const dependents = Number((form.elements.namedItem("dependientes") as HTMLSelectElement).value);
+        const now = rentaFor(salary, dependents, "now");
+        const after = rentaFor(salary, dependents, "new");
+        const diff = after.tax - now.tax;
+        out("now").textContent = formatCOP(now.tax);
+        out("new").textContent = formatCOP(after.tax);
+        out("now-bracket").textContent = now.tax ? `Tramo de ${pct(now.bracket.rate)}` : "No pagas";
+        out("new-bracket").textContent = after.tax ? `Tramo de ${pct(after.bracket.rate)}` : "No pagas";
+        out("label").textContent = diff < 0 ? "Pagarías de menos al año" : "Pagarías de más al año";
+        out("diff").textContent = formatCOP(Math.abs(diff));
+        out("month").textContent = formatCOP(Math.round(Math.abs(diff) / 12));
+        const keys = ["income", "health", "pension", "solidarity", "exempt", "dependents"] as const;
+        for (const [side, data] of [["now", now], ["new", after]] as const) {
+            for (const key of keys) {
+                document.querySelector<HTMLElement>(`[data-${side}="${key}"]`)!.textContent = formatCOP(Math.round(data[key]));
+            }
+            document.querySelector<HTMLElement>(`[data-${side}="uvt"]`)!.textContent = data.taxableUvt.toLocaleString("es-CO", { maximumFractionDigits: 1 });
+        }
+        return `Renta hoy ${formatCOP(now.tax)}, con el proyecto ${formatCOP(after.tax)}.`;
+    });
+
+    wire("salud", (form, out, root) => {
+        const salary = money(form, "salario");
+        const independent = (form.elements.namedItem("independiente") as HTMLInputElement).checked;
+        const now = healthNow(salary, independent);
+        const after = healthNew(salary, independent);
+        const diff = after.value - now;
+        out("salary-label").textContent = independent ? "Tu ingreso base de cotización" : "Tu salario mensual";
+        root.querySelector<HTMLElement>("[data-independent-hint]")!.hidden = !independent;
+        out("now").textContent = formatCOP(now);
+        out("new-label").textContent = `Con el proyecto (${pct(after.rate)})`;
+        out("new").textContent = formatCOP(after.value);
+        out("diff").textContent = formatCOP(diff);
+        out("year").textContent = formatCOP(diff * 12);
+        const employer = root.querySelector<HTMLElement>("[data-employer]")!;
+        employer.hidden = independent;
+        const rate = employerNew(salary) - employerNow(salary);
+        out("employer").textContent = rate > 0 ? `+${formatCOP(salary * rate)}` : "$0";
+        out("employer-note").textContent =
+            rate > 0 ? `Al mes, en salud, SENA e ICBF (${pct(rate)})` : employerNow(salary) ? "Ya paga salud, SENA e ICBF por ti" : "Sigue exonerada de salud, SENA e ICBF";
+        return `Te descontarían ${formatCOP(diff)} más al mes.`;
+    });
+
+    wire("vicios", (form, out, root) => {
+        const choice = form.querySelector<HTMLInputElement>('input[name="producto"]:checked')!;
+        const price = money(form, "precio");
+        const quantity = Math.max(0, Number((form.elements.namedItem("cantidad") as HTMLInputElement).value) || 0);
+        const rise = Number(choice.dataset.rise);
+        const unit = choice.dataset.unit!;
+        out("unit-label").textContent = `${unit === "cerveza" ? "Cervezas" : unit === "botella" ? "Botellas" : unit === "cajetilla" ? "Cajetillas" : "Unidades"} al mes`;
+        out("price").textContent = formatCOP(Math.round(price * (1 + rise)));
+        out("extra").textContent = formatCOP(Math.round(price * rise * quantity));
+        out("year").textContent = formatCOP(Math.round(price * rise * quantity * 12));
+        void root;
+        return `Gastarías ${formatCOP(Math.round(price * rise * quantity))} más al mes.`;
+    });
+
+    // Al cambiar de producto, pone su precio y cantidad de ejemplo
+    for (const radio of document.querySelectorAll<HTMLInputElement>('[data-calc="vicios"] input[name="producto"]')) {
+        radio.addEventListener("change", () => {
+            const form = radio.form!;
+            (form.elements.namedItem("precio") as HTMLInputElement).value = formatNumber(Number(radio.dataset.price));
+            (form.elements.namedItem("cantidad") as HTMLInputElement).value = radio.dataset.quantity!;
+            form.dispatchEvent(new Event("input"));
+        });
+    }
+</script>
+
+<style>
+    .kicker {
+        margin-bottom: 18px;
+        color: var(--red-ink);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .post h1 {
+        max-width: 13ch;
+    }
+
+    .status {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        max-width: 760px;
+        margin-top: 28px;
+        padding: 16px 20px;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        background: var(--sheet);
+    }
+
+    .status p {
+        color: var(--text-soft);
+        font-size: 0.95rem;
+    }
+
+    .status strong {
+        color: var(--ink);
+    }
+
+    .status-dot {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        margin-top: 7px;
+        border-radius: 50%;
+        background: #e0a800;
+        box-shadow: 0 0 0 4px rgba(224, 168, 0, 0.18);
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status.law .status-dot {
+        background: var(--success);
+        box-shadow: 0 0 0 4px rgba(28, 143, 87, 0.18);
+        animation: none;
+    }
+
+    @keyframes pulse {
+        50% {
+            box-shadow: 0 0 0 8px rgba(224, 168, 0, 0);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .status-dot {
+            animation: none;
+        }
+    }
+
+    /* Resumen */
+    .facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 2px solid var(--ink);
+    }
+
+    .facts li {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        padding: 24px 24px 24px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .facts li:not(:nth-child(3n + 1)) {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+    }
+
+    .facts b {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 1.6rem + 1.4vw, 2.8rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .facts span {
+        color: var(--text-soft);
+    }
+
+    .index {
+        margin-top: 36px;
+        padding: 24px 28px;
+        border-radius: 18px;
+        background: var(--board);
+    }
+
+    .index > p {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .index ul {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px 32px;
+        margin-top: 12px;
+    }
+
+    .index a {
+        display: block;
+        padding: 6px 0;
+        color: #fff;
+        text-decoration-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Texto */
+    .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        gap: 40px clamp(40px, 6vw, 80px);
+        align-items: start;
+    }
+
+    .prose {
+        max-width: 66ch;
+    }
+
+    .prose > * + * {
+        margin-top: 1.1rem;
+    }
+
+    .prose p,
+    .prose li {
+        color: var(--text);
+        font-size: 1.08rem;
+        line-height: 1.75;
+    }
+
+    .prose ul {
+        display: grid;
+        gap: 8px;
+        padding-left: 1.2rem;
+        list-style: disc;
+    }
+
+    .prose li::marker {
+        color: var(--red);
+    }
+
+    .prose strong {
+        color: var(--ink);
+    }
+
+    dfn {
+        color: var(--ink);
+        font-style: normal;
+        font-weight: 650;
+        text-decoration: underline dotted var(--red);
+        text-underline-offset: 4px;
+    }
+
+    .analogy {
+        padding: 22px 24px;
+        border-left: 3px solid var(--red);
+        border-radius: 0 16px 16px 0;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .analogy > * + * {
+        margin-top: 12px;
+    }
+
+    .analogy-head {
+        color: var(--red-ink) !important;
+        font-family: var(--font-serif);
+        font-size: 1.6rem !important;
+        font-style: italic;
+        line-height: 1.1 !important;
+    }
+
+    .analogy p {
+        color: var(--text);
+        line-height: 1.7;
+    }
+
+    .analogy strong {
+        color: var(--ink);
+    }
+
+    .analogy.wide {
+        max-width: 860px;
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    }
+
+    /* Gráficas */
+    .charts {
+        display: grid;
+        gap: 22px;
+    }
+
+    .chart {
+        margin: 0;
+        padding: 24px;
+        border-radius: 20px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .chart figcaption {
+        display: grid;
+        gap: 2px;
+        margin-bottom: 18px;
+    }
+
+    .chart figcaption b {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+    }
+
+    .chart figcaption span,
+    .chart-note {
+        color: var(--muted);
+        font-size: 0.86rem;
+    }
+
+    .chart-note {
+        margin-top: 14px;
+    }
+
+    .bars {
+        display: grid;
+        gap: 12px;
+    }
+
+    .bars li {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+    }
+
+    .bar {
+        height: 26px;
+        border-radius: 6px;
+        background: linear-gradient(90deg, var(--ink) calc(var(--v) * 100%), rgba(21, 25, 30, 0.06) 0);
+    }
+
+    .bars li.hot .bar {
+        background: linear-gradient(90deg, var(--red) calc(var(--v) * 100%), rgba(21, 25, 30, 0.06) 0);
+    }
+
+    .bars li.good .bar {
+        background: linear-gradient(90deg, #0f3d2e calc(var(--v) * 100%), rgba(21, 25, 30, 0.06) 0);
+    }
+
+    .bars b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .gauge {
+        display: grid;
+        gap: 12px;
+    }
+
+    .gauge-row {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+    }
+
+    .gauge-row b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .gauge-track {
+        position: relative;
+        height: 26px;
+        border-radius: 6px;
+        background: rgba(21, 25, 30, 0.06);
+    }
+
+    .gauge-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: calc(var(--v) * 100%);
+        border-radius: 6px;
+        background: var(--ink);
+    }
+
+    .gauge-track i {
+        position: absolute;
+        top: -4px;
+        bottom: -4px;
+        left: calc(var(--m) * 100%);
+        width: 2px;
+        background: var(--red);
+    }
+
+    .gauge-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 4px;
+    }
+
+    .gauge-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--red-ink);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .gauge-legend span::before {
+        width: 2px;
+        height: 14px;
+        background: var(--red);
+        content: "";
+    }
+
+    .stack {
+        display: grid;
+        gap: 18px;
+    }
+
+    .stack p {
+        color: var(--ink);
+        font-weight: 650;
+    }
+
+    .stack-bar {
+        display: grid;
+        grid-template-columns: calc(var(--c) * 1%) 1fr;
+        height: 34px;
+        margin: 8px 0 6px;
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .stack-bar span {
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        white-space: nowrap;
+    }
+
+    .stack-cuts {
+        background: #0f3d2e;
+        color: #fff;
+    }
+
+    .stack-tax {
+        justify-content: flex-end;
+        background: var(--red);
+        color: #fff;
+    }
+
+    .stack small {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin-top: 18px;
+        color: var(--text-soft);
+        font-size: 0.86rem;
+    }
+
+    .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+    .swatch.cuts {
+        background: #0f3d2e;
+    }
+
+    .swatch.tax {
+        background: var(--red);
+    }
+
+    /* Listas de IVA */
+    .lists {
+        display: grid;
+        gap: 18px;
+    }
+
+    .list {
+        padding: 22px 24px;
+        border-radius: 18px;
+    }
+
+    .list.up {
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .list.up h3 {
+        color: var(--amber);
+    }
+
+    .list.up ul {
+        display: grid;
+        margin-top: 12px;
+    }
+
+    .list.up li {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 2px 14px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .list.up li:last-child {
+        border-bottom: 0;
+    }
+
+    .list.up b {
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .list.up span {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.88rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .list.keep {
+        background: #e3f1e8;
+    }
+
+    .list.keep h3 {
+        color: #0f3d2e;
+    }
+
+    .list.keep p {
+        margin-top: 8px;
+        color: #1f4535;
+    }
+
+    .list-note {
+        font-size: 0.9rem;
+    }
+
+    /* Calculadoras */
+    .calc-head {
+        display: grid;
+        gap: 6px;
+    }
+
+    .calc-head h3 {
+        font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+        letter-spacing: -0.035em;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px 18px;
+    }
+
+    .grid-2 .field > label {
+        font-size: 1rem !important;
+    }
+
+    .when {
+        color: var(--red-ink);
+        font-weight: 600;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .result-note {
+        margin-top: 14px;
+    }
+
+    .ticket {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .ticket-head {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .ticket-lines {
+        display: grid;
+        margin-top: 10px;
+    }
+
+    .ticket-lines div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .ticket-lines div[hidden] {
+        display: none;
+    }
+
+    .ticket-lines dd {
+        margin: 0;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .ticket-big {
+        display: grid;
+        gap: 2px;
+        margin-top: 18px;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .ticket-big b {
+        color: var(--amber);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.9rem + 2vw, 3.4rem);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
+    }
+
+    .ticket-foot {
+        margin-top: 4px;
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .ticket-foot b {
+        color: #fff;
+    }
+
+    .versus {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .versus div {
+        display: grid;
+        gap: 2px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    .versus span,
+    .versus small {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.85rem;
+    }
+
+    .versus b {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.45rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.03em;
+    }
+
+    .employer {
+        display: grid;
+        gap: 2px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .employer[hidden],
+    [data-independent-hint][hidden] {
+        display: none;
+    }
+
+    .employer b {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.8rem;
+        letter-spacing: -0.03em;
+    }
+
+    .employer p,
+    .employer small {
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .breakdown summary {
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .breakdown table {
+        margin-top: 14px;
+    }
+
+    .workbench.mini {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+        margin-top: 0;
+        padding: clamp(20px, 3vw, 28px);
+        border: 0;
+        border-radius: 22px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .workbench.mini .ticket {
+        padding: 22px;
+    }
+
+    /* Tablas */
+    .table-wrap {
+        display: grid;
+        gap: 18px;
+        overflow-x: auto;
+    }
+
+    .table-wrap caption {
+        padding-bottom: 12px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        text-align: left;
+    }
+
+    .compare-table tr.fresh th,
+    .compare-table tr.fresh td {
+        background: var(--red-soft);
+    }
+
+    .who td {
+        color: var(--text) !important;
+        line-height: 1.55;
+    }
+
+    .who tbody th {
+        width: 34%;
+        vertical-align: top;
+    }
+
+    /* Empresas */
+    .rules.six p {
+        color: var(--text);
+    }
+
+    .aside-note {
+        margin-top: 32px;
+        color: var(--text-soft);
+    }
+
+    /* Consecuencias */
+    .effects {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .effects article {
+        padding: 22px 24px;
+        border-radius: 18px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .effects h3 {
+        margin-top: 10px;
+    }
+
+    .effects article > p:last-child {
+        margin-top: 8px;
+        color: var(--text);
+        line-height: 1.65;
+    }
+
+    .effect-tag {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .effect-tag.up,
+    .effect-tag.down {
+        background: var(--red-soft);
+        color: var(--red-ink);
+    }
+
+    .effect-tag.mixed {
+        background: #fbf0c4;
+        color: #6b5200;
+    }
+
+    .effect-tag.good {
+        background: #e3f1e8;
+        color: #0f3d2e;
+    }
+
+    .sub {
+        margin: clamp(3rem, 6vw, 4rem) 0 18px;
+        font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem) !important;
+        letter-spacing: -0.035em !important;
+    }
+
+    .scenarios {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .scenarios article {
+        padding-top: 18px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .scenarios h4 {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        letter-spacing: -0.02em;
+    }
+
+    .scenarios p {
+        margin-top: 8px;
+        color: var(--text);
+        line-height: 1.65;
+    }
+
+    /* Trámite */
+    .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px 0;
+    }
+
+    /* Lo que ya pasó va con línea continua; lo que falta, punteada */
+    .timeline li {
+        position: relative;
+        padding: 26px 20px 4px 0;
+        border-top: 2px dashed var(--line-strong);
+    }
+
+    .timeline li.done {
+        border-top: 2px solid var(--ink);
+    }
+
+    .timeline li::before {
+        position: absolute;
+        top: -8px;
+        left: 0;
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--ink);
+        border-radius: 50%;
+        background: var(--background);
+        content: "";
+    }
+
+    .timeline li.done::before {
+        background: var(--ink);
+    }
+
+    .timeline time {
+        color: var(--red-ink);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .timeline p {
+        margin-top: 6px;
+        color: var(--text);
+    }
+
+    /* Glosario */
+    .glossary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 clamp(28px, 5vw, 64px);
+        border-top: 2px solid var(--ink);
+    }
+
+    .glossary div {
+        display: grid;
+        grid-template-columns: 11rem minmax(0, 1fr);
+        gap: 14px;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .glossary dt {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+
+    .glossary dd {
+        margin: 0;
+        color: var(--text);
+    }
+
+    @media (max-width: 1023px) {
+        .split {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .result {
+            position: static;
+        }
+
+        .ticket {
+            max-width: 560px;
+        }
+
+        .effects,
+        .scenarios {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .timeline {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .facts,
+        .index ul,
+        .grid-2,
+        .effects,
+        .scenarios,
+        .glossary {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .facts li,
+        .facts li:not(:nth-child(3n + 1)) {
+            padding: 20px 0;
+            border-left: 0;
+        }
+
+        .glossary div {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 4px;
+        }
+
+        .timeline {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0;
+            margin-left: 7px;
+        }
+
+        .timeline li {
+            padding: 0 0 22px 24px;
+            border-top: 0;
+            border-left: 2px dashed var(--line-strong);
+        }
+
+        .timeline li.done {
+            border-top: 0;
+            border-left: 2px solid var(--ink);
+        }
+
+        .timeline li::before {
+            top: 2px;
+            left: -8px;
+        }
+
+        .bars li,
+        .gauge-row {
+            grid-template-columns: 92px minmax(0, 1fr) auto;
+        }
+
+        .versus {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>

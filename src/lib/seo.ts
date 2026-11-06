@@ -92,3 +92,67 @@ export function longDate(date: string) {
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
     return `${Number(date.slice(8))} de ${months[Number(date.slice(5, 7)) - 1]} de ${date.slice(0, 4)}`;
 }
+
+export interface ArticleSeo {
+    site: string;
+    path: string;
+    title: string;
+    description: string;
+    crumb: string;
+    published: string;
+    modified: string;
+    image: string;
+    keywords: string[];
+    faqs: { question: string; answer: string }[];
+}
+
+/** Datos estructurados de un artículo del blog (schema.org) */
+export function articleJsonLd({ site, path, title, description, crumb, published, modified, image, keywords, faqs }: ArticleSeo) {
+    const pageUrl = new URL(path, site).href;
+    const personId = new URL("/#person", site).href;
+    return {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "BlogPosting",
+                "@id": `${pageUrl}#articulo`,
+                mainEntityOfPage: pageUrl,
+                headline: title,
+                description,
+                inLanguage: "es-CO",
+                datePublished: published,
+                dateModified: modified,
+                image: { "@type": "ImageObject", url: new URL(image, site).href, width: 1200, height: 630 },
+                keywords: keywords.join(", "),
+                author: { "@id": personId },
+                publisher: { "@id": personId },
+                isPartOf: { "@id": new URL("/#website", site).href },
+            },
+            {
+                "@type": "FAQPage",
+                "@id": `${pageUrl}#preguntas`,
+                mainEntity: faqs.map(({ question, answer }) => ({
+                    "@type": "Question",
+                    name: question,
+                    acceptedAnswer: { "@type": "Answer", text: answer },
+                })),
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": `${pageUrl}#breadcrumb`,
+                itemListElement: [
+                    { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                    { "@type": "ListItem", position: 2, name: "Blog", item: new URL("/blog", site).href },
+                    { "@type": "ListItem", position: 3, name: crumb, item: pageUrl },
+                ],
+            },
+            {
+                "@type": "Person",
+                "@id": personId,
+                name: basics.name,
+                url: site,
+                sameAs: basics.profiles.map(({ url }) => url),
+            },
+        ],
+    };
+}

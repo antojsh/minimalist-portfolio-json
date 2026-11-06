@@ -36,6 +36,8 @@ ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivo
 - [Calculadora de IVA](${url("/calculadora-iva")}): agregar IVA (× 1,19) o quitarlo (÷ 1,19), con tarifas del 19 %, 5 % u otra.
 - [Calculadora del 4x1000](${url("/calculadora-4x1000")}): GMF del 0,4 % con la exención de 350 UVT al mes ($18.330.900 en 2026).
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
+- [Blog](${url("/blog")}): artículos de desarrollo y de economía de Colombia explicados fácil.
+- [La Ley de Rescate Económico, explicada fácil](${url("/blog/ley-de-rescate-economico")}): el Proyecto de Ley 477 de 2026 del gobierno de Abelardo de la Espriella (radicado el 29 de octubre de 2026, aún no es ley). IVA del 5 % y frutas y verduras a 19 % desde 2028; tramo nuevo de renta del 9 % entre 720 y 1.090 UVT; aporte a salud de 4 % a 8 % según el salario desde 2027; parafiscales solo exonerados hasta 2 mínimos; renta de empresas de 35 % a 31 %; régimen RUGE; recortes de gasto y regla fiscal con alerta en 63 % de deuda. Con calculadoras de mercado, renta, salud y vicios.
 
 ## Datos
 

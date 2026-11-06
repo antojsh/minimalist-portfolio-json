@@ -12,6 +12,8 @@ import { INTERES_REVIEW } from "@/lib/interes-compuesto";
 import { CREDITO_REVIEW } from "@/lib/credito";
 import { DIAS_HABILES_REVIEW } from "@/lib/dias-habiles";
 import { SALARIO_MINIMO_REVIEW, nextWage } from "@/lib/salario-minimo";
+import { RESCATE_REVIEW } from "@/lib/ley-rescate";
+import { getPublishedPosts } from "@/lib/blog";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
@@ -38,9 +40,19 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     { path: `/salario-minimo-${nextWage.year}`, changefreq: "weekly", priority: "0.9", lastmod: SALARIO_MINIMO_REVIEW },
 ];
 
-export const GET: APIRoute = ({ site }) => {
+export const GET: APIRoute = async ({ site }) => {
     const buildDate = new Date().toISOString().slice(0, 10);
-    const urls = pages
+    const posts = await getPublishedPosts();
+    const blog = [
+        { path: "/blog", changefreq: "weekly", priority: "0.6", lastmod: posts[0]?.date.toISOString().slice(0, 10) },
+        ...posts.map(({ slug, date }) => ({
+            path: `/blog/${slug}`,
+            changefreq: "weekly",
+            priority: "0.8",
+            lastmod: slug === "ley-de-rescate-economico" ? RESCATE_REVIEW : date.toISOString().slice(0, 10),
+        })),
+    ];
+    const urls = [...pages, ...blog]
         .map(
             ({ path, changefreq, priority, lastmod = buildDate }) => `  <url>
     <loc>${new URL(path, site).href}</loc>

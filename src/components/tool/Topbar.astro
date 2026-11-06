@@ -2,8 +2,10 @@
 interface Props {
     crumb: string;
     links: { href: string; label: string }[];
+    /** Sección a la que pertenece la página */
+    parent?: { href: string; label: string };
 }
-const { crumb, links } = Astro.props;
+const { crumb, links, parent = { href: "/herramientas", label: "Herramientas" } } = Astro.props;
 ---
 
 <header class="topbar">
@@ -12,7 +14,7 @@ const { crumb, links } = Astro.props;
             <li>
                 <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
             </li>
-            <li><a class="crumb-link" href="/herramientas">Herramientas</a></li>
+            <li><a class="crumb-link" href={parent.href}>{parent.label}</a></li>
             <li aria-current="page">{crumb}</li>
         </ol>
     </nav>

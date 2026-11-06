@@ -1,10 +1,12 @@
 import type { APIRoute } from "astro";
 import { LAST_REVIEW } from "@/lib/festivos";
+import { PRIMA_REVIEW } from "@/lib/prima";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
     { path: "/", changefreq: "monthly", priority: "1.0" },
     { path: "/festivos-colombia-2027", changefreq: "monthly", priority: "0.9", lastmod: LAST_REVIEW },
+    { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
 ];
 
 export const GET: APIRoute = ({ site }) => {

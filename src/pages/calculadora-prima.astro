@@ -1,0 +1,1601 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { basics } from "@cv";
+import { capitalize, formatLong } from "@/lib/festivos";
+import {
+    PRIMA_REVIEW,
+    calculatePrima,
+    currentSemester,
+    formatCOP,
+    formatNumber,
+    getMinimumWage,
+    getSemester,
+    lastBusinessDay,
+    transportLimit,
+} from "@/lib/prima";
+
+const CST_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=199983";
+const LAW_2466_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=260676";
+
+// La página se construye con la fecha del build; el navegador recalcula con la de hoy
+const semester = currentSemester(PRIMA_REVIEW);
+const YEAR = semester.year;
+const wage = getMinimumWage(YEAR);
+const limit = transportLimit(wage);
+const semesters = [getSemester(YEAR, 2), getSemester(YEAR, 1)];
+const paymentMonth = semester.half === 1 ? "junio" : "diciembre";
+const payday = lastBusinessDay(semester.deadline);
+const deadlineIsBusinessDay = payday === semester.deadline;
+
+const fullMinimum = calculatePrima({
+    salary: wage.salary,
+    transport: true,
+    start: semester.start,
+    end: semester.end,
+    wage,
+});
+
+const salaryRows = [wage.salary, 2_000_000, 2_500_000, 3_000_000, limit, 4_000_000, 5_000_000, 6_000_000, 8_000_000].map(
+    (salary) => {
+        const result = calculatePrima({
+            salary,
+            transport: salary <= limit,
+            start: semester.start,
+            end: semester.end,
+            wage,
+        });
+        return { salary, ...result, label: salary === wage.salary ? "Mínimo" : salary === limit ? "Dos mínimos" : "" };
+    },
+);
+
+const monthRows = [1, 2, 3, 4, 5, 6].map((months) => ({
+    months,
+    days: months * 30,
+    total: Math.round((fullMinimum.base * months * 30) / 360),
+}));
+
+// Ejemplo de alguien que entró a mitad de semestre
+const example = {
+    start: `${YEAR}-${semester.half === 1 ? "03" : "09"}-15`,
+    salary: 2_500_000,
+};
+const exampleResult = calculatePrima({
+    salary: example.salary,
+    transport: true,
+    start: example.start,
+    end: semester.end,
+    wage,
+});
+
+const semesterLabel = (half: 1 | 2) => (half === 1 ? "enero a junio" : "julio a diciembre");
+const longDate = (date: string) => `${formatLong(date)} de ${date.slice(0, 4)}`;
+const deadlineText = deadlineIsBusinessDay
+    ? `a más tardar el ${formatLong(semester.deadline)}`
+    : `a más tardar el ${formatLong(semester.deadline).replace(/^\S+ /, "")}; como este año cae ${formatLong(semester.deadline).split(" ")[0]}, lo normal es recibirla el ${formatLong(payday)}`;
+
+const faqs = [
+    {
+        question: `¿Cuánto es la prima de ${paymentMonth} ${YEAR} con el salario mínimo?`,
+        answer: `${formatCOP(fullMinimum.total)} si trabajaste todo el semestre. Se calcula con el salario mínimo de ${YEAR} (${formatCOP(wage.salary)}) más el auxilio de transporte (${formatCOP(wage.transport)}): ${formatCOP(fullMinimum.base)} × 180 días ÷ 360.`,
+    },
+    {
+        question: `¿Cuándo pagan la prima de ${paymentMonth} ${YEAR}?`,
+        answer: `La ley (art. 306 del Código Sustantivo del Trabajo) fija dos pagos: el primero a más tardar el 30 de junio y el segundo a más tardar el 20 de diciembre. ${deadlineIsBusinessDay ? `En ${YEAR} el plazo cae ${formatLong(semester.deadline)}.` : `En ${YEAR} el ${formatLong(semester.deadline).replace(/^\S+ /, "")} cae ${formatLong(semester.deadline).split(" ")[0]}, así que lo normal es que la paguen el ${formatLong(payday)} o antes.`}`,
+    },
+    {
+        question: "¿Cómo se calcula la prima de servicios?",
+        answer: "Se suma el salario mensual, el auxilio de transporte si lo recibes y el promedio de pagos variables que son salario (horas extra, recargos, comisiones). Ese total se multiplica por los días trabajados en el semestre y se divide entre 360. Un semestre completo son 180 días, así que equivale a medio salario.",
+    },
+    {
+        question: "¿El auxilio de transporte se incluye en la prima?",
+        answer: `Sí. Aunque no es salario, la ley lo suma a la base para liquidar prestaciones sociales como la prima y las cesantías (no las vacaciones). En ${YEAR} lo recibe quien gana hasta dos salarios mínimos, es decir, hasta ${formatCOP(limit)}.`,
+    },
+    {
+        question: "¿Me pagan prima si no he trabajado seis meses?",
+        answer: `Sí, en proporción a los días trabajados. Antes se exigía haber trabajado al menos la mitad del semestre, pero la Corte Constitucional eliminó ese requisito en la sentencia C-042 de 2003. Con el mínimo, tres meses dan ${formatCOP(monthRows[2].total)}.`,
+    },
+    {
+        question: "¿A la prima le descuentan salud y pensión?",
+        answer: "No. El artículo 307 del Código Sustantivo del Trabajo dice que la prima no es salario, así que no paga aportes a salud ni pensión. Si tus ingresos son altos, sí puede tener retención en la fuente.",
+    },
+    {
+        question: "¿Quién no tiene derecho a prima de servicios?",
+        answer: "Quien tiene salario integral, porque ese salario ya incluye las prestaciones; quien trabaja por contrato de prestación de servicios, porque no es empleado; y los empleados públicos, que tienen su propio régimen de primas.",
+    },
+    {
+        question: "¿Las empleadas domésticas tienen prima?",
+        answer: "Sí. Desde la Ley 1788 de 2016 la prima también es para trabajadoras y trabajadores del servicio doméstico, choferes de servicio familiar, trabajadores por días y de fincas. Si trabajas por días, se calcula sobre lo que ganas al mes.",
+    },
+    {
+        question: "¿Los aprendices del SENA reciben prima?",
+        answer: "Con la reforma laboral (Ley 2466 de 2025) el contrato de aprendizaje pasó a ser un contrato laboral especial a término fijo. En la etapa productiva el aprendiz tiene prestaciones sociales, prima incluida, sobre lo que recibe cada mes.",
+    },
+    {
+        question: "¿Qué hago si no me pagan la prima?",
+        answer: "Primero pídela por escrito a tu empleador. Si no responde, puedes presentar una queja ante el Ministerio del Trabajo, que puede investigar y multar a la empresa. Si el contrato ya terminó y no te pagaron, la ley además castiga el retraso con la indemnización moratoria del artículo 65.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/calculadora-prima", site).href;
+const title = `Calculadora de prima de servicios ${YEAR}: cuánto te pagan en ${paymentMonth}`;
+const description = `Calcula tu prima de ${paymentMonth} ${YEAR} en segundos, con auxilio de transporte y días trabajados. Con el mínimo y el semestre completo te toca ${formatCOP(fullMinimum.total)}.`;
+const image = new URL("/og/calculadora-prima.png", site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: PRIMA_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            about: { "@type": "Thing", name: "Prima de servicios en Colombia" },
+            mainEntity: { "@id": `${pageUrl}#calculadora` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#calculadora`,
+            name: "Calculadora de prima de servicios",
+            url: pageUrl,
+            applicationCategory: "FinanceApplication",
+            operatingSystem: "Web",
+            inLanguage: "es-CO",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Calculadora de prima", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image="/og/calculadora-prima.png"
+    imageAlt={`Colilla de prima de servicios ${YEAR}: con el salario mínimo te toca ${formatCOP(fullMinimum.total)}`}
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="flag" aria-hidden="true"></div>
+
+    <main>
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Calculadora de prima</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#calculadora">Calculadora</a>
+                <a href="#tabla">Tabla</a>
+                <a href="#como-se-calcula">Cómo se calcula</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Calculadora de prima <span>{YEAR}</span></h1>
+            <p class="lead">
+                La prima de servicios es <strong>medio salario por cada semestre trabajado</strong>, con el auxilio
+                de transporte incluido. Si ganas el mínimo y trabajaste todo el semestre, te toca
+                <strong>{formatCOP(fullMinimum.total)}</strong>. La de {paymentMonth} se paga {deadlineText}.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={PRIMA_REVIEW}>{longDate(PRIMA_REVIEW).replace(/^\S+ /, "")}</time>
+                · Según el <a href={CST_URL} rel="noopener">art. 306 del Código Sustantivo del Trabajo</a>, el
+                {wage.salaryDecree} y el {wage.transportDecree}
+            </p>
+        </section>
+
+        <section id="calculadora" class="calculator" aria-labelledby="calculadora-titulo">
+            <h2 id="calculadora-titulo" class="sr-only">Calcula tu prima</h2>
+
+            <form class="form" data-form>
+                <div class="field">
+                    <label for="salario">Salario mensual</label>
+                    <div class="money">
+                        <span aria-hidden="true">$</span>
+                        <input
+                            id="salario"
+                            name="salario"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            value={formatNumber(wage.salary)}
+                            aria-describedby="salario-ayuda"
+                        />
+                    </div>
+                    <p class="hint" id="salario-ayuda">
+                        El básico de tu contrato, antes de descuentos.
+                        <button type="button" class="link" data-minimum>Usar el mínimo ({formatCOP(wage.salary)})</button>
+                    </p>
+                </div>
+
+                <div class="field">
+                    <label class="switch">
+                        <input type="checkbox" name="auxilio" checked />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Recibo auxilio de transporte</span>
+                    </label>
+                    <p class="hint" data-transport-hint>
+                        Le corresponde a quien gana hasta {formatCOP(limit)}. Para la prima cuenta como salario.
+                    </p>
+                </div>
+
+                <fieldset class="field">
+                    <legend>¿Qué prima quieres calcular?</legend>
+                    <div class="options">
+                        {
+                            semesters.map(({ year, half, start, end }) => (
+                                <label class="option">
+                                    <input
+                                        type="radio"
+                                        name="semestre"
+                                        value={`${year}-${half}`}
+                                        data-start={start}
+                                        data-end={end}
+                                        checked={half === semester.half}
+                                    />
+                                    <span>
+                                        <strong>
+                                            {half === 1 ? "Junio" : "Diciembre"} {year}
+                                        </strong>
+                                        <small>Trabajado de {semesterLabel(half)}</small>
+                                    </span>
+                                </label>
+                            ))
+                        }
+                    </div>
+                </fieldset>
+
+                <fieldset class="field">
+                    <legend>¿Trabajaste todo el semestre?</legend>
+                    <div class="options">
+                        <label class="option">
+                            <input type="radio" name="tiempo" value="completo" checked />
+                            <span><strong>Sí, completo</strong><small>180 días</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="tiempo" value="parcial" />
+                            <span><strong>Solo una parte</strong><small>Entré o salí en el semestre</small></span>
+                        </label>
+                    </div>
+                    <div class="dates" data-dates hidden>
+                        <label>
+                            Desde
+                            <input type="date" name="desde" value={semester.start} min={semester.start} max={semester.end} />
+                        </label>
+                        <label>
+                            Hasta
+                            <input type="date" name="hasta" value={semester.end} min={semester.start} max={semester.end} />
+                        </label>
+                    </div>
+                </fieldset>
+
+                <details class="more">
+                    <summary>Horas extra, comisiones y licencias</summary>
+                    <div class="field">
+                        <label for="variable">Promedio mensual de pagos variables</label>
+                        <div class="money">
+                            <span aria-hidden="true">$</span>
+                            <input id="variable" name="variable" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                        </div>
+                        <p class="hint">Horas extra, recargos nocturnos, dominicales y comisiones del semestre, divididos entre seis.</p>
+                    </div>
+                    <div class="field">
+                        <label for="licencias">Días de licencia no remunerada o suspensión</label>
+                        <input id="licencias" name="licencias" type="number" min="0" max="180" inputmode="numeric" placeholder="0" />
+                        <p class="hint">Esos días no cuentan como trabajados. Las incapacidades y las vacaciones sí cuentan.</p>
+                    </div>
+                </details>
+            </form>
+
+            <output id="resultado" class="receipt" for="salario variable licencias" data-receipt>
+                <span class="receipt-head">
+                    <span class="receipt-title">Colilla de prima</span>
+                    <span class="receipt-period" data-period>
+                        Prima de {paymentMonth} {YEAR} · {semesterLabel(semester.half)}
+                    </span>
+                </span>
+                <span class="lines">
+                    <span class="line"><span>Salario</span><b data-out="salary">{formatCOP(wage.salary)}</b></span>
+                    <span class="line"><span>Auxilio de transporte</span><b data-out="transport">{formatCOP(wage.transport)}</b></span>
+                    <span class="line" data-variable-line hidden><span>Pagos variables</span><b data-out="variable">$0</b></span>
+                    <span class="line strong"><span>Base mensual</span><b data-out="base">{formatCOP(fullMinimum.base)}</b></span>
+                    <span class="line"><span>Días trabajados</span><b data-out="days">180</b></span>
+                </span>
+                <span class="formula" data-out="formula">
+                    {formatNumber(fullMinimum.base)} × 180 ÷ 360
+                </span>
+                <span class="total">
+                    <span>Te deben pagar</span>
+                    <b data-out="total">{formatCOP(fullMinimum.total)}</b>
+                </span>
+                <span class="due" data-out="due">
+                    {capitalize(deadlineIsBusinessDay ? `a más tardar el ${formatLong(payday)}` : `pago a más tardar el ${formatLong(semester.deadline)}. Como no es día hábil, espérala el ${formatLong(payday)}.`)}
+                </span>
+                <span class="fine">Sin descuentos de salud ni pensión: la prima no es salario.</span>
+                <span class="sr-only" aria-live="polite" data-announce></span>
+            </output>
+        </section>
+
+        <a class="peek" href="#resultado" data-peek aria-hidden="true" tabindex="-1">
+            <span>Tu prima</span>
+            <b data-peek-total>{formatCOP(fullMinimum.total)}</b>
+            <span class="peek-more">Ver detalle</span>
+        </a>
+
+        <section id="tabla" aria-labelledby="tabla-titulo">
+            <header class="head">
+                <h2 id="tabla-titulo">Prima de {paymentMonth} {YEAR} según tu salario</h2>
+                <p>
+                    Para el semestre completo. Hasta {formatCOP(limit)} se suma el auxilio de transporte; por
+                    encima, la prima es exactamente medio salario.
+                </p>
+            </header>
+
+            <div class="tables">
+                <table class="amounts">
+                    <caption class="sr-only">Prima de servicios por salario, semestre completo</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Salario</th>
+                            <th scope="col">Con auxilio</th>
+                            <th scope="col">Prima</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            salaryRows.map(({ salary, transportAid, total, label }) => (
+                                <tr>
+                                    <th scope="row">
+                                        {formatCOP(salary)}
+                                        {label && <span class="tag">{label}</span>}
+                                    </th>
+                                    <td class:list={{ off: transportAid === 0 }}>{transportAid ? "Sí" : "No"}</td>
+                                    <td class="money-cell">{formatCOP(total)}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+
+                <div class="months">
+                    <h3>Si no completaste el semestre</h3>
+                    <p>Prima con el salario mínimo y auxilio de transporte, según los meses trabajados.</p>
+                    <ol class="bars">
+                        {
+                            monthRows.map(({ months, days, total }) => (
+                                <li style={`--w: ${months / 6}`}>
+                                    <span class="bar-label">
+                                        {months} {months === 1 ? "mes" : "meses"}
+                                        <small>{days} días</small>
+                                    </span>
+                                    <span class="bar">
+                                        <b>{formatCOP(total)}</b>
+                                    </span>
+                                </li>
+                            ))
+                        }
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+        <section id="como-se-calcula" aria-labelledby="como-titulo">
+            <header class="head">
+                <h2 id="como-titulo">Cómo se calcula la prima</h2>
+                <p>Es una sola fórmula. Lo que cambia de una persona a otra es qué entra en la base y cuántos días cuentan.</p>
+            </header>
+
+            <p class="big-formula" aria-label="Prima igual a base mensual por días trabajados dividido entre 360">
+                <span class="term">base mensual</span>
+                <span class="op">×</span>
+                <span class="term">días trabajados</span>
+                <span class="op">÷</span>
+                <span class="term">360</span>
+            </p>
+
+            <div class="rules">
+                <article>
+                    <h3>Qué entra en la base</h3>
+                    <p>
+                        Tu salario, el auxilio de transporte si ganas hasta dos mínimos y lo que recibes de forma
+                        habitual como salario: horas extra, recargos y comisiones. Si eso varía, se usa el promedio
+                        del semestre.
+                    </p>
+                </article>
+                <article>
+                    <h3>Cómo se cuentan los días</h3>
+                    <p>
+                        Con meses de 30 días, aunque el mes tenga 31 o 28. Un semestre completo son 180. Por ejemplo,
+                        si entraste el {formatLong(example.start)} con un salario de {formatCOP(example.salary)},
+                        llevas {exampleResult.days} días y tu prima es de {formatCOP(exampleResult.total)}.
+                    </p>
+                </article>
+                <article>
+                    <h3>Cuándo se paga</h3>
+                    <p>
+                        La del primer semestre, a más tardar el 30 de junio. La del segundo, a más tardar el 20 de
+                        diciembre. Si renuncias o te despiden antes, va en tu liquidación por los días que llevas.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Esta calculadora sirve de guía y no reemplaza la asesoría de un abogado laboral. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=Calculadora%20de%20prima`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+                <a href={CST_URL} rel="noopener">Código Sustantivo del Trabajo</a>,
+                <a href={LAW_2466_URL} rel="noopener">Ley 2466 de 2025</a>, {wage.salaryDecree} y {wage.transportDecree}.
+            </p>
+            <p>
+                También te sirve: <a href="/festivos-colombia-2027">Festivos en Colombia 2027</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import { formatLong, todayInColombia } from "@/lib/festivos";
+    import {
+        calculatePrima,
+        formatCOP,
+        formatNumber,
+        getMinimumWage,
+        lastBusinessDay,
+        parseCOP,
+        transportLimit,
+        type Semester,
+    } from "@/lib/prima";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]");
+    const receipt = document.querySelector<HTMLElement>("[data-receipt]");
+
+    if (form != null && receipt != null) {
+        const field = <T extends HTMLElement = HTMLInputElement>(name: string) =>
+            form.querySelector<T>(`[name="${name}"]`)!;
+        const out = (name: string) => receipt.querySelector<HTMLElement>(`[data-out="${name}"]`)!;
+
+        const salaryInput = field("salario");
+        const variableInput = field("variable");
+        const transportInput = field("auxilio");
+        const unpaidInput = field("licencias");
+        const fromInput = field("desde");
+        const toInput = field("hasta");
+        const dates = form.querySelector<HTMLElement>("[data-dates]")!;
+        const transportHint = form.querySelector<HTMLElement>("[data-transport-hint]")!;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        // El auxilio se marca solo según el salario, hasta que la persona lo cambie a mano
+        let transportTouched = false;
+        let shownTotal = parseCOP(out("total").textContent ?? "");
+
+        const selectedSemester = (): Semester => {
+            const radio = form.querySelector<HTMLInputElement>('[name="semestre"]:checked')!;
+            const [year, half] = radio.value.split("-").map(Number);
+            const deadline = half === 1 ? `${year}-06-30` : `${year}-12-20`;
+            return { year, half: half as 1 | 2, start: radio.dataset.start!, end: radio.dataset.end!, deadline };
+        };
+
+        const formatField = (input: HTMLInputElement) => {
+            const value = parseCOP(input.value);
+            const caret = input.value.length - (input.selectionStart ?? input.value.length);
+            input.value = value ? formatNumber(value) : "";
+            const position = Math.max(0, input.value.length - caret);
+            input.setSelectionRange(position, position);
+        };
+
+        const animateTotal = (target: number) => {
+            const element = out("total");
+            if (reduceMotion || shownTotal === target) {
+                element.textContent = formatCOP(target);
+                shownTotal = target;
+                return;
+            }
+            const from = shownTotal;
+            const startTime = performance.now();
+            shownTotal = target;
+            const step = (now: number) => {
+                const progress = Math.min(1, (now - startTime) / 450);
+                const eased = 1 - (1 - progress) ** 3;
+                element.textContent = formatCOP(from + (target - from) * eased);
+                if (progress < 1 && shownTotal === target) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        };
+
+        const update = () => {
+            const semester = selectedSemester();
+            const wage = getMinimumWage(semester.year);
+            const limit = transportLimit(wage);
+            const salary = parseCOP(salaryInput.value);
+            const variable = parseCOP(variableInput.value);
+            const partial = form.querySelector<HTMLInputElement>('[name="tiempo"]:checked')!.value === "parcial";
+
+            if (!transportTouched) transportInput.checked = salary > 0 && salary + variable <= limit;
+            transportHint.textContent =
+                salary + variable > limit && transportInput.checked
+                    ? `Ojo: con más de ${formatCOP(limit)} al mes no te corresponde auxilio de transporte.`
+                    : `Le corresponde a quien gana hasta ${formatCOP(limit)}. Para la prima cuenta como salario.`;
+
+            dates.hidden = !partial;
+            for (const input of [fromInput, toInput]) {
+                input.min = semester.start;
+                input.max = semester.end;
+            }
+            if (!partial || fromInput.value < semester.start || fromInput.value > semester.end) fromInput.value = semester.start;
+            if (!partial || toInput.value > semester.end || toInput.value < semester.start) toInput.value = semester.end;
+            const start = fromInput.value || semester.start;
+            const end = toInput.value < start ? start : toInput.value || semester.end;
+
+            const result = calculatePrima({
+                salary,
+                variable,
+                transport: transportInput.checked,
+                start,
+                end,
+                unpaidDays: Math.max(0, Number(unpaidInput.value) || 0),
+                wage,
+            });
+
+            const payday = lastBusinessDay(semester.deadline);
+            const month = semester.half === 1 ? "junio" : "diciembre";
+            const label = semester.half === 1 ? "enero a junio" : "julio a diciembre";
+
+            receipt.querySelector<HTMLElement>("[data-period]")!.textContent = `Prima de ${month} ${semester.year} · ${label}`;
+            receipt.querySelector<HTMLElement>("[data-variable-line]")!.hidden = variable === 0;
+            out("salary").textContent = formatCOP(salary);
+            out("transport").textContent = formatCOP(result.transportAid);
+            out("variable").textContent = formatCOP(variable);
+            out("base").textContent = formatCOP(result.base);
+            out("days").textContent = String(result.days);
+            out("formula").textContent = `${formatNumber(result.base)} × ${result.days} ÷ 360`;
+
+            const today = todayInColombia();
+            out("due").textContent =
+                today > semester.deadline
+                    ? `Debió pagarse a más tardar el ${formatLong(semester.deadline)} de ${semester.year}.`
+                    : payday === semester.deadline
+                      ? `Pago a más tardar el ${formatLong(payday)}.`
+                      : `Pago a más tardar el ${formatLong(semester.deadline)}. Como no es día hábil, espérala el ${formatLong(payday)}.`;
+
+            animateTotal(result.total);
+            document.querySelector<HTMLElement>("[data-peek-total]")!.textContent = formatCOP(result.total);
+            receipt.querySelector<HTMLElement>("[data-announce]")!.textContent =
+                `Tu prima es de ${formatCOP(result.total)} por ${result.days} días.`;
+        };
+
+        // Arranca en el semestre que corresponde a la fecha de hoy
+        const today = todayInColombia();
+        const currentValue = `${today.slice(0, 4)}-${Number(today.slice(5, 7)) <= 6 ? 1 : 2}`;
+        const current = form.querySelector<HTMLInputElement>(`[name="semestre"][value="${currentValue}"]`);
+        if (current != null) current.checked = true;
+
+        form.addEventListener("submit", (event) => event.preventDefault());
+        form.addEventListener("input", (event) => {
+            const target = event.target as HTMLInputElement;
+            if (target === salaryInput || target === variableInput) formatField(target);
+            if (target === transportInput) transportTouched = true;
+            update();
+        });
+        form.querySelector("[data-minimum]")!.addEventListener("click", () => {
+            salaryInput.value = formatNumber(getMinimumWage(selectedSemester().year).salary);
+            transportTouched = false;
+            update();
+        });
+
+        update();
+
+        // En móvil la colilla queda debajo del formulario: una barra muestra el total mientras escribes
+        const peek = document.querySelector<HTMLElement>("[data-peek]")!;
+        let formVisible = false;
+        let receiptVisible = false;
+        const sync = () => peek.classList.toggle("is-visible", formVisible && !receiptVisible);
+        new IntersectionObserver(([entry]) => {
+            formVisible = entry.isIntersecting;
+            sync();
+        }).observe(form);
+        new IntersectionObserver(([entry]) => {
+            receiptVisible = entry.isIntersecting;
+            sync();
+        }).observe(receipt);
+    }
+</script>
+
+<style>
+    main {
+        --red: #c42a1a;
+        --red-ink: #a32113;
+        --red-soft: #f9e0d9;
+        --sheet: #fffdf9;
+        --gutter: clamp(16px, 4vw, 40px);
+
+        width: min(1200px, 100%);
+        margin: auto;
+        padding: 0 var(--gutter) clamp(3rem, 6vw, 5rem);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    a {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    .flag {
+        height: 8px;
+        background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%);
+    }
+
+    /* Encabezado */
+    .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 20px 0;
+    }
+
+    .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .crumbs li + li::before {
+        margin-right: 10px;
+        color: var(--line-strong);
+        content: "/";
+    }
+
+    .crumbs a {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .monogram {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .toc {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .toc a {
+        flex: none;
+        padding: 8px 13px;
+        border-radius: 8px;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+    .toc a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    /* Portada */
+    .hero {
+        padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+
+    h1 {
+        max-width: 12ch;
+        font-size: clamp(2.9rem, 1.4rem + 5.6vw, 6rem);
+        font-weight: 800;
+        letter-spacing: -0.055em;
+        line-height: 0.9;
+    }
+
+    h1 span {
+        color: var(--red);
+    }
+
+    .lead {
+        max-width: 60ch;
+        margin-top: 26px;
+        color: var(--text);
+        font-size: clamp(1.08rem, 1rem + 0.35vw, 1.25rem);
+        line-height: 1.6;
+    }
+
+    .lead strong {
+        color: var(--ink);
+    }
+
+    .updated {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .updated a {
+        color: inherit;
+    }
+
+    /* Calculadora: formulario a la izquierda, colilla a la derecha */
+    .calculator {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+        padding-top: clamp(2rem, 4vw, 2.75rem);
+        border-top: 2px solid var(--ink);
+        scroll-margin-top: 24px;
+    }
+
+    .form {
+        display: grid;
+        gap: 30px;
+    }
+
+    .field {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    .field > label:not(.switch),
+    legend {
+        padding: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    legend {
+        margin-bottom: 10px;
+    }
+
+    .money {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 18px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease;
+    }
+
+    .money:focus-within {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+    }
+
+    .money span {
+        color: var(--muted);
+        font-family: var(--font-display);
+        font-size: 1.6rem;
+        font-weight: 700;
+    }
+
+    .money input {
+        width: 100%;
+        min-width: 0;
+        padding: 14px 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.6rem, 1.3rem + 1vw, 2.1rem);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.03em;
+    }
+
+    #variable {
+        font-size: 1.3rem;
+    }
+
+    #licencias {
+        width: 120px;
+        padding: 12px 16px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        color: var(--ink);
+        font: inherit;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .hint {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+
+    .link:hover {
+        text-decoration-color: currentColor;
+    }
+
+    /* Interruptor */
+    .switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        cursor: pointer;
+    }
+
+    .switch input {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .track {
+        position: relative;
+        flex: none;
+        width: 46px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--line-strong);
+        transition: background 200ms ease;
+    }
+
+    .track::after {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(21, 25, 30, 0.25);
+        transition: transform 200ms var(--ease-out);
+        content: "";
+    }
+
+    .switch input:checked + .track {
+        background: var(--ink);
+    }
+
+    .switch input:checked + .track::after {
+        transform: translateX(18px);
+    }
+
+    .switch input:focus-visible + .track {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    /* Opciones como tarjetas */
+    .options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .option {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .option input {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .option > span {
+        display: grid;
+        gap: 2px;
+        height: 100%;
+        padding: 14px 16px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease;
+    }
+
+    .option strong {
+        color: var(--ink);
+        font-weight: 650;
+    }
+
+    .option small {
+        color: var(--muted);
+        font-size: 0.84rem;
+    }
+
+    .option:hover > span {
+        border-color: var(--ink);
+    }
+
+    .option input:checked + span {
+        border-color: var(--ink);
+        box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .option input:focus-visible + span {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .dates {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .dates[hidden] {
+        display: none;
+    }
+
+    .dates label {
+        display: grid;
+        gap: 6px;
+        color: var(--text-soft);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .dates input {
+        padding: 11px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+    }
+
+    .more {
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .more .field {
+        padding-bottom: 22px;
+    }
+
+    /* La colilla de pago */
+    .receipt {
+        --mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 18px 100%;
+
+        position: sticky;
+        top: 24px;
+        display: grid;
+        gap: 18px;
+        padding: 28px 28px 44px;
+        background: var(--sheet);
+        box-shadow:
+            0 0 0 1px var(--line),
+            0 40px 60px -40px rgba(21, 25, 30, 0.45);
+        filter: drop-shadow(0 1px 0 var(--line-strong));
+        -webkit-mask: var(--mask);
+        mask: var(--mask);
+    }
+
+    .receipt-head {
+        display: grid;
+        gap: 4px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--ink);
+    }
+
+    .receipt-title {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .receipt-period {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .lines {
+        display: grid;
+        gap: 10px;
+    }
+
+    .line {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        color: var(--text-soft);
+        font-size: 0.95rem;
+    }
+
+    .line[hidden] {
+        display: none;
+    }
+
+    /* Puntos guía, como en una colilla impresa */
+    .line::after {
+        order: 1;
+        flex: 1;
+        border-bottom: 1px dotted var(--line-strong);
+        content: "";
+    }
+
+    .line b {
+        order: 2;
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: 0.92rem;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .line.strong {
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .line.strong b {
+        font-weight: 600;
+    }
+
+    .formula {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(21, 25, 30, 0.05);
+        color: var(--text-soft);
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        text-align: center;
+    }
+
+    .total {
+        display: grid;
+        gap: 4px;
+        padding-top: 16px;
+        border-top: 2px dashed var(--line-strong);
+    }
+
+    .total span {
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .total b {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 2rem + 2vw, 3.4rem);
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .due {
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 600;
+        line-height: 1.45;
+    }
+
+    .fine {
+        color: var(--muted);
+        font-size: 0.8rem;
+    }
+
+    /* Barra con el total, solo en pantallas donde la colilla queda abajo */
+    .peek {
+        display: none;
+    }
+
+    @media (max-width: 1023px) {
+        .peek {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            z-index: 10;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: var(--ink);
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.88rem;
+            text-decoration: none;
+            box-shadow: 0 20px 40px -16px rgba(21, 25, 30, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(16px);
+            transition:
+                opacity 200ms ease,
+                transform 250ms var(--ease-out);
+        }
+
+        .peek.is-visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: none;
+        }
+
+        .peek b {
+            color: #fff;
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+        }
+
+        .peek-more {
+            margin-left: auto;
+            color: #fff;
+            font-weight: 600;
+        }
+    }
+
+    /* Secciones */
+    section:not(.hero, .calculator) {
+        margin-top: clamp(4.5rem, 10vw, 8rem);
+        scroll-margin-top: 24px;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 1.3rem + 2.4vw, 3.1rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    h3 {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .head {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 14px 48px;
+        align-items: end;
+        margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+    }
+
+    .head.stacked {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .head p {
+        max-width: 46ch;
+        font-size: 1.05rem;
+    }
+
+    .head a {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    /* Tablas */
+    .tables {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .amounts {
+        border-top: 2px solid var(--ink);
+    }
+
+    .amounts thead th {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line-strong);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .amounts thead th:last-child,
+    .money-cell {
+        text-align: right;
+    }
+
+    .amounts tbody th,
+    .amounts tbody td {
+        padding: 14px 12px 14px 0;
+        border-bottom: 1px solid var(--line);
+        font-variant-numeric: tabular-nums;
+        text-align: left;
+    }
+
+    .amounts tbody th {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .amounts tbody td {
+        color: var(--text-soft);
+    }
+
+    .amounts td:last-child,
+    .amounts th:last-child {
+        padding-right: 0;
+        text-align: right;
+    }
+
+    .amounts .off {
+        color: var(--muted);
+    }
+
+    .amounts tbody td.money-cell {
+        padding-right: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        text-align: right;
+    }
+
+    .tag {
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--red-soft);
+        color: var(--red-ink);
+        font-size: 0.72rem;
+        font-weight: 700;
+        vertical-align: 1px;
+    }
+
+    .months {
+        padding-top: 18px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .months > p {
+        margin-top: 6px;
+        color: var(--text-soft);
+        font-size: 0.95rem;
+    }
+
+    .bars {
+        display: grid;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .bars li {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+    }
+
+    .bar-label {
+        display: grid;
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .bar-label small {
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 500;
+    }
+
+    .bar {
+        display: flex;
+        justify-content: flex-end;
+        width: calc(34% + 66% * var(--w));
+        padding: 9px 12px;
+        border-radius: 8px;
+        background: var(--red-soft);
+    }
+
+    .bars li:last-child .bar {
+        background: var(--red);
+    }
+
+    .bar b {
+        color: var(--red-ink);
+        font-family: var(--font-display);
+        font-size: 1rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .bars li:last-child .bar b {
+        color: #fff;
+    }
+
+    /* Fórmula */
+    .big-formula {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        padding: clamp(22px, 4vw, 34px) 0;
+        border-block: 2px solid var(--ink);
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.5rem, 1rem + 2.2vw, 2.6rem);
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+    }
+
+    .big-formula .op {
+        color: var(--red);
+    }
+
+    .rules {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 32px clamp(28px, 4vw, 56px);
+        margin-top: clamp(1.75rem, 4vw, 2.5rem);
+    }
+
+    .rules p {
+        margin-top: 10px;
+        color: var(--text);
+        line-height: 1.6;
+    }
+
+    /* Preguntas */
+    .faq {
+        display: grid;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+        gap: 0 clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .faq .head {
+        position: sticky;
+        top: 24px;
+    }
+
+    details {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .faq-list details:first-child {
+        border-top: 2px solid var(--ink);
+    }
+
+    .faq-list summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.12rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .faq-list summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .faq-list summary::after {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        background:
+            linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat,
+            linear-gradient(var(--ink), var(--ink)) center / 2px 100% no-repeat;
+        transition: transform 250ms var(--ease-out);
+        content: "";
+    }
+
+    .faq-list details[open] summary::after {
+        transform: rotate(45deg);
+    }
+
+    .faq-list details p {
+        max-width: 62ch;
+        padding-bottom: 22px;
+    }
+
+    /* Pie */
+    .colophon {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 40px;
+        margin-top: clamp(5rem, 10vw, 8rem);
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+    }
+
+    .colophon p {
+        max-width: 70ch;
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    .colophon a {
+        color: var(--ink);
+    }
+
+    @media (max-width: 1023px) {
+        .calculator,
+        .tables,
+        .faq {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .receipt,
+        .faq .head {
+            position: static;
+        }
+
+        .receipt {
+            max-width: 460px;
+        }
+
+        .rules {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (max-width: 760px) {
+        .head {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .toc {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .options,
+        .dates {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .receipt {
+            padding-inline: 20px;
+        }
+    }
+</style>

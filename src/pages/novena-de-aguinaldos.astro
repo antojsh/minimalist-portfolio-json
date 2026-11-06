@@ -1,0 +1,1419 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import {
+    CAROLS,
+    CONSIDERATIONS,
+    DAY_THEMES,
+    GAMES,
+    GOZOS,
+    MORE_CAROLS,
+    NOVENA_REVIEW,
+    ORDINALS,
+    PRAYER_CHILD,
+    PRAYER_DAILY,
+    PRAYER_JOSEPH,
+    PRAYER_MARY,
+    novenaDates,
+    type Prayer,
+} from "@/lib/novena";
+
+const IDT_URL = "https://api.visitbogota.co/sites/default/files/2025-12/Novena%20de%20Aguinaldos%20IDT%20-%20Digital%20%281%29.pdf";
+const FONTS = "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..600;1,400..600&display=swap";
+
+const YEAR = Number(NOVENA_REVIEW.slice(0, 4));
+const dates = novenaDates(YEAR);
+const first = dates[0];
+const last = dates[8];
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+// Orden en que se reza cada día
+const ORDER: { id: string; label: string }[] = [
+    { id: PRAYER_DAILY.id, label: "Oración para todos los días" },
+    { id: "consideracion", label: "Consideración del día" },
+    { id: PRAYER_MARY.id, label: "Oración a la Virgen" },
+    { id: PRAYER_JOSEPH.id, label: "Oración a San José" },
+    { id: "gozos", label: "Gozos" },
+    { id: PRAYER_CHILD.id, label: "Oración al Niño Jesús" },
+    { id: "villancicos", label: "Villancicos" },
+];
+
+const steps = [
+    { title: "Reúnanse frente al pesebre", text: "Al caer la tarde o en la noche, con las luces del pesebre encendidas. Si no hay pesebre, basta con una vela y una imagen del Niño Dios." },
+    { title: "Repartan las lecturas", text: "Cada oración la puede leer una persona distinta; así participan todos, también los niños que ya leen. Más abajo hay un repartidor que lo hace por ustedes." },
+    { title: "Empiecen con la señal de la cruz", text: "Quien dirige invita a santiguarse y lee la oración para todos los días; al final todos rezan tres veces el Gloria al Padre." },
+    { title: "Lean la consideración del día", text: "Es lo único que cambia de un día a otro. Cuenta, paso a paso, la historia desde la Anunciación hasta el nacimiento en Belén." },
+    { title: "Recen a la Virgen y a San José", text: "Después de la oración a la Virgen van tres Avemarías; después de la de San José, un Padrenuestro, un Avemaría y un Gloria." },
+    { title: "Canten los gozos", text: "Una persona lee cada estrofa y todos responden «¡Ven a nuestras almas! ¡Ven, no tardes tanto!». Es el momento de maracas, panderetas y tambores." },
+    { title: "Cierren con el Niño Jesús", text: "Se lee la oración al Niño Jesús y cada quien puede pedir en silencio por sus intenciones." },
+    { title: "Villancicos, natilla y buñuelos", text: "Se cantan villancicos, se reparte lo que haya preparado la familia anfitriona y se acuerda dónde será la novena de mañana." },
+];
+
+const faqs = [
+    {
+        question: `¿Cuándo se reza la novena de aguinaldos en ${YEAR}?`,
+        answer: `Del ${first.label} al ${last.label} de ${YEAR}. Son nueve días seguidos que terminan la víspera de Navidad; el último día, el 24, se reza antes de la cena de Nochebuena.`,
+    },
+    {
+        question: "¿Qué se reza cada día de la novena?",
+        answer: "Lo mismo todos los días, menos la consideración: oración para todos los días, consideración del día, oración a la Virgen, oración a San José, gozos y oración al Niño Jesús. Luego se cantan villancicos. Algunas familias cambian el orden; lo importante es rezarla completa.",
+    },
+    {
+        question: "¿Cuánto dura la novena?",
+        answer: "Entre 30 y 45 minutos, según cuántos villancicos se canten. Las oraciones y la consideración se leen en unos 20 minutos.",
+    },
+    {
+        question: "¿Quién escribió la novena de aguinaldos?",
+        answer: "Según la tradición, fray Fernando de Jesús Larrea, un franciscano nacido en Quito, la escribió en el siglo XVIII a pedido de Clemencia de Jesús Caycedo, fundadora del colegio La Enseñanza en Bogotá. A comienzos del siglo XX la Madre María Ignacia (Bertilda Samper Acosta) la actualizó y le agregó los gozos que se cantan hoy.",
+    },
+    {
+        question: "¿Por qué son nueve días?",
+        answer: "Novena significa justamente eso: una devoción de nueve días. Se suele explicar como un recuerdo de los nueve meses que María llevó a Jesús en su vientre, y por eso las consideraciones recorren la espera hasta el nacimiento.",
+    },
+    {
+        question: "¿Qué hago si me perdí un día?",
+        answer: "Puedes leer la consideración que te faltó junto con la del día, o simplemente seguir con la que corresponde. La novena no tiene penalidades: es una preparación para la Navidad.",
+    },
+    {
+        question: "¿Qué son los gozos?",
+        answer: "Son las aspiraciones para la venida del Niño Dios: estrofas que se cantan o recitan, y después de cada una todos responden «¡Ven a nuestras almas! ¡Ven, no tardes tanto!». Se inspiran en las antífonas «Oh» de la liturgia de Adviento.",
+    },
+    {
+        question: "¿Qué significa aguinaldo?",
+        answer: "Es el regalo que se da en Navidad. De ahí el nombre de la novena y de los juegos de aguinaldo, en los que quien pierde le debe un detalle al otro.",
+    },
+    {
+        question: "¿Se puede rezar la novena sin pesebre o por videollamada?",
+        answer: "Sí. El pesebre ayuda, pero no es obligatorio. Muchas familias que viven lejos se conectan por videollamada: una persona comparte esta página en pantalla y cada quien lee su parte.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/novena-de-aguinaldos", site).href;
+const title = `Novena de aguinaldos ${YEAR} completa: oraciones, consideraciones de cada día y gozos`;
+const description = `La novena de aguinaldos completa para rezar del ${first.label.replace(/^\S+ /, "")} al ${last.label.replace(/^\S+ /, "")}: oraciones, la consideración de cada día, gozos, villancicos, cómo rezarla y para imprimir.`;
+const ogPath = "/og/novena-de-aguinaldos.png";
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: NOVENA_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            about: { "@type": "Thing", name: "Novena de aguinaldos" },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "HowTo",
+            "@id": `${pageUrl}#como-rezar`,
+            name: "Cómo rezar la novena de aguinaldos",
+            totalTime: "PT40M",
+            step: steps.map(({ title, text }, index) => ({ "@type": "HowToStep", position: index + 1, name: title, text })),
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Novena de aguinaldos", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+
+const prayerBlock = (prayer: Prayer) => prayer;
+const prayersBefore = [prayerBlock(PRAYER_DAILY)];
+const prayersAfter = [prayerBlock(PRAYER_MARY), prayerBlock(PRAYER_JOSEPH)];
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt={`Novena de aguinaldos ${YEAR}: nueve velas, del 16 al 24 de diciembre`}
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+    extraFonts={FONTS}
+>
+    <div class="tool-flag no-print" aria-hidden="true"></div>
+
+    <main class="tool novena">
+        <header class="topbar no-print">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Novena de aguinaldos</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#rezar">Rezar hoy</a>
+                <a href="#como-rezar">Cómo rezarla</a>
+                <a href="#villancicos">Villancicos</a>
+                <a href="#juegos">Juegos</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero no-print">
+            <h1>Novena de aguinaldos <span>{YEAR}</span></h1>
+            <p class="lead">
+                La novena completa para rezar en familia, <strong>del {first.label.replace(/^\S+ /, "")} al {last.label.replace(/^\S+ /, "")}</strong>:
+                todas las oraciones, la consideración de cada día, los gozos y los villancicos. Con letra grande para
+                leer en la sala, en el televisor o para imprimir.
+            </p>
+            <p class="season" data-season>
+                Empieza el {first.label} · {Math.round((Date.parse(first.date) - Date.parse(NOVENA_REVIEW)) / 86_400_000)} días
+            </p>
+        </section>
+
+        <!-- Las nueve velas: una por día -->
+        <section id="rezar" class="candles-section" aria-labelledby="rezar-titulo">
+            <h2 id="rezar-titulo" class="sr-only">Elige el día de la novena</h2>
+            <div class="candles no-print" role="group" aria-label="Días de la novena">
+                {
+                    dates.map(({ day, date, weekday }) => (
+                        <button type="button" class="candle" data-day={day} data-date={date} aria-pressed={day === 1 ? "true" : "false"}>
+                            <span class="flame" aria-hidden="true" />
+                            <span class="wax" aria-hidden="true" />
+                            <span class="candle-label">
+                                <b>Día {day}</b>
+                                <small>
+                                    {weekday.slice(0, 3)} {Number(date.slice(8))}
+                                </small>
+                            </span>
+                        </button>
+                    ))
+                }
+            </div>
+
+            <div class="reader-bar no-print">
+                <ol class="order" aria-label="Orden de la novena">
+                    {ORDER.map(({ id, label }) => (
+                        <li><a href={`#${id}`}>{label}</a></li>
+                    ))}
+                </ol>
+                <div class="reader-tools">
+                    <button type="button" class="tool-btn" data-size="-1" aria-label="Letra más pequeña">A−</button>
+                    <button type="button" class="tool-btn" data-size="1" aria-label="Letra más grande">A+</button>
+                    <button type="button" class="tool-btn wide" data-fullscreen>Pantalla completa</button>
+                    <button type="button" class="tool-btn wide" data-print="day">Imprimir el día</button>
+                    <button type="button" class="tool-btn wide" data-print="all">Imprimir completa</button>
+                    <a class="tool-btn wide whatsapp" data-whatsapp href={`https://wa.me/?text=${encodeURIComponent(`Novena de aguinaldos ${YEAR}, día 1: ${pageUrl}?dia=1`)}`} rel="noopener" target="_blank">Enviar por WhatsApp</a>
+                </div>
+            </div>
+
+            <article class="book" data-book>
+                <header class="book-head">
+                    <p class="book-kicker" data-day-kicker>{capital(first.label)} de {YEAR}</p>
+                    <h2 class="book-title" data-day-title>Día primero</h2>
+                    <p class="book-theme" data-day-theme>{DAY_THEMES[0]}</p>
+                </header>
+
+                <p class="rubric">Se empieza con la señal de la cruz.</p>
+
+                {
+                    prayersBefore.map((prayer) => (
+                        <section class="prayer" id={prayer.id}>
+                            <h3>{prayer.title}</h3>
+                            {prayer.text.map((paragraph) => <p>{paragraph}</p>)}
+                            {prayer.rubric && <p class="rubric">{prayer.rubric}</p>}
+                        </section>
+                    ))
+                }
+
+                <section class="prayer consideration-block" id="consideracion">
+                    <h3>Consideración del día <span data-day-ordinal>primero</span></h3>
+                    {
+                        CONSIDERATIONS.map((paragraphs, index) => (
+                            <div class="consideration" data-consideration={index + 1} hidden={index !== 0}>
+                                <p class="print-day">Día {ORDINALS[index]} · {dates[index].label}</p>
+                                {paragraphs.map((paragraph) => <p>{paragraph}</p>)}
+                            </div>
+                        ))
+                    }
+                </section>
+
+                {
+                    prayersAfter.map((prayer) => (
+                        <section class="prayer" id={prayer.id}>
+                            <h3>{prayer.title}</h3>
+                            {prayer.text.map((paragraph) => <p>{paragraph}</p>)}
+                            {prayer.rubric && <p class="rubric">{prayer.rubric}</p>}
+                        </section>
+                    ))
+                }
+
+                <section class="prayer gozos" id="gozos">
+                    <h3>Gozos</h3>
+                    <p class="rubric">Aspiraciones para la venida del Niño Dios. Quien dirige lee cada estrofa y todos responden.</p>
+                    <p class="refrain-intro">{GOZOS.intro}<br /><strong>{GOZOS.refrain}</strong></p>
+                    {
+                        GOZOS.stanzas.map((stanza) => (
+                            <div class="stanza">
+                                <p>{stanza}</p>
+                                <p class="refrain"><span class="who">Todos:</span> {GOZOS.refrain}</p>
+                            </div>
+                        ))
+                    }
+                    <div class="stanza">
+                        <p>{GOZOS.closing}</p>
+                        <p class="refrain"><span class="who">Todos:</span> {GOZOS.refrain}</p>
+                    </div>
+                </section>
+
+                <section class="prayer" id={PRAYER_CHILD.id}>
+                    <h3>{PRAYER_CHILD.title}</h3>
+                    {PRAYER_CHILD.text.map((paragraph) => <p>{paragraph}</p>)}
+                </section>
+
+                <p class="rubric end">Se termina con la señal de la cruz y se cantan villancicos.</p>
+                <p class="next no-print" data-next></p>
+            </article>
+        </section>
+
+        <!-- Repartidor de lecturas -->
+        <section id="repartir" class="share-out no-print" aria-labelledby="repartir-titulo">
+            <div class="share-copy">
+                <h2 id="repartir-titulo">¿Quién lee qué?</h2>
+                <p>
+                    Escribe los nombres de quienes van a leer y la novena se reparte sola, al azar. Mándalo al grupo de la
+                    familia y nadie llega sin saber qué le toca.
+                </p>
+            </div>
+            <div class="share-tool">
+                <label class="panel-label" for="lectores">Lectores</label>
+                <textarea id="lectores" rows="5" placeholder="Abuela Rosa&#10;Juan&#10;Valeria&#10;Tío Pedro">Abuela Rosa
+Juan
+Valeria
+Tío Pedro</textarea>
+                <div class="share-actions">
+                    <button type="button" class="primary" data-assign>Repartir lecturas</button>
+                    <button type="button" class="secondary" data-assign-copy disabled>Copiar para WhatsApp</button>
+                </div>
+                <ol class="assignments" data-assignments></ol>
+            </div>
+        </section>
+
+        <section id="calendario" class="no-print" aria-labelledby="calendario-titulo">
+            <header class="head">
+                <h2 id="calendario-titulo">Calendario de la novena {YEAR}</h2>
+                <p>Cada día tiene su consideración. Toca un día para abrirla arriba.</p>
+            </header>
+            <ol class="calendar">
+                {
+                    dates.map(({ day, label }, index) => (
+                        <li>
+                            <a href={`?dia=${day}#rezar`} data-goto={day}>
+                                <span class="cal-day">{day}</span>
+                                <span class="cal-text">
+                                    <strong>{capital(label)}</strong>
+                                    <small>{DAY_THEMES[index]}</small>
+                                </span>
+                            </a>
+                        </li>
+                    ))
+                }
+            </ol>
+        </section>
+
+        <section id="como-rezar" class="no-print" aria-labelledby="como-titulo">
+            <header class="head">
+                <h2 id="como-titulo">Cómo rezar la novena, paso a paso</h2>
+                <p>Si es la primera vez que la diriges, esto es todo lo que necesitas saber. Toma entre 30 y 45 minutos.</p>
+            </header>
+            <ol class="steps">
+                {
+                    steps.map(({ title, text }) => (
+                        <li>
+                            <h3>{title}</h3>
+                            <p>{text}</p>
+                        </li>
+                    ))
+                }
+            </ol>
+
+            <div class="needs">
+                <article>
+                    <h3>Qué tener a mano</h3>
+                    <ul>
+                        <li>El pesebre o una imagen del Niño Dios</li>
+                        <li>Velas o las luces del árbol</li>
+                        <li>Esta página en el celular, en el televisor o impresa</li>
+                        <li>Maracas, panderetas, tambor, charrasca o lo que suene</li>
+                        <li>Natilla, buñuelos y algo de tomar</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Si hay niños</h3>
+                    <p>
+                        Denles los gozos: les encanta responder con los instrumentos. Los que ya leen pueden tomar la
+                        oración a San José, que es corta. El repartidor de lecturas evita peleas por quién lee.
+                    </p>
+                </article>
+                <article>
+                    <h3>En el televisor</h3>
+                    <p>
+                        Abre esta página en el televisor o proyéctala desde el celular, toca «Pantalla completa» y sube la
+                        letra con A+. Todos leen al tiempo, también los que están por videollamada.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="villancicos" class="no-print" aria-labelledby="villancicos-titulo">
+            <header class="head">
+                <h2 id="villancicos-titulo">Villancicos para la novena</h2>
+                <p>Los tradicionales, con la letra completa para cantar entre todos.</p>
+            </header>
+            <div class="carols">
+                {
+                    CAROLS.map(({ title, chorus, verses }) => (
+                        <article class="carol">
+                            <h3>{title}</h3>
+                            {chorus && <p class="chorus">{chorus}</p>}
+                            {verses.map((verse) => (
+                                <p>{verse}</p>
+                            ))}
+                            {chorus && <p class="chorus-repeat">Coro</p>}
+                        </article>
+                    ))
+                }
+            </div>
+            <p class="more-carols">
+                <strong>Otros que no pueden faltar:</strong>
+                {MORE_CAROLS.join(" · ")}.
+            </p>
+        </section>
+
+        <section id="juegos" class="no-print" aria-labelledby="juegos-titulo">
+            <header class="head">
+                <h2 id="juegos-titulo">Juegos de aguinaldo</h2>
+                <p>
+                    Se pactan entre dos personas antes de la novena, con una apuesta: quien pierde le da al otro un
+                    aguinaldo. Duran hasta la Navidad o hasta que alguien caiga.
+                </p>
+            </header>
+            <div class="games">
+                {
+                    GAMES.map(({ name, rule }) => (
+                        <article>
+                            <h3>{name}</h3>
+                            <p>{rule}</p>
+                        </article>
+                    ))
+                }
+            </div>
+        </section>
+
+        <section id="historia" class="no-print" aria-labelledby="historia-titulo">
+            <div class="history">
+                <h2 id="historia-titulo">De dónde viene la novena</h2>
+                <div class="history-text">
+                    <p>
+                        Según la tradición, la escribió en el siglo XVIII fray Fernando de Jesús Larrea, un franciscano
+                        nacido en Quito, a pedido de Clemencia de Jesús Caycedo, fundadora del colegio La Enseñanza en
+                        Bogotá. Se rezaba en conventos y casas de la Nueva Granada y de ahí pasó a todo el país.
+                    </p>
+                    <p>
+                        A comienzos del siglo XX la Madre María Ignacia, Bertilda Samper Acosta, actualizó el lenguaje y
+                        le agregó los gozos, inspirados en las antífonas «Oh» del Adviento. Esa es la versión que se reza
+                        hoy en Colombia y que también se reza en Ecuador y en partes de Venezuela.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq no-print" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    El texto de las oraciones está cotejado con las ediciones publicadas en Colombia. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=Novena%20de%20aguinaldos`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon no-print">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Texto tradicional de
+                fray Fernando de Jesús Larrea y la Madre María Ignacia, cotejado con la edición del
+                <a href={IDT_URL} rel="noopener">Instituto Distrital de Turismo de Bogotá</a>.
+            </p>
+            <p>
+                También te sirve: <a href={`/festivos-colombia-${YEAR + 1}`}>Festivos {YEAR + 1}</a> ·
+                <a href="/ruleta">Ruleta para el amigo secreto</a> ·
+                <a href="/herramientas">Más herramientas</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import { formatLong, todayInColombia } from "@/lib/festivos";
+    import { DAY_THEMES, ORDINALS, novenaDates, novenaDayOn } from "@/lib/novena";
+    import { shuffle } from "@/lib/ruleta";
+
+    const $ = <T extends Element = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
+    const today = todayInColombia();
+    const year = Number(document.querySelector<HTMLElement>(".candle")?.dataset.date?.slice(0, 4) ?? today.slice(0, 4));
+    const dates = novenaDates(year);
+    const current = novenaDayOn(today);
+    const candles = [...document.querySelectorAll<HTMLButtonElement>(".candle")];
+    const book = $("[data-book]");
+    const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+    /* Temporada: cuánto falta o qué día es hoy */
+    const season = $("[data-season]");
+    const daysTo = Math.round((Date.parse(dates[0].date) - Date.parse(today)) / 86_400_000);
+    if (current) season.textContent = `Hoy, ${formatLong(today)}, se reza el día ${current}`;
+    else if (daysTo > 0) season.textContent = `Empieza el ${dates[0].label} · faltan ${daysTo} ${daysTo === 1 ? "día" : "días"}`;
+    else season.textContent = `La novena de ${year} terminó el ${dates[8].label}. ¡Feliz Navidad!`;
+    season.dataset.state = current ? "now" : daysTo > 0 ? "soon" : "past";
+
+    // Velas encendidas: las de los días que ya se rezaron
+    for (const candle of candles) {
+        const day = Number(candle.dataset.day);
+        candle.classList.toggle("lit", current != null ? day <= current : daysTo <= 0);
+    }
+
+    function select(day: number, { scroll = false } = {}) {
+        const info = dates[day - 1];
+        for (const candle of candles) candle.setAttribute("aria-pressed", String(Number(candle.dataset.day) === day));
+        for (const block of document.querySelectorAll<HTMLElement>("[data-consideration]")) block.hidden = Number(block.dataset.consideration) !== day;
+        $("[data-day-kicker]").textContent = `${capital(info.label)} de ${year}`;
+        $("[data-day-title]").textContent = `Día ${ORDINALS[day - 1]}`;
+        $("[data-day-theme]").textContent = DAY_THEMES[day - 1];
+        $("[data-day-ordinal]").textContent = ORDINALS[day - 1];
+        const url = new URL(location.href);
+        url.searchParams.set("dia", String(day));
+        history.replaceState(null, "", url);
+        $<HTMLAnchorElement>("[data-whatsapp]").href = `https://wa.me/?text=${encodeURIComponent(`Novena de aguinaldos ${year}, día ${ORDINALS[day - 1]} (${info.label}): ${location.origin}${location.pathname}?dia=${day}`)}`;
+        const next = $("[data-next]");
+        next.innerHTML =
+            day < 9
+                ? `<button type="button" data-go="${day + 1}">Siguiente: día ${ORDINALS[day]} →</button>`
+                : "<span>¡Feliz Navidad! 🎄</span>";
+        next.querySelector<HTMLButtonElement>("[data-go]")?.addEventListener("click", () => select(day + 1, { scroll: true }));
+        if (scroll) book.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }
+
+    for (const candle of candles) candle.addEventListener("click", () => select(Number(candle.dataset.day)));
+    for (const link of document.querySelectorAll<HTMLAnchorElement>("[data-goto]")) {
+        link.addEventListener("click", (event) => {
+            event.preventDefault();
+            select(Number(link.dataset.goto), { scroll: true });
+        });
+    }
+
+    const requested = Number(new URLSearchParams(location.search).get("dia"));
+    select(requested >= 1 && requested <= 9 ? requested : current ?? 1);
+
+    /* Tamaño de letra, recordado en este navegador */
+    let size = 0;
+    try {
+        size = Number(localStorage.getItem("novena-size")) || 0;
+    } catch {}
+    const applySize = () => book.style.setProperty("--step", String(size));
+    applySize();
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-size]")) {
+        button.addEventListener("click", () => {
+            size = Math.min(4, Math.max(-2, size + Number(button.dataset.size)));
+            applySize();
+            try {
+                localStorage.setItem("novena-size", String(size));
+            } catch {}
+        });
+    }
+
+    /* Pantalla completa para leer en el televisor */
+    $("[data-fullscreen]").addEventListener("click", () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else book.requestFullscreen?.().catch(() => {});
+    });
+
+    /* Imprimir el día o la novena completa */
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-print]")) {
+        button.addEventListener("click", () => {
+            document.body.classList.toggle("print-all", button.dataset.print === "all");
+            print();
+        });
+    }
+    addEventListener("afterprint", () => document.body.classList.remove("print-all"));
+
+    /* Repartidor de lecturas */
+    const READINGS = [
+        "Oración para todos los días",
+        "Consideración del día",
+        "Oración a la Virgen",
+        "Oración a San José",
+        "Gozos (los demás responden)",
+        "Oración al Niño Jesús",
+    ];
+    const readers = $<HTMLTextAreaElement>("#lectores");
+    const list = $("[data-assignments]");
+    const copy = $<HTMLButtonElement>("[data-assign-copy]");
+    let lines: string[] = [];
+    $("[data-assign]").addEventListener("click", () => {
+        const names = readers.value.split(/\n|,/).map((name) => name.trim()).filter(Boolean);
+        if (!names.length) {
+            readers.focus();
+            return;
+        }
+        // Todos leen al menos una vez antes de que alguien repita
+        let pool: string[] = [];
+        lines = READINGS.map((reading) => {
+            if (!pool.length) pool = shuffle(names);
+            return `${reading}: ${pool.pop()}`;
+        });
+        list.innerHTML = lines
+            .map((line) => {
+                const [reading, name] = line.split(": ");
+                const safe = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+                return `<li><span>${safe(reading)}</span><strong>${safe(name)}</strong></li>`;
+            })
+            .join("");
+        copy.disabled = false;
+    });
+    copy.addEventListener("click", async () => {
+        const day = Number(new URLSearchParams(location.search).get("dia")) || 1;
+        const text = `🕯️ Novena de aguinaldos, día ${ORDINALS[day - 1]}\n\n${lines.map((line) => `• ${line}`).join("\n")}\n\n${location.origin}${location.pathname}?dia=${day}`;
+        try {
+            await navigator.clipboard.writeText(text);
+            copy.textContent = "¡Copiado!";
+        } catch {
+            copy.textContent = "No se pudo copiar";
+        }
+        setTimeout(() => (copy.textContent = "Copiar para WhatsApp"), 1800);
+    });
+</script>
+
+<style>
+    .novena {
+        --green: #1f4d3a;
+        --gold: #c99a2e;
+        --paper: #fffaf0;
+        --serif: "EB Garamond", Georgia, "Times New Roman", serif;
+    }
+
+    .hero h1 {
+        max-width: 11ch;
+    }
+
+    .season {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 22px;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .season::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 10px var(--amber);
+        content: "";
+    }
+
+    .season[data-state="now"] {
+        background: var(--red);
+    }
+
+    /* Las nueve velas */
+    .candles-section {
+        margin-top: clamp(2.5rem, 5vw, 4rem);
+        scroll-margin-top: 16px;
+    }
+
+    .candles {
+        display: grid;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        gap: clamp(4px, 1vw, 14px);
+        align-items: end;
+        padding: clamp(18px, 3vw, 32px) clamp(10px, 2vw, 28px) 0;
+        border-radius: 24px 24px 0 0;
+        background:
+            radial-gradient(70% 90% at 50% 100%, rgba(201, 154, 46, 0.22), transparent 70%),
+            var(--board);
+    }
+
+    .candle {
+        display: grid;
+        justify-items: center;
+        gap: 0;
+        padding: 0 0 14px;
+        border: 0;
+        border-bottom: 3px solid transparent;
+        background: none;
+        color: rgba(255, 255, 255, 0.6);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .flame {
+        width: clamp(10px, 1.6vw, 16px);
+        height: clamp(18px, 3vw, 28px);
+        border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+        background: radial-gradient(circle at 50% 75%, #fff8d6 0 20%, #ffd25e 40%, #ff8a2b 75%, transparent 76%);
+        opacity: 0;
+        filter: drop-shadow(0 0 10px rgba(255, 190, 80, 0.9));
+        transform-origin: 50% 90%;
+        transition: opacity 300ms ease;
+    }
+
+    .wax {
+        position: relative;
+        width: clamp(16px, 3vw, 30px);
+        height: clamp(54px, 9vw, 96px);
+        margin-top: 2px;
+        border-radius: 4px 4px 2px 2px;
+        background: linear-gradient(90deg, #e9dcc0, #fffaf0 45%, #e3d3b2);
+    }
+
+    .wax::before {
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        width: 2px;
+        height: 7px;
+        background: #3a2f22;
+        transform: translateX(-50%);
+        content: "";
+    }
+
+    .candle:nth-child(odd) .wax {
+        background: linear-gradient(90deg, #a32113, #d9452f 45%, #9a1f12);
+    }
+
+    .candle-label {
+        display: grid;
+        margin-top: 10px;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .candle-label b {
+        color: #fff;
+        font-size: clamp(0.7rem, 0.6rem + 0.4vw, 0.95rem);
+    }
+
+    .candle-label small {
+        font-size: clamp(0.62rem, 0.55rem + 0.3vw, 0.8rem);
+        text-transform: capitalize;
+    }
+
+    .candle.lit .flame,
+    .candle[aria-pressed="true"] .flame {
+        opacity: 1;
+        animation: flicker 1.8s ease-in-out infinite alternate;
+    }
+
+    .candle.lit:not([aria-pressed="true"]) .flame {
+        opacity: 0.55;
+    }
+
+    .candle[aria-pressed="true"] {
+        border-bottom-color: var(--amber);
+    }
+
+    .candle[aria-pressed="true"] .candle-label b {
+        color: var(--amber);
+    }
+
+    .candle:hover .wax {
+        transform: translateY(-3px);
+    }
+
+    .candle:focus-visible {
+        outline: 2px solid var(--amber);
+        outline-offset: 2px;
+        border-radius: 8px;
+    }
+
+    @keyframes flicker {
+        0% {
+            transform: scale(1, 1) rotate(-2deg);
+        }
+        40% {
+            transform: scale(0.94, 1.08) rotate(2deg);
+        }
+        100% {
+            transform: scale(1.04, 0.96) rotate(-1deg);
+        }
+    }
+
+    .reader-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 20px;
+        padding: 14px clamp(14px, 2vw, 24px);
+        border: 1px solid var(--line);
+        border-top: 0;
+        border-radius: 0 0 24px 24px;
+        background: var(--sheet);
+    }
+
+    .order {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        counter-reset: order;
+    }
+
+    .order li {
+        counter-increment: order;
+    }
+
+    .order a {
+        color: var(--text-soft);
+        font-size: 0.86rem;
+        text-decoration: none;
+    }
+
+    .order a::before {
+        margin-right: 5px;
+        color: var(--red);
+        font-weight: 700;
+        content: counter(order);
+    }
+
+    .order a:hover {
+        color: var(--ink);
+    }
+
+    .reader-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .tool-btn {
+        min-width: 40px;
+        padding: 8px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none !important;
+        cursor: pointer;
+    }
+
+    .tool-btn:hover {
+        border-color: var(--ink);
+    }
+
+    .tool-btn.whatsapp {
+        border-color: #1c8f57;
+        background: #1c8f57;
+        color: #fff;
+    }
+
+    /* El librito */
+    .book {
+        --step: 0;
+
+        max-width: 760px;
+        margin: clamp(2rem, 4vw, 3rem) auto 0;
+        padding: clamp(28px, 6vw, 64px) clamp(20px, 6vw, 72px);
+        border-radius: 6px;
+        background: var(--paper);
+        box-shadow:
+            0 1px 0 var(--line),
+            0 30px 60px -40px rgba(21, 25, 30, 0.45);
+        color: #2a2420;
+        font-family: var(--serif);
+        font-size: calc(1.22rem + var(--step) * 0.14rem);
+        line-height: 1.7;
+        scroll-margin-top: 16px;
+    }
+
+    .book:fullscreen {
+        max-width: none;
+        overflow-y: auto;
+        padding: 6vh 12vw;
+        border-radius: 0;
+        font-size: calc(1.8rem + var(--step) * 0.2rem);
+    }
+
+    .book p {
+        color: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        text-wrap: pretty;
+    }
+
+    .book-head {
+        margin-bottom: 1.6em;
+        padding-bottom: 1.2em;
+        border-bottom: 1px solid #e6d9bd;
+        text-align: center;
+    }
+
+    .book-kicker {
+        color: var(--red-ink) !important;
+        font-family: var(--font-body);
+        font-size: 0.72em !important;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .book-title {
+        margin-top: 0.2em;
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 2.4em;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.05;
+    }
+
+    .book-theme {
+        margin-top: 0.3em;
+        color: #6a5d4f !important;
+        font-style: italic;
+    }
+
+    .prayer {
+        margin-top: 2em;
+        scroll-margin-top: 20px;
+    }
+
+    .prayer h3 {
+        margin-bottom: 0.6em;
+        color: var(--red-ink);
+        font-family: var(--serif);
+        font-size: 1.15em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .prayer p + p {
+        margin-top: 0.8em;
+    }
+
+    /* Capitular en la primera letra de cada oración */
+    .prayer > p:first-of-type::first-letter,
+    .consideration > p:nth-of-type(2)::first-letter {
+        float: left;
+        margin: 0.08em 0.1em 0 0;
+        color: var(--red);
+        font-size: 3.1em;
+        line-height: 0.8;
+    }
+
+    .gozos > p:first-of-type::first-letter {
+        float: none;
+        margin: 0;
+        color: inherit;
+        font-size: inherit;
+        line-height: inherit;
+    }
+
+    .rubric {
+        margin-top: 0.8em;
+        color: var(--red-ink) !important;
+        font-size: 0.88em !important;
+        font-style: italic;
+        text-align: center;
+    }
+
+    .print-day {
+        display: none;
+    }
+
+    .refrain-intro {
+        margin: 1em 0;
+        text-align: center;
+    }
+
+    .refrain-intro strong {
+        color: var(--red-ink);
+    }
+
+    .stanza {
+        margin-top: 1.1em;
+        padding-left: 1em;
+        border-left: 2px solid #e6d9bd;
+    }
+
+    .refrain {
+        margin-top: 0.35em;
+        color: var(--red-ink) !important;
+        font-weight: 600;
+    }
+
+    .who {
+        font-family: var(--font-body);
+        font-size: 0.7em;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .end {
+        margin-top: 2em;
+    }
+
+    .next {
+        margin-top: 1.6em;
+        text-align: center;
+    }
+
+    .next :global(button) {
+        padding: 12px 22px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-body);
+        font-size: 0.8em;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    /* Repartidor */
+    .share-out {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 32px clamp(40px, 7vw, 96px);
+        align-items: start;
+        padding: clamp(24px, 4vw, 44px);
+        border-radius: 24px;
+        background: var(--green);
+    }
+
+    .share-copy h2 {
+        color: #fff;
+    }
+
+    .share-copy p {
+        margin-top: 14px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.05rem;
+    }
+
+    .share-tool {
+        display: grid;
+        gap: 10px;
+    }
+
+    .panel-label {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.05rem;
+        font-weight: 700;
+    }
+
+    .share-tool textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 0;
+        border-radius: 14px;
+        outline: 0;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        line-height: 1.5;
+        resize: vertical;
+    }
+
+    .share-tool textarea:focus {
+        box-shadow: 0 0 0 3px var(--amber);
+    }
+
+    .share-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .primary,
+    .secondary {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--amber);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .secondary {
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        background: transparent;
+        color: #fff;
+    }
+
+    .secondary:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    .assignments {
+        display: grid;
+        gap: 6px;
+    }
+
+    .assignments :global(li) {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.95rem;
+    }
+
+    .assignments :global(strong) {
+        color: #fff;
+        text-align: right;
+    }
+
+    /* Calendario */
+    .calendar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .calendar a {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        height: 100%;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--sheet);
+        text-decoration: none;
+    }
+
+    .calendar a:hover {
+        border-color: var(--ink);
+    }
+
+    .cal-day {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--red);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .cal-text {
+        display: grid;
+    }
+
+    .cal-text strong {
+        color: var(--ink);
+        font-size: 0.95rem;
+    }
+
+    .cal-text small {
+        color: var(--muted);
+        font-size: 0.84rem;
+    }
+
+    /* Paso a paso */
+    .steps {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 28px clamp(20px, 3vw, 36px);
+        counter-reset: step;
+    }
+
+    .steps li {
+        padding-top: 14px;
+        border-top: 2px solid var(--ink);
+        counter-increment: step;
+    }
+
+    .steps h3::before {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--red);
+        font-size: 0.9rem;
+        content: "Paso " counter(step);
+    }
+
+    .steps p {
+        margin-top: 8px;
+        font-size: 0.95rem;
+    }
+
+    .needs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    }
+
+    .needs article {
+        padding: clamp(18px, 3vw, 26px);
+        border-radius: 20px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .needs ul {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+    }
+
+    .needs li {
+        position: relative;
+        padding-left: 18px;
+        color: var(--text-soft);
+    }
+
+    .needs li::before {
+        position: absolute;
+        top: 0.62em;
+        left: 0;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--red);
+        content: "";
+    }
+
+    .needs p {
+        margin-top: 10px;
+    }
+
+    /* Villancicos */
+    .carols {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .carol {
+        padding: clamp(22px, 3vw, 32px);
+        border-radius: 20px;
+        background: var(--paper);
+        box-shadow: inset 0 0 0 1px var(--line);
+        font-family: var(--serif);
+        font-size: 1.12rem;
+    }
+
+    .carol h3 {
+        font-family: var(--font-display);
+    }
+
+    .carol p {
+        margin-top: 10px;
+        color: #2a2420;
+        font-size: inherit;
+    }
+
+    .chorus {
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--red-soft);
+        color: var(--red-ink) !important;
+        font-style: italic;
+    }
+
+    .chorus-repeat {
+        color: var(--red-ink) !important;
+        font-size: 0.85em !important;
+        font-style: italic;
+    }
+
+    .more-carols {
+        margin-top: 22px;
+    }
+
+    .more-carols strong {
+        color: var(--ink);
+    }
+
+    /* Juegos */
+    .games {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px clamp(24px, 4vw, 48px);
+    }
+
+    .games article {
+        padding-top: 16px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .games p {
+        margin-top: 8px;
+    }
+
+    /* Historia */
+    .history {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+        gap: 24px clamp(40px, 7vw, 96px);
+        padding: clamp(24px, 4vw, 44px);
+        border-radius: 24px;
+        background: var(--board);
+    }
+
+    .history h2 {
+        color: #fff;
+    }
+
+    .history-text p {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.05rem;
+    }
+
+    .history-text p + p {
+        margin-top: 14px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .candle .flame {
+            animation: none !important;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .steps {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .share-out,
+        .history,
+        .needs,
+        .carols {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .calendar,
+        .games {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .candles {
+            padding-inline: 6px;
+        }
+
+        .candle-label small {
+            display: none;
+        }
+
+        .order {
+            display: none;
+        }
+
+        .book {
+            margin-inline: calc(var(--gutter) * -1);
+            border-radius: 0;
+        }
+
+        .steps,
+        .calendar,
+        .games {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    /* Impresión: solo el librito, con letra cómoda */
+    @media print {
+        .book {
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            box-shadow: none;
+            font-size: 12.5pt;
+            line-height: 1.5;
+        }
+
+        .prayer,
+        .stanza {
+            break-inside: avoid;
+        }
+
+        :global(body.print-all) .consideration[hidden] {
+            display: block !important;
+            margin-top: 1.4em;
+        }
+
+        :global(body.print-all) .print-day {
+            display: block;
+            color: var(--red-ink) !important;
+            font-weight: 600;
+        }
+
+        :global(body.print-all) .book-head {
+            display: none;
+        }
+
+        .candles-section {
+            margin: 0;
+        }
+    }
+</style>

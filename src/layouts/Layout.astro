@@ -12,6 +12,8 @@ interface Props {
   canvas?: boolean
   type?: "website" | "article" | "profile"
   jsonLd?: Record<string, unknown> | Record<string, unknown>[]
+  /** Hoja de Google Fonts adicional, solo para la página que la necesita */
+  extraFonts?: string
 }
 
 const {
@@ -24,6 +26,7 @@ const {
   canvas = true,
   type = "website",
   jsonLd,
+  extraFonts,
 } = Astro.props
 
 // Imagen panorámica propia → tarjeta grande; avatar cuadrado → tarjeta normal
@@ -81,6 +84,7 @@ const fontsUrl =
       onload="this.media='all'"
     />
     <noscript><link rel="stylesheet" href={fontsUrl} /></noscript>
+    {extraFonts && <link rel="stylesheet" href={extraFonts} />}
 
     {
       jsonLd && (

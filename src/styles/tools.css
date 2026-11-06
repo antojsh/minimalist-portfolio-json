@@ -1,0 +1,637 @@
+/*
+ * Base compartida de las herramientas (días hábiles, crédito, interés compuesto).
+ * Todo cuelga de .tool para no tocar el resto del sitio.
+ */
+
+.tool {
+    --red: #c42a1a;
+    --red-ink: #a32113;
+    --red-soft: #f9e0d9;
+    --sheet: #fffdf9;
+    --board: #15191e;
+    --amber: #fcd116;
+    --gutter: clamp(16px, 4vw, 40px);
+
+    width: min(1200px, 100%);
+    margin: auto;
+    padding: 0 var(--gutter) clamp(3rem, 6vw, 5rem);
+}
+
+.tool .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.tool a {
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 3px;
+}
+
+.tool a:hover {
+    text-decoration-color: currentColor;
+}
+
+.tool-flag {
+    height: 8px;
+    background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%);
+}
+
+/* Encabezado */
+.tool .topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 24px;
+    padding: 20px 0;
+}
+
+.tool .crumbs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.tool .crumbs li + li::before {
+    margin-right: 10px;
+    color: var(--line-strong);
+    content: "/";
+}
+
+.tool .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.tool .monogram {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.tool .toc {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tool .toc a {
+    flex: none;
+    padding: 8px 13px;
+    border-radius: 8px;
+    color: var(--text-soft);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.tool .toc a:hover {
+    background: rgba(21, 25, 30, 0.06);
+    color: var(--ink);
+}
+
+/* Portada */
+.tool .hero {
+    padding-top: clamp(2rem, 5vw, 3.5rem);
+}
+
+.tool h1 {
+    max-width: 14ch;
+    font-size: clamp(2.9rem, 1.4rem + 5.6vw, 6rem);
+    font-weight: 800;
+    letter-spacing: -0.055em;
+    line-height: 0.9;
+}
+
+.tool h1 span {
+    color: var(--red);
+}
+
+.tool .lead {
+    max-width: 60ch;
+    margin-top: 26px;
+    color: var(--text);
+    font-size: clamp(1.08rem, 1rem + 0.35vw, 1.25rem);
+    line-height: 1.6;
+}
+
+.tool .lead strong {
+    color: var(--ink);
+}
+
+.tool .updated {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.tool .updated a {
+    color: inherit;
+}
+
+/* Secciones */
+.tool > section:not(.hero, .workbench) {
+    margin-top: clamp(4.5rem, 10vw, 8rem);
+    scroll-margin-top: 24px;
+}
+
+.tool h2 {
+    font-size: clamp(2rem, 1.3rem + 2.4vw, 3.1rem);
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 1;
+}
+
+.tool h3 {
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.tool .head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 14px 48px;
+    align-items: end;
+    margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+.tool .head.stacked {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.tool .head p {
+    max-width: 46ch;
+    font-size: 1.05rem;
+}
+
+.tool .head a,
+.tool .head strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* Zona de trabajo: formulario a la izquierda, resultado a la derecha */
+.tool .workbench {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
+    gap: 40px clamp(40px, 7vw, 96px);
+    align-items: start;
+    margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    padding-top: clamp(2rem, 4vw, 2.75rem);
+    border-top: 2px solid var(--ink);
+    scroll-margin-top: 24px;
+}
+
+.tool .form {
+    display: grid;
+    gap: 28px;
+}
+
+.tool .field {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.tool .field > label:not(.switch),
+.tool legend {
+    padding: 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.tool legend {
+    margin-bottom: 10px;
+}
+
+.tool .row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.tool .money {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 18px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--sheet);
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.tool .money:focus-within,
+.tool .input:focus {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+}
+
+.tool .money > span {
+    flex: none;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.tool .money input {
+    width: 100%;
+    min-width: 0;
+    padding: 13px 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 1.2rem + 0.6vw, 1.7rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+}
+
+.tool .money.big input {
+    font-size: clamp(1.6rem, 1.3rem + 1vw, 2.1rem);
+}
+
+.tool .money select {
+    flex: none;
+    max-width: 50%;
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tool .input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    outline: 0;
+    background: var(--sheet);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+}
+
+.tool .hint {
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.tool .hint a {
+    color: inherit;
+}
+
+.tool .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.tool .link:hover {
+    text-decoration-color: currentColor;
+}
+
+/* Interruptor */
+.tool .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--ink);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tool .switch input {
+    position: absolute;
+    opacity: 0;
+}
+
+.tool .track {
+    position: relative;
+    flex: none;
+    width: 46px;
+    height: 28px;
+    border-radius: 999px;
+    background: var(--line-strong);
+    transition: background 200ms ease;
+}
+
+.tool .track::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(21, 25, 30, 0.25);
+    transition: transform 200ms var(--ease-out);
+    content: "";
+}
+
+.tool .switch input:checked + .track {
+    background: var(--ink);
+}
+
+.tool .switch input:checked + .track::after {
+    transform: translateX(18px);
+}
+
+.tool .switch input:focus-visible + .track {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+}
+
+/* Opciones como tarjetas */
+.tool .options {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+    gap: 10px;
+}
+
+.tool .option {
+    position: relative;
+    cursor: pointer;
+}
+
+.tool .option input {
+    position: absolute;
+    opacity: 0;
+}
+
+.tool .option > span {
+    display: grid;
+    gap: 2px;
+    height: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--sheet);
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.tool .option strong {
+    color: var(--ink);
+    font-weight: 650;
+}
+
+.tool .option small {
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.tool .option:hover > span {
+    border-color: var(--ink);
+}
+
+.tool .option input:checked + span {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.tool .option input:focus-visible + span {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+}
+
+/* Tablas de montos */
+.tool table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tool .amounts {
+    border-top: 2px solid var(--ink);
+}
+
+.tool .amounts thead th {
+    padding: 12px 12px 12px 0;
+    border-bottom: 1px solid var(--line-strong);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+.tool .amounts tbody th,
+.tool .amounts tbody td,
+.tool .amounts tfoot th,
+.tool .amounts tfoot td {
+    padding: 12px 12px 12px 0;
+    border-bottom: 1px solid var(--line);
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+}
+
+.tool .amounts tbody th {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.tool .amounts tbody td {
+    color: var(--text-soft);
+}
+
+.tool .amounts .num {
+    text-align: right;
+}
+
+.tool .amounts thead th:last-child,
+.tool .amounts tbody td:last-child,
+.tool .amounts tfoot td:last-child {
+    padding-right: 0;
+}
+
+.tool .amounts td.strong {
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.tool .tag {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--red-soft);
+    color: var(--red-ink);
+    font-size: 0.72rem;
+    font-weight: 700;
+    vertical-align: 1px;
+}
+
+/* Bloques de texto con tres columnas */
+.tool .rules {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 32px clamp(28px, 4vw, 56px);
+}
+
+.tool .rules article {
+    padding-top: 18px;
+    border-top: 2px solid var(--ink);
+}
+
+.tool .rules p {
+    margin-top: 10px;
+}
+
+/* Preguntas */
+.tool .faq {
+    display: grid;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+    gap: 0 clamp(40px, 7vw, 96px);
+    align-items: start;
+}
+
+.tool .faq .head {
+    position: sticky;
+    top: 24px;
+}
+
+.tool .faq-list details {
+    border-bottom: 1px solid var(--line);
+}
+
+.tool .faq-list details:first-child {
+    border-top: 2px solid var(--ink);
+}
+
+.tool .faq-list summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 0;
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    cursor: pointer;
+    list-style: none;
+}
+
+.tool .faq-list summary::-webkit-details-marker {
+    display: none;
+}
+
+.tool .faq-list summary::after {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin-top: 6px;
+    background:
+        linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat,
+        linear-gradient(var(--ink), var(--ink)) center / 2px 100% no-repeat;
+    transition: transform 250ms var(--ease-out);
+    content: "";
+}
+
+.tool .faq-list details[open] summary::after {
+    transform: rotate(45deg);
+}
+
+.tool .faq-list details p {
+    max-width: 62ch;
+    padding-bottom: 22px;
+}
+
+/* Pie */
+.tool .colophon {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px 40px;
+    margin-top: clamp(5rem, 10vw, 8rem);
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+}
+
+.tool .colophon p {
+    max-width: 70ch;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.tool .colophon a {
+    color: var(--ink);
+}
+
+@media (max-width: 1023px) {
+    .tool .workbench,
+    .tool .faq {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tool .faq .head {
+        position: static;
+    }
+
+    .tool .rules {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .tool .head {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tool .toc {
+        width: 100%;
+    }
+}
+
+@media (max-width: 420px) {
+    .tool .row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -1,0 +1,885 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import { formatLong, getHolidays, weekdayOf } from "@/lib/festivos";
+import {
+    DIAS_HABILES_REVIEW,
+    MAX_DATE,
+    MIN_DATE,
+    addBusinessDays,
+    businessDaysByMonth,
+    countBetween,
+} from "@/lib/dias-habiles";
+
+const LAW_1755_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=65334";
+const LAW_4_1913_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=11986";
+
+// La página se construye con la fecha del build; el navegador recalcula con la de hoy
+const today = DIAS_HABILES_REVIEW;
+const YEAR = Number(today.slice(0, 4));
+const years = [YEAR, YEAR + 1];
+const yearEnd = `${YEAR}-12-31`;
+
+const totals = years.map((year) => {
+    const result = countBetween(`${year}-01-01`, `${year}-12-31`, { includeStart: true });
+    const withSaturdays = countBetween(`${year}-01-01`, `${year}-12-31`, { includeStart: true, saturdays: true });
+    return { year, business: result.business, withSaturdays: withSaturdays.business, holidays: getHolidays(year).length, weekdayHolidays: result.holidaysOff, months: businessDaysByMonth(year) };
+});
+const [thisYear, nextYear] = totals;
+
+const untilYearEnd = countBetween(today, yearEnd);
+const petition = addBusinessDays(today, 15);
+
+const PRESETS = [
+    { days: 15, label: "Derecho de petición", hint: "Respuesta general" },
+    { days: 10, label: "Pedir documentos", hint: "Copias e información" },
+    { days: 30, label: "Consultas", hint: "Conceptos de una entidad" },
+    { days: 5, label: "Una semana hábil", hint: "Lunes a viernes" },
+];
+
+const longDate = (date: string) => `${formatLong(date)} de ${date.slice(0, 4)}`;
+const dayMonth = (date: string) => formatLong(date).replace(/^\S+ /, "");
+
+const faqs = [
+    {
+        question: `¿Cuántos días hábiles tiene ${YEAR} en Colombia?`,
+        answer: `${thisYear.business} días hábiles de lunes a viernes, después de quitar los ${thisYear.weekdayHolidays} festivos que caen entre semana. Si en tu trabajo el sábado es hábil, son ${thisYear.withSaturdays}.`,
+    },
+    {
+        question: `¿Cuántos días hábiles tiene ${YEAR + 1}?`,
+        answer: `${nextYear.business} de lunes a viernes, con ${nextYear.holidays} festivos en el año (${nextYear.weekdayHolidays} entre semana). Contando los sábados, ${nextYear.withSaturdays}.`,
+    },
+    {
+        question: "¿El sábado es día hábil en Colombia?",
+        answer: "Depende de para qué. Para trámites ante entidades públicas y juzgados, no: solo cuentan de lunes a viernes porque no atienden el sábado. En lo laboral, el sábado es hábil si en tu empresa se trabaja ese día; por eso, por ejemplo, unas vacaciones de 15 días hábiles pueden durar menos días calendario si trabajas los sábados.",
+    },
+    {
+        question: "¿Cómo se cuentan los 15 días hábiles de un derecho de petición?",
+        answer: `Desde el día siguiente a que la entidad lo recibe, sin contar sábados, domingos ni festivos (art. 14 de la Ley 1755 de 2015). Si lo radicas el ${longDate(today)}, el plazo vence el ${longDate(petition.date)}. Para pedir documentos el plazo es de 10 días y para consultas de 30.`,
+    },
+    {
+        question: "¿Se cuenta el día en que radico o empieza el plazo?",
+        answer: "No. Los plazos en días empiezan a correr el día hábil siguiente. Por eso la calculadora, por defecto, empieza a contar al día siguiente de la fecha de inicio. Si necesitas incluir ese primer día, activa la opción «Contar también el primer día».",
+    },
+    {
+        question: "¿Qué pasa si el plazo vence un festivo o un fin de semana?",
+        answer: "En los plazos de días hábiles no puede pasar: el conteo los salta. En los plazos de meses o años, si el último día es festivo o no hay atención, el plazo se extiende hasta el siguiente día hábil (art. 62 de la Ley 4 de 1913).",
+    },
+    {
+        question: "¿Cuántos días hábiles tiene un mes?",
+        answer: `Entre 18 y 23, según cuántos fines de semana y festivos tenga. En ${YEAR} el mes con más es ${thisYear.months.reduce((a, b) => (b.business > a.business ? b : a)).name} y el que menos tiene es ${thisYear.months.reduce((a, b) => (b.business < a.business ? b : a)).name}.`,
+    },
+    {
+        question: `¿Cuántos días hábiles faltan para que termine ${YEAR}?`,
+        answer: `Desde el ${longDate(today)}, quedan ${untilYearEnd.business} días hábiles y ${untilYearEnd.calendar} días calendario hasta el 31 de diciembre. La calculadora lo actualiza con la fecha de hoy.`,
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/dias-habiles", site).href;
+const title = `Contador de días hábiles en Colombia: calcula días entre fechas`;
+const description = `Cuenta días hábiles y días calendario entre dos fechas, o suma días hábiles para saber cuándo vence un plazo. Con los festivos de Colombia: ${YEAR} tiene ${thisYear.business} días hábiles.`;
+const ogPath = "/og/dias-habiles.png";
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: DIAS_HABILES_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            mainEntity: { "@id": `${pageUrl}#calculadora` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#calculadora`,
+            name: "Contador de días hábiles",
+            url: pageUrl,
+            applicationCategory: "UtilitiesApplication",
+            operatingSystem: "Web",
+            inLanguage: "es-CO",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Días hábiles", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt={`Contador de días hábiles: ${YEAR} tiene ${thisYear.business} días hábiles en Colombia`}
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Días hábiles</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#calculadora">Calculadora</a>
+                <a href="#por-mes">Por mes</a>
+                <a href="#como-se-cuentan">Cómo se cuentan</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Contador de días <span>hábiles</span></h1>
+            <p class="lead">
+                Cuenta los días hábiles entre dos fechas o suma días hábiles para saber cuándo vence un plazo, con los
+                festivos de Colombia ya incluidos. <strong>{YEAR} tiene {thisYear.business} días hábiles</strong> y
+                quedan <strong data-left>{untilYearEnd.business}</strong> para que termine.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={DIAS_HABILES_REVIEW}>{longDate(DIAS_HABILES_REVIEW).replace(/^\S+ /, "")}</time>
+                · Festivos según la Ley 51 de 1983 y la Ley 2578 de 2026 · <a href="/festivos-colombia-2026">Ver festivos</a>
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo">
+            <h2 id="calculadora-titulo" class="sr-only">Calcula días hábiles</h2>
+
+            <form class="form" data-form>
+                <fieldset class="field">
+                    <legend>¿Qué quieres calcular?</legend>
+                    <div class="options">
+                        <label class="option">
+                            <input type="radio" name="modo" value="entre" checked />
+                            <span><strong>Días entre dos fechas</strong><small>Hábiles y calendario</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="modo" value="sumar" />
+                            <span><strong>Cuándo vence un plazo</strong><small>Sumar o restar días hábiles</small></span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="desde">Fecha de inicio</label>
+                        <input class="input" id="desde" name="desde" type="date" value={today} min={MIN_DATE} max={MAX_DATE} required />
+                    </div>
+                    <div class="field" data-mode="entre">
+                        <label for="hasta">Fecha final</label>
+                        <input class="input" id="hasta" name="hasta" type="date" value={yearEnd} min={MIN_DATE} max={MAX_DATE} required />
+                    </div>
+                    <div class="field" data-mode="sumar" hidden>
+                        <label for="cantidad">Días hábiles</label>
+                        <input class="input" id="cantidad" name="cantidad" type="number" min="1" max="2000" value="15" inputmode="numeric" />
+                    </div>
+                </div>
+
+                <div class="quick" data-mode="entre">
+                    <span class="hint">Hasta:</span>
+                    <button type="button" class="chip" data-until="month">Fin de mes</button>
+                    <button type="button" class="chip" data-until="year">Fin de año</button>
+                    <button type="button" class="chip" data-until="30">30 días</button>
+                    <button type="button" class="chip" data-until="90">90 días</button>
+                </div>
+
+                <div class="field" data-mode="sumar" hidden>
+                    <div class="quick">
+                        {
+                            PRESETS.map(({ days, label }) => (
+                                <button type="button" class="chip" data-preset={days}>
+                                    {label} <b>{days}</b>
+                                </button>
+                            ))
+                        }
+                    </div>
+                    <div class="options compact">
+                        <label class="option">
+                            <input type="radio" name="sentido" value="1" checked />
+                            <span><strong>Sumar</strong><small>¿Cuándo vence?</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="sentido" value="-1" />
+                            <span><strong>Restar</strong><small>¿Desde cuándo radicar?</small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="switches">
+                    <label class="switch">
+                        <input type="checkbox" name="sabados" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>El sábado es hábil</span>
+                    </label>
+                    <label class="switch" data-mode="entre">
+                        <input type="checkbox" name="inicio" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Contar también el primer día</span>
+                    </label>
+                </div>
+                <p class="hint">
+                    Por defecto se cuenta desde el día siguiente, como los plazos legales, y de lunes a viernes sin festivos.
+                </p>
+            </form>
+
+            <div class="result" aria-labelledby="resultado-titulo">
+                <h3 id="resultado-titulo" class="sr-only">Resultado</h3>
+                <div class="result-card">
+                    <p class="result-kicker" data-out="kicker">Días hábiles</p>
+                    <p class="result-big" data-out="big">{untilYearEnd.business}</p>
+                    <p class="result-sub" data-out="sub">
+                        Del {longDate(untilYearEnd.from)} al {longDate(untilYearEnd.to)}
+                    </p>
+
+                    <dl class="result-grid" data-out="grid">
+                        <div><dt>Días calendario</dt><dd>{untilYearEnd.calendar}</dd></div>
+                        <div><dt>Fines de semana</dt><dd>{untilYearEnd.saturdays + untilYearEnd.sundays}</dd></div>
+                        <div><dt>Festivos entre semana</dt><dd>{untilYearEnd.holidaysOff}</dd></div>
+                        <div><dt>Semanas</dt><dd>{untilYearEnd.weeks}</dd></div>
+                    </dl>
+
+                    <div class="strip" data-out="strip" aria-hidden="true"></div>
+                    <ul class="strip-legend" aria-hidden="true">
+                        <li><i class="k-habil"></i>Hábil</li>
+                        <li><i class="k-finde"></i>Fin de semana</li>
+                        <li><i class="k-festivo"></i>Festivo</li>
+                    </ul>
+
+                    <div class="festivos" data-out="festivos"></div>
+
+                    <button type="button" class="share" data-share>Copiar enlace con este cálculo</button>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="por-mes" aria-labelledby="mes-titulo">
+            <header class="head">
+                <h2 id="mes-titulo">Días hábiles por mes</h2>
+                <p>De lunes a viernes, sin contar festivos. Sirve para nómina, horas de trabajo y planear entregas.</p>
+            </header>
+
+            <div class="months">
+                {
+                    totals.map(({ year, business, months }) => (
+                        <table class="amounts">
+                            <caption>
+                                {year} <span>{business} días hábiles</span>
+                            </caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Mes</th>
+                                    <th scope="col">Festivos entre semana</th>
+                                    <th scope="col" class="num">Hábiles</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {months.map(({ name, business, holidays }) => (
+                                    <tr>
+                                        <th scope="row">{name}</th>
+                                        <td class="holiday-names">
+                                            {holidays.length
+                                                ? holidays.map((h) => `${Number(h.date.slice(8))} · ${h.name}`).join(", ")
+                                                : "—"}
+                                        </td>
+                                        <td class="num strong">
+                                            <span class="mini-bar" style={`--w: ${business / 23}`} />
+                                            {business}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ))
+                }
+            </div>
+        </section>
+
+        <section id="como-se-cuentan" aria-labelledby="como-titulo">
+            <header class="head">
+                <h2 id="como-titulo">Cómo se cuentan los días hábiles</h2>
+                <p>Tres reglas que cambian el resultado y que casi nadie tiene en cuenta.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>Se empieza al día siguiente</h3>
+                    <p>
+                        {`Si radicas algo el lunes, el primer día del plazo es el martes. Por ejemplo, 15 días hábiles desde el ${dayMonth(today)} vencen el ${formatLong(petition.date)}${petition.skipped.length ? `, porque se salta ${petition.skipped.length === 1 ? "el festivo" : "los festivos"} del ${petition.skipped.map((h) => dayMonth(h.date)).join(" y ")}` : ""}.`}
+                    </p>
+                </article>
+                <article>
+                    <h3>Festivos trasladados</h3>
+                    <p>
+                        {`Con la Ley Emiliani muchos festivos se corren al lunes. Lo que cuenta es el día de descanso, no la fecha original: el 11 de noviembre de ${YEAR} cae ${formatLong(`${YEAR}-11-11`).split(" ")[0]}${weekdayOf(`${YEAR}-11-11`) === 1 ? "" : `, pero se descansa el ${dayMonth(getHolidays(YEAR).find((h) => h.movedFrom === `${YEAR}-11-11`)?.date ?? `${YEAR}-11-11`)}`}.`}
+                    </p>
+                </article>
+                <article>
+                    <h3>Días, meses y años no son lo mismo</h3>
+                    <p>
+                        Un plazo de días hábiles salta fines de semana y festivos. Uno de meses o años se cuenta en el
+                        calendario, y si vence en un día inhábil pasa al siguiente hábil (<a href={LAW_4_1913_URL} rel="noopener">art. 62 de la Ley 4 de 1913</a>).
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Esta calculadora es una guía; para un plazo judicial confirma con el despacho. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=D%C3%ADas%20h%C3%A1biles`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+                <a href={LAW_1755_URL} rel="noopener">Ley 1755 de 2015</a>,
+                <a href={LAW_4_1913_URL} rel="noopener">Ley 4 de 1913</a>, Ley 51 de 1983 y Ley 2578 de 2026.
+            </p>
+            <p>
+                También te sirve: <a href={`/festivos-colombia-${YEAR + 1}`}>Festivos {YEAR + 1}</a> ·
+                <a href="/liquidacion-laboral">Liquidación laboral</a> ·
+                <a href="/salario-minimo-2027">Salario mínimo 2027</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import { addDays, formatLong, todayInColombia, weekdayOf } from "@/lib/festivos";
+    import {
+        addBusinessDays,
+        countBetween,
+        dayKind,
+        formatParts,
+        holidayOn,
+        isValidDate,
+        plural,
+    } from "@/lib/dias-habiles";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const field = <T extends HTMLElement = HTMLInputElement>(name: string) => form.elements.namedItem(name) as unknown as T;
+    const start = field("desde");
+    const end = field("hasta");
+    const amount = field("cantidad");
+    const saturdays = field("sabados");
+    const includeStart = field("inicio");
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+
+    const longDate = (date: string) => `${formatLong(date)} de ${date.slice(0, 4)}`;
+    const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    const mode = () => (form.querySelector<HTMLInputElement>('[name="modo"]:checked')?.value ?? "entre") as "entre" | "sumar";
+    const direction = () => Number(form.querySelector<HTMLInputElement>('[name="sentido"]:checked')?.value ?? 1);
+
+    const today = todayInColombia();
+
+    // Lee el cálculo desde la URL (?desde=…&hasta=… o ?desde=…&dias=…)
+    const params = new URLSearchParams(location.search);
+    start.value = isValidDate(params.get("desde") ?? "") ? params.get("desde")! : today;
+    if (isValidDate(params.get("hasta") ?? "")) end.value = params.get("hasta")!;
+    else end.value = `${today.slice(0, 4)}-12-31` > today ? `${today.slice(0, 4)}-12-31` : addDays(today, 30);
+    if (params.get("dias")) {
+        form.querySelector<HTMLInputElement>('[name="modo"][value="sumar"]')!.checked = true;
+        const days = Number(params.get("dias"));
+        amount.value = String(Math.min(2000, Math.max(1, Math.abs(days) || 15)));
+        if (days < 0) form.querySelector<HTMLInputElement>('[name="sentido"][value="-1"]')!.checked = true;
+    }
+    if (params.get("sabados") === "1") saturdays.checked = true;
+    if (params.get("inicio") === "1") includeStart.checked = true;
+
+    // Días que quedan del año, con la fecha de hoy
+    const left = document.querySelector("[data-left]");
+    if (left) left.textContent = String(countBetween(today, `${today.slice(0, 4)}-12-31`).business);
+
+    /** Mini calendario del rango: una fila por semana, de lunes a domingo */
+    function renderStrip(from: string, to: string, highlightEnd?: string) {
+        const strip = out("strip");
+        const legend = document.querySelector<HTMLElement>(".strip-legend")!;
+        const days = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1;
+        if (days > 186 || days < 1) {
+            strip.hidden = true;
+            legend.hidden = true;
+            return;
+        }
+        strip.hidden = false;
+        legend.hidden = false;
+        const options = { saturdays: saturdays.checked };
+        const lead = (weekdayOf(from) + 6) % 7;
+        const cells: string[] = ["L", "M", "M", "J", "V", "S", "D"].map((d) => `<span class="dow">${d}</span>`);
+        for (let i = 0; i < lead; i++) cells.push('<span class="cell empty"></span>');
+        for (let date = from; date <= to; date = addDays(date, 1)) {
+            const kind = dayKind(date, options);
+            const css = kind === "habil" ? "k-habil" : kind === "festivo" ? "k-festivo" : "k-finde";
+            const first = date.slice(8) === "01" || date === from;
+            const label = first ? `<b>${date.slice(8) === "01" ? formatLong(date).split(" de ")[1].slice(0, 3) : Number(date.slice(8))}</b>` : "";
+            cells.push(`<span class="cell ${css}${date === highlightEnd ? " end" : ""}" title="${escape(formatLong(date))}">${label}</span>`);
+        }
+        strip.innerHTML = cells.join("");
+    }
+
+    function renderHolidays(list: { date: string; name: string }[], title: string) {
+        const box = out("festivos");
+        const items = list.filter((holiday) => weekdayOf(holiday.date) !== 0);
+        box.innerHTML = items.length
+            ? `<p class="festivos-title">${title}</p><ul>${items
+                  .map((h) => `<li><span>${escape(formatLong(h.date))}</span>${escape(h.name)}</li>`)
+                  .join("")}</ul>`
+            : "";
+    }
+
+    function grid(rows: [string, string][]) {
+        out("grid").innerHTML = rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("");
+    }
+
+    function update(): void {
+        const current = mode();
+        for (const node of document.querySelectorAll<HTMLElement>("[data-mode]")) node.hidden = node.dataset.mode !== current;
+        document.querySelector<HTMLElement>(".result-card")!.dataset.kind = current === "entre" ? "count" : "date";
+
+        if (!isValidDate(start.value)) return;
+        const options = { saturdays: saturdays.checked };
+        const query = new URLSearchParams({ desde: start.value });
+
+        if (current === "entre") {
+            if (!isValidDate(end.value)) return;
+            const result = countBetween(start.value, end.value, { ...options, includeStart: includeStart.checked });
+            out("kicker").textContent = result.business === 1 ? "Día hábil" : "Días hábiles";
+            out("big").textContent = result.business.toLocaleString("es-CO");
+            out("sub").textContent = `${includeStart.checked ? "Del" : "Después del"} ${longDate(result.from)} y hasta el ${longDate(result.to)}${result.reversed ? " (invertí las fechas)" : ""}`;
+            grid([
+                ["Días calendario", result.calendar.toLocaleString("es-CO")],
+                ["Fines de semana", String(result.saturdays + result.sundays)],
+                ["Festivos entre semana", String(result.holidaysOff)],
+                ["Tiempo", formatParts(result.parts)],
+            ]);
+            renderStrip(includeStart.checked ? result.from : addDays(result.from, 1), result.to);
+            renderHolidays(result.holidays, result.holidays.length === 1 ? "Festivo en el rango" : "Festivos en el rango");
+            query.set("hasta", end.value);
+            live.textContent = `${plural(result.business, "día hábil", "días hábiles")} y ${plural(result.calendar, "día calendario", "días calendario")}.`;
+        } else {
+            const days = Math.min(2000, Math.max(1, Math.round(Number(amount.value) || 0)));
+            const sign = direction();
+            const result = addBusinessDays(start.value, days * sign, options);
+            out("kicker").textContent = sign > 0 ? `Vence ${days === 1 ? "en 1 día hábil" : `en ${days} días hábiles`}` : `${days} días hábiles antes`;
+            out("big").textContent = `${formatLong(result.date).split(" ").slice(1).join(" ")}`;
+            out("sub").textContent = `${formatLong(result.date).split(" ")[0]} · ${result.date.slice(0, 4)}`;
+            const startHoliday = holidayOn(start.value);
+            grid([
+                ["Días calendario", String(result.calendar)],
+                ["Festivos saltados", String(result.skipped.length)],
+                ["Desde", formatLong(start.value)],
+                ["Inicio", startHoliday ? "Festivo" : dayKind(start.value, options) === "habil" ? "Día hábil" : "Fin de semana"],
+            ]);
+            const [from, to] = sign > 0 ? [addDays(start.value, 1), result.date] : [result.date, addDays(start.value, -1)];
+            renderStrip(from, to, result.date);
+            renderHolidays(result.skipped, result.skipped.length === 1 ? "Festivo que se salta" : "Festivos que se saltan");
+            query.set("dias", String(days * sign));
+            live.textContent = `${sign > 0 ? "Vence el" : "La fecha es el"} ${longDate(result.date)}.`;
+        }
+
+        if (saturdays.checked) query.set("sabados", "1");
+        if (includeStart.checked && current === "entre") query.set("inicio", "1");
+        history.replaceState(null, "", `${location.pathname}?${query}`);
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-until]")) {
+        button.addEventListener("click", () => {
+            const from = isValidDate(start.value) ? start.value : today;
+            const until = button.dataset.until!;
+            if (until === "month") {
+                const [y, m] = from.split("-").map(Number);
+                end.value = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+            } else if (until === "year") end.value = `${from.slice(0, 4)}-12-31`;
+            else end.value = addDays(from, Number(until));
+            update();
+        });
+    }
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-preset]")) {
+        button.addEventListener("click", () => {
+            amount.value = button.dataset.preset!;
+            update();
+        });
+    }
+
+    const share = document.querySelector<HTMLButtonElement>("[data-share]")!;
+    share.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(location.href);
+            share.textContent = "Enlace copiado";
+        } catch {
+            share.textContent = "Copia la dirección del navegador";
+        }
+        setTimeout(() => (share.textContent = "Copiar enlace con este cálculo"), 2000);
+    });
+
+    update();
+</script>
+
+<style>
+    .quick {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    [data-mode][hidden] {
+        display: none !important;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip b {
+        color: var(--ink);
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .options.compact {
+        margin-top: 4px;
+    }
+
+    .switches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px 28px;
+    }
+
+    /* Resultado: la ficha del plazo */
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .result-card {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 18px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .result-kicker {
+        color: var(--amber);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .result-big {
+        margin-top: 8px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(3rem, 2.2rem + 3vw, 4.6rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+    }
+
+    .result-card[data-kind="date"] .result-big {
+        font-size: clamp(2.2rem, 1.7rem + 2vw, 3.2rem);
+    }
+
+    .result-card[data-kind="date"] .result-sub {
+        text-transform: capitalize;
+    }
+
+    .result-sub {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.92rem;
+    }
+
+    .result-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 20px;
+        margin-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .result-grid :global(div) {
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .result-grid :global(dt) {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.8rem;
+    }
+
+    .result-grid :global(dd) {
+        margin: 2px 0 0;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .strip {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+        margin-top: 22px;
+    }
+
+    .strip[hidden],
+    .strip-legend[hidden] {
+        display: none;
+    }
+
+    .strip :global(.dow) {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .strip :global(.cell) {
+        display: grid;
+        place-items: center;
+        height: 18px;
+        border-radius: 4px;
+        font-size: 0.62rem;
+        line-height: 1;
+    }
+
+    .strip :global(.cell b) {
+        font-weight: 700;
+        text-transform: capitalize;
+    }
+
+    .strip :global(.cell.end) {
+        outline: 2px solid var(--amber);
+        outline-offset: 1px;
+    }
+
+    .strip :global(.k-habil),
+    .strip-legend .k-habil {
+        background: #fff;
+        color: var(--ink);
+    }
+
+    .strip :global(.k-finde),
+    .strip-legend .k-finde {
+        background: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .strip :global(.k-festivo),
+    .strip-legend .k-festivo {
+        background: #e0705f;
+        color: #fff;
+    }
+
+    .strip-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 12px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8rem;
+    }
+
+    .strip-legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .strip-legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+    }
+
+    .festivos :global(.festivos-title) {
+        margin-top: 20px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .festivos :global(ul) {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .festivos :global(li) {
+        color: #fff;
+        font-size: 0.9rem;
+    }
+
+    .festivos :global(li span) {
+        display: inline-block;
+        min-width: 11ch;
+        margin-right: 8px;
+        color: #f0a598;
+        font-weight: 600;
+    }
+
+    .share {
+        width: 100%;
+        margin-top: 22px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: transparent;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .share:hover {
+        border-color: #fff;
+    }
+
+    /* Tablas por mes */
+    .months {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    caption {
+        padding-bottom: 12px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        text-align: left;
+    }
+
+    caption span {
+        margin-left: 10px;
+        color: var(--red);
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0;
+    }
+
+    .months table {
+        border-top: 2px solid var(--ink);
+    }
+
+    .months tbody th {
+        text-transform: capitalize;
+    }
+
+    .holiday-names {
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+
+    .num.strong {
+        white-space: nowrap;
+    }
+
+    .mini-bar {
+        display: inline-block;
+        width: calc(var(--w) * 60px);
+        height: 8px;
+        margin-right: 10px;
+        border-radius: 2px;
+        background: var(--red);
+        vertical-align: 2px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .result-card {
+            max-width: 520px;
+        }
+
+        .months {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+
+    @media (max-width: 420px) {
+        .options {
+            --cols: 1;
+        }
+    }
+</style>

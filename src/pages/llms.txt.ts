@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { basics } from "@cv";
 import { FESTIVOS_YEARS, LAST_REVIEW, formatLong, getHolidays, getLongWeekends } from "@/lib/festivos";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { countBetween } from "@/lib/dias-habiles";
 import { SALARIO_MINIMO_REVIEW, employerCost, isRevealed, latestWage, nextWage } from "@/lib/salario-minimo";
 import { PRIMA_REVIEW, calculatePrima, formatCOP, getMinimumWage, transportLimit } from "@/lib/prima";
 
@@ -15,7 +16,7 @@ export const GET: APIRoute = ({ site }) => {
 
     const body = `# ${basics.name}
 
-> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral y salario mínimo.
+> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral, salario mínimo y días hábiles.
 
 ## Páginas
 
@@ -23,6 +24,7 @@ export const GET: APIRoute = ({ site }) => {
 ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivos-colombia-${year}`)}): los ${getHolidays(year).length} festivos con su día de la semana, ${getLongWeekends(year).length} puentes, Semana Santa, días hábiles, planes de vacaciones y la Ley Emiliani.`).join("\n")}
 - [Calculadora de prima de servicios](${url("/calculadora-prima")}): calcula la prima de junio o diciembre con auxilio de transporte, pagos variables y días trabajados.
 - [Salario mínimo ${nextWage.year}](${url(`/salario-minimo-${nextWage.year}`)}): ${isRevealed ? "el valor oficial" : "cuándo se define"}, simulador del aumento, salario mínimo vigente y costo de contratar a alguien con el mínimo.
+- [Contador de días hábiles](${url("/dias-habiles")}): días hábiles y calendario entre dos fechas, y fecha de vencimiento de un plazo en días hábiles, con los festivos de Colombia. ${FESTIVOS_YEARS.map((year) => `${year}: ${countBetween(`${year}-01-01`, `${year}-12-31`, { includeStart: true }).business} días hábiles`).join("; ")}.
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
 
 ## Datos

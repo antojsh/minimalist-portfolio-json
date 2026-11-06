@@ -2,6 +2,10 @@ import type { APIRoute } from "astro";
 import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { RENTA_REVIEW } from "@/lib/renta";
+import { RETENCION_REVIEW } from "@/lib/retencion";
+import { UVT_REVIEW } from "@/lib/uvt";
+import { IMPUESTOS_REVIEW } from "@/lib/impuestos";
 import { NOVENA_REVIEW } from "@/lib/novena";
 import { RULETA_REVIEW } from "@/lib/ruleta";
 import { INTERES_REVIEW } from "@/lib/interes-compuesto";
@@ -21,6 +25,11 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     })),
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
+    { path: "/declarar-renta", changefreq: "weekly", priority: "0.9", lastmod: RENTA_REVIEW },
+    { path: "/retencion-en-la-fuente", changefreq: "monthly", priority: "0.9", lastmod: RETENCION_REVIEW },
+    { path: "/uvt", changefreq: "weekly", priority: "0.9", lastmod: UVT_REVIEW },
+    { path: "/calculadora-iva", changefreq: "monthly", priority: "0.8", lastmod: IMPUESTOS_REVIEW },
+    { path: "/calculadora-4x1000", changefreq: "monthly", priority: "0.8", lastmod: IMPUESTOS_REVIEW },
     { path: "/novena-de-aguinaldos", changefreq: "weekly", priority: "0.9", lastmod: NOVENA_REVIEW },
     { path: "/ruleta", changefreq: "monthly", priority: "0.9", lastmod: RULETA_REVIEW },
     { path: "/interes-compuesto", changefreq: "monthly", priority: "0.9", lastmod: INTERES_REVIEW },

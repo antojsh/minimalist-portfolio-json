@@ -30,6 +30,11 @@ ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivo
 - [Calculadora de interés compuesto](${url("/interes-compuesto")}): cuánto tendrás con aportes periódicos, cuánto ahorrar para una meta o en cuánto tiempo llegas; con capitalización nominal o efectiva, aportes que suben cada año, inflación, comisiones, impuestos, gráfica año a año, regla del 72 y costo de esperar. Funciona en varias monedas.
 - [Ruleta aleatoria](${url("/ruleta")}): ruleta de nombres para sorteos, rifas y decisiones; elige con crypto.getRandomValues, saca @usuarios únicos de comentarios de Instagram, quita ganadores para sorteos múltiples, pantalla completa y enlace para compartir. Todo en el navegador.
 - [Novena de aguinaldos](${url("/novena-de-aguinaldos")}): texto completo de la novena tradicional colombiana (del 16 al 24 de diciembre): oración para todos los días, las nueve consideraciones, oraciones a la Virgen, a San José y al Niño Jesús, gozos, villancicos tradicionales, cómo rezarla paso a paso y juegos de aguinaldo.
+- [¿Debo declarar renta?](${url("/declarar-renta")}): topes del año gravable 2026 (ingresos desde 1.400 UVT, patrimonio de más de 4.500 UVT, tarjeta, compras y consignaciones de más de 1.400 UVT; UVT 2026 de $52.374) y calendario 2027 de personas naturales por los dos últimos dígitos del NIT, del 10 de agosto al 26 de octubre de 2027 (Decreto 2229 de 2023).
+- [Retención en la fuente](${url("/retencion-en-la-fuente")}): salarios con la depuración y la tabla del art. 383 (desde 95 UVT de base mensual) y pagos a terceros con las tarifas del Decreto 572 de 2025 (compras 2,5 % desde 10 UVT, servicios 4 % o 6 % desde 2 UVT, honorarios 10 % u 11 %).
+- [UVT y conversor](${url("/uvt")}): UVT 2026 de $52.374 (Resolución DIAN 238 de 2025), UVT 2027 por confirmar, conversor de UVT a pesos y valores clave en pesos.
+- [Calculadora de IVA](${url("/calculadora-iva")}): agregar IVA (× 1,19) o quitarlo (÷ 1,19), con tarifas del 19 %, 5 % u otra.
+- [Calculadora del 4x1000](${url("/calculadora-4x1000")}): GMF del 0,4 % con la exención de 350 UVT al mes ($18.330.900 en 2026).
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
 
 ## Datos

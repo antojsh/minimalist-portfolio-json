@@ -1,0 +1,33 @@
+---
+interface Props {
+    sources: { href?: string; label: string }[];
+    related: { href: string; label: string }[];
+}
+import { basics } from "@cv";
+const { sources, related } = Astro.props;
+---
+
+<footer class="colophon">
+    <p>
+        Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+        {
+            sources.map(({ href, label }, index) => (
+                <>
+                    {href ? <a href={href} rel="noopener">{label}</a> : label}
+                    {index < sources.length - 1 ? ", " : "."}
+                </>
+            ))
+        }
+    </p>
+    <p>
+        También te sirve:
+        {
+            related.map(({ href, label }, index) => (
+                <>
+                    <a href={href}>{label}</a>
+                    {index < related.length - 1 ? " · " : ""}
+                </>
+            ))
+        }
+    </p>
+</footer>

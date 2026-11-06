@@ -11,6 +11,8 @@ import { formatCompact, simulate as simulateSavings } from "@/lib/interes-compue
 import { wheelSegments } from "@/lib/ruleta";
 
 const REVIEW = "2026-11-06";
+import { DECLARATION_YEAR, deadlines } from "@/lib/renta";
+import { getUvt as getTaxUnit, isNextUvtKnown, NEXT_UVT } from "@/lib/uvt";
 const YEAR = Number(REVIEW.slice(0, 4));
 const wage = getMinimumWage(YEAR);
 const prima = calculatePrima({ salary: wage.salary, transport: true, start: `${YEAR}-07-01`, end: `${YEAR}-12-31`, wage });
@@ -93,6 +95,52 @@ const groups: { title: string; intro: string; tools: Tool[] }[] = [
         ],
     },
     {
+        title: "Impuestos",
+        intro: "Renta, retención, UVT, IVA y 4x1000 con las normas vigentes en Colombia.",
+        tools: [
+            {
+                href: "/declarar-renta",
+                title: "¿Debo declarar renta?",
+                text: `Topes del año gravable y tu fecha límite en ${DECLARATION_YEAR} según los dos últimos dígitos de tu cédula.`,
+                preview: `${Number(deadlines()[0].date.slice(8))} ago – ${Number(deadlines()[49].date.slice(8))} oct`,
+                caption: `plazos de renta ${DECLARATION_YEAR}`,
+                tone: "red",
+            },
+            {
+                href: "/retencion-en-la-fuente",
+                title: "Retención en la fuente",
+                text: "Salarios con la tabla del art. 383, y servicios, compras, honorarios y arriendos con las tarifas vigentes.",
+                preview: "95 UVT",
+                caption: "base desde la que se retiene",
+                tone: "ink",
+            },
+            {
+                href: "/uvt",
+                title: `UVT ${NEXT_UVT.year} y conversor`,
+                text: "Valor de la UVT de cada año, conversor a pesos y los topes que más se buscan.",
+                preview: isNextUvtKnown ? formatCOP(getTaxUnit(NEXT_UVT.year).value) : formatCOP(getTaxUnit(YEAR).value),
+                caption: isNextUvtKnown ? `UVT ${NEXT_UVT.year}` : `UVT ${YEAR} vigente`,
+                tone: "amber",
+            },
+            {
+                href: "/calculadora-iva",
+                title: "Calculadora de IVA",
+                text: "Agrega o quita el IVA del 19 %, el 5 % o cualquier tarifa a un precio.",
+                preview: "× 1,19",
+                caption: "para agregar el IVA",
+                tone: "paper",
+            },
+            {
+                href: "/calculadora-4x1000",
+                title: "Calculadora del 4x1000",
+                text: "Cuánto te cobran por un retiro y cuánto puedes mover al mes sin pagarlo.",
+                preview: formatCOP(350 * getTaxUnit(YEAR).value),
+                caption: "exentos al mes",
+                tone: "green",
+            },
+        ],
+    },
+    {
         title: "Plata",
         intro: "Funcionan con cualquier moneda y se calculan en tu navegador.",
         tools: [
@@ -134,8 +182,8 @@ const groups: { title: string; intro: string; tools: Tool[] }[] = [
 const all = groups.flatMap((group) => group.tools);
 const site = Astro.site?.href ?? "/";
 const pageUrl = new URL("/herramientas", site).href;
-const title = "Herramientas gratis: calculadoras, festivos, novena y ruleta";
-const description = `${all.length} herramientas gratis y sin registro: festivos de Colombia, días hábiles, prima, liquidación, salario mínimo, interés compuesto, crédito, novena de aguinaldos y ruleta.`;
+const title = "Herramientas gratis: impuestos, calculadoras laborales, festivos y más";
+const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario mínimo, interés compuesto, crédito, novena y ruleta.`;
 const personId = new URL("/#person", site).href;
 
 const jsonLd = {

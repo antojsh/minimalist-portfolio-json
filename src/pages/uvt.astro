@@ -1,0 +1,457 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import {
+    KEY_VALUES,
+    NEXT_UVT,
+    NEXT_UVT_ESTIMATE,
+    UVT_REVIEW,
+    UVT_YEARS,
+    formatCOP,
+    formatNumber,
+    getUvt,
+    isNextUvtKnown,
+    uvtHistory,
+    uvtToPesos,
+} from "@/lib/uvt";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const UVT_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/resolucion_dian_0238_2025.htm";
+const NEXT = NEXT_UVT.year;
+const current = getUvt(NEXT - 1);
+const latest = UVT_YEARS[UVT_YEARS.length - 1];
+const next = isNextUvtKnown ? getUvt(NEXT) : null;
+const estimateMid = Math.round((NEXT_UVT_ESTIMATE.low + NEXT_UVT_ESTIMATE.high) / 2);
+const history = uvtHistory().reverse();
+const maxIncrease = Math.max(...history.map(({ increase }) => increase ?? 0));
+const nextLabel = next ? formatCOP(next.value) : `≈ ${formatCOP(estimateMid)}`;
+
+const faqs = [
+    next
+        ? {
+              question: `¿Cuánto vale la UVT ${NEXT}?`,
+              answer: `${formatCOP(next.value)}, según la ${next.resolution}. Sube ${((next.value / current.value - 1) * 100).toFixed(2).replace(".", ",")} % frente a los ${formatCOP(current.value)} de ${NEXT - 1}.`,
+          }
+        : {
+              question: `¿Cuánto vale la UVT ${NEXT}?`,
+              answer: `La DIAN todavía no la ha fijado. Con la variación del IPC de ingresos medios que publicó el DANE (${NEXT_UVT_ESTIMATE.ipc}), quedaría entre ${formatCOP(NEXT_UVT_ESTIMATE.low)} y ${formatCOP(NEXT_UVT_ESTIMATE.high)}, según el redondeo. El valor oficial sale por resolución antes del 1 de enero.`,
+          },
+    {
+        question: `¿Cuánto vale la UVT ${NEXT - 1}?`,
+        answer: `${formatCOP(current.value)}, fijada por la ${current.resolution}. Es la que se usa durante ${NEXT - 1} y la que define los topes para declarar renta en ${NEXT}.`,
+    },
+    {
+        question: "¿Qué es la UVT?",
+        answer: "La Unidad de Valor Tributario es una medida que usa la DIAN para expresar topes, tarifas y sanciones. En vez de cambiar cada norma todos los años, las cifras se escriben en UVT y solo se actualiza el valor de la UVT.",
+    },
+    {
+        question: "¿Cómo se calcula la UVT de cada año?",
+        answer: "Se ajusta con la variación del índice de precios al consumidor para ingresos medios que certifica el DANE, entre el 1 de octubre del año anterior y el 1 de octubre del año en curso (art. 868 del Estatuto Tributario). La DIAN publica el nuevo valor por resolución antes de que empiece el año.",
+    },
+    {
+        question: "¿Cómo convierto UVT a pesos?",
+        answer: `Multiplica las UVT por el valor de la UVT del año. Por ejemplo, 1.400 UVT de ${NEXT - 1} son 1.400 × ${formatCOP(current.value)} = ${formatCOP(uvtToPesos(1_400, current.value))}. Para pasar de pesos a UVT, divide entre el valor de la UVT.`,
+    },
+    {
+        question: `¿Qué UVT uso para declarar renta en ${NEXT}?`,
+        answer: `La de ${NEXT - 1}, porque los topes se miden con la UVT del año gravable. La UVT de ${NEXT} se usa para lo que ocurra durante ${NEXT}: retenciones, sanciones y topes que se declaran en ${NEXT + 1}.`,
+    },
+    {
+        question: "¿La UVT es lo mismo que el salario mínimo?",
+        answer: "No. El salario mínimo se fija por concertación o decreto y se usa en lo laboral; la UVT la fija la DIAN con la inflación y se usa en lo tributario. Cada vez más multas y trámites se expresan en UVT en lugar de salarios mínimos.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/uvt";
+const title = next
+    ? `UVT ${NEXT}: ${formatCOP(next.value)}. Valor oficial y conversor de UVT a pesos`
+    : `UVT ${NEXT} y ${NEXT - 1}: valor oficial y conversor de UVT a pesos`;
+const description = next
+    ? `La UVT ${NEXT} quedó en ${formatCOP(next.value)}. Convierte UVT a pesos y pesos a UVT, y mira los topes más usados en pesos.`
+    : `La UVT ${NEXT - 1} es ${formatCOP(current.value)} y la de ${NEXT} quedaría cerca de ${formatCOP(estimateMid)}. Convierte UVT a pesos y mira los topes de renta, retención y 4x1000 en pesos.`;
+const ogPath = "/og/uvt.png";
+const jsonLd = toolJsonLd({ site, path, title, description, name: "Conversor de UVT a pesos", crumb: "UVT", review: UVT_REVIEW, image: ogPath, faqs });
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`UVT ${NEXT}: valor y conversor`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="UVT"
+            links={[
+                { href: "#conversor", label: "Conversor" },
+                { href: "#valores", label: "Valores clave" },
+                { href: "#historico", label: "Histórico" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>UVT <span>{NEXT}</span></h1>
+            <div class="plates">
+                <div class:list={["plate", { pending: !next }]}>
+                    <p class="plate-label">UVT {NEXT} · {next ? "Oficial" : "Por confirmar"}</p>
+                    <p class="plate-value">{nextLabel}</p>
+                    <p class="plate-note">
+                        {next ? next.resolution : `Estimada con el IPC de ingresos medios (${NEXT_UVT_ESTIMATE.ipc}). La DIAN la fija antes del 1 de enero.`}
+                    </p>
+                </div>
+                <div class="plate light">
+                    <p class="plate-label">UVT {NEXT - 1} · Vigente{next ? " hasta el 31 de diciembre" : ""}</p>
+                    <p class="plate-value">{formatCOP(current.value)}</p>
+                    <p class="plate-note">{current.resolution}</p>
+                </div>
+            </div>
+            <p class="updated">
+                Actualizado el <time datetime={UVT_REVIEW}>{longDate(UVT_REVIEW)}</time> · Art. 868 del Estatuto Tributario y
+                <a href={UVT_URL} rel="noopener">{current.resolution}</a>
+            </p>
+        </section>
+
+        <section id="conversor" class="workbench converter-section" aria-labelledby="conversor-titulo">
+            <h2 id="conversor-titulo" class="sr-only">Conversor de UVT a pesos</h2>
+            <form class="converter" data-form>
+                <div class="field">
+                    <label for="anio">Año</label>
+                    <select class="input" id="anio" name="anio">
+                        {
+                            [...UVT_YEARS].reverse().map(({ year, value }) => (
+                                <option value={year} data-value={value} selected={year === latest.year}>
+                                    {year} · {formatCOP(value)}
+                                </option>
+                            ))
+                        }
+                        {!next && <option value={NEXT} data-value={estimateMid}>{NEXT} · {formatCOP(estimateMid)} (estimada)</option>}
+                    </select>
+                </div>
+                <div class="pair">
+                    <div class="field">
+                        <label for="uvt">UVT</label>
+                        <div class="money big">
+                            <input id="uvt" name="uvt" type="text" inputmode="decimal" autocomplete="off" value="1.400" />
+                            <span aria-hidden="true">UVT</span>
+                        </div>
+                    </div>
+                    <span class="swap" aria-hidden="true">⇄</span>
+                    <div class="field">
+                        <label for="pesos">Pesos</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="pesos" name="pesos" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(uvtToPesos(1_400, latest.value))} />
+                        </div>
+                    </div>
+                </div>
+                <div class="chips" role="group" aria-label="Valores comunes en UVT">
+                    {[1, 2, 10, 95, 350, 1_400, 4_500].map((value) => (
+                        <button type="button" class="chip" data-uvt={value}>{formatNumber(value)} UVT</button>
+                    ))}
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </form>
+        </section>
+
+        <section id="valores" aria-labelledby="valores-titulo">
+            <header class="head">
+                <h2 id="valores-titulo">Los valores en UVT que más se buscan</h2>
+                <p>Lo que vale cada tope en pesos, {next ? `en ${NEXT - 1} y ${NEXT}` : `en ${NEXT - 1} y con la UVT ${NEXT} estimada`}.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Concepto</th>
+                            <th scope="col" class="num">UVT</th>
+                            <th scope="col" class="num">{NEXT - 1}</th>
+                            <th scope="col" class="num">{NEXT}{next ? "" : " (est.)"}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            KEY_VALUES.map(({ uvt, label, detail, per }) => (
+                                <tr>
+                                    <th scope="row">
+                                        {label}
+                                        <small>{detail}</small>
+                                    </th>
+                                    <td class="num">{formatNumber(uvt)}</td>
+                                    <td class="num strong">
+                                        {formatCOP(uvtToPesos(uvt, current.value))}
+                                        {per && <small>{per}</small>}
+                                    </td>
+                                    <td class="num">{formatCOP(uvtToPesos(uvt, next?.value ?? estimateMid))}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="historico" aria-labelledby="historico-titulo">
+            <header class="head">
+                <h2 id="historico-titulo">Valor de la UVT por año</h2>
+                <p>Sube cada año con la inflación de los hogares de ingresos medios.</p>
+            </header>
+            <table class="amounts history">
+                <thead>
+                    <tr>
+                        <th scope="col">Año</th>
+                        <th scope="col">Aumento</th>
+                        <th scope="col" class="num">UVT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {
+                        !next && (
+                            <tr class="pending">
+                                <th scope="row">{NEXT}</th>
+                                <td>Por confirmar · cerca de {NEXT_UVT_ESTIMATE.ipc}</td>
+                                <td class="num strong">≈ {formatCOP(estimateMid)}</td>
+                            </tr>
+                        )
+                    }
+                    {
+                        history.map(({ year, value, increase }) => (
+                            <tr>
+                                <th scope="row">{year}</th>
+                                <td>
+                                    {increase != null ? (
+                                        <span class="growth" style={`--w: ${increase / maxIncrease}`}>
+                                            {(increase * 100).toFixed(2).replace(".", ",")} %
+                                        </span>
+                                    ) : (
+                                        "—"
+                                    )}
+                                </td>
+                                <td class="num strong">{formatCOP(value)}</td>
+                            </tr>
+                        ))
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <Faq faqs={faqs} subject="UVT" note="Los valores oficiales son los de las resoluciones de la DIAN." />
+
+        <Colophon
+            sources={[{ label: "Estatuto Tributario (art. 868)" }, { href: UVT_URL, label: current.resolution }, { label: "DANE, IPC de ingresos medios" }]}
+            related={[
+                { href: "/declarar-renta", label: "¿Debo declarar renta?" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/calculadora-4x1000", label: "4x1000" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { formatNumber, formatUvt, parseCOP, parseDecimal } from "@/lib/uvt";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const year = form.elements.namedItem("anio") as HTMLSelectElement;
+    const uvt = form.elements.namedItem("uvt") as HTMLInputElement;
+    const pesos = form.elements.namedItem("pesos") as HTMLInputElement;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const value = () => Number(year.selectedOptions[0].dataset.value);
+    let last: "uvt" | "pesos" = "uvt";
+
+    function fromUvt() {
+        const amount = parseDecimal(uvt.value);
+        pesos.value = amount ? formatNumber(amount * value()) : "";
+        live.textContent = `${uvt.value} UVT son $${pesos.value} en ${year.value}.`;
+    }
+
+    function fromPesos() {
+        const amount = parseCOP(pesos.value);
+        pesos.value = amount ? formatNumber(amount) : "";
+        uvt.value = amount ? formatUvt(amount / value()) : "";
+        live.textContent = `$${pesos.value} son ${uvt.value} UVT en ${year.value}.`;
+    }
+
+    uvt.addEventListener("input", () => {
+        last = "uvt";
+        fromUvt();
+    });
+    pesos.addEventListener("input", () => {
+        last = "pesos";
+        fromPesos();
+    });
+    year.addEventListener("change", () => (last === "uvt" ? fromUvt() : fromPesos()));
+    for (const chip of document.querySelectorAll<HTMLButtonElement>("[data-uvt]")) {
+        chip.addEventListener("click", () => {
+            uvt.value = formatNumber(Number(chip.dataset.uvt));
+            last = "uvt";
+            fromUvt();
+        });
+    }
+</script>
+
+<style>
+    .plates {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        max-width: 860px;
+        margin-top: clamp(1.75rem, 4vw, 2.5rem);
+    }
+
+    .plate {
+        padding: clamp(20px, 3vw, 28px);
+        border-radius: 22px;
+        background: var(--board);
+    }
+
+    .plate.light {
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .plate-label {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .light .plate-label {
+        color: var(--red-ink);
+    }
+
+    .plate-value {
+        margin-top: 8px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 1.8rem + 3vw, 4.2rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .light .plate-value {
+        color: var(--ink);
+    }
+
+    .plate-note {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.88rem;
+    }
+
+    .light .plate-note {
+        color: var(--muted);
+    }
+
+    .pending .plate-value {
+        color: var(--amber);
+    }
+
+    .converter-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .converter {
+        display: grid;
+        gap: 20px;
+        max-width: 860px;
+    }
+
+    .converter select {
+        max-width: 320px;
+    }
+
+    .pair {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        gap: 14px;
+        align-items: end;
+    }
+
+    .swap {
+        padding-bottom: 18px;
+        color: var(--red);
+        font-size: 1.6rem;
+        font-weight: 700;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    #valores table {
+        min-width: 620px;
+    }
+
+    .amounts th small,
+    .amounts td small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 400;
+    }
+
+    .history .pending th,
+    .history .pending td {
+        color: var(--muted);
+    }
+
+    .growth {
+        position: relative;
+        display: inline-block;
+        padding-left: calc(var(--w) * min(160px, 30vw) + 10px);
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .growth::before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: calc(var(--w) * min(160px, 30vw));
+        height: 10px;
+        border-radius: 3px;
+        background: var(--red);
+        transform: translateY(-50%);
+        content: "";
+    }
+
+    @media (max-width: 640px) {
+        .plates,
+        .pair {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .swap {
+            display: none;
+        }
+    }
+</style>

@@ -1,0 +1,635 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { MONTHS } from "@/lib/festivos";
+import { DECLARATION_YEAR, RENTA_REVIEW, TAXABLE_YEAR, THRESHOLDS, deadlines, formatDeadline, thresholdPesos } from "@/lib/renta";
+import { formatCOP, formatNumber, getUvt } from "@/lib/uvt";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const DECREE_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/decreto_2229_2023.htm";
+const UVT_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/resolucion_dian_0238_2025.htm";
+const DIAN_URL = "https://www.dian.gov.co/";
+
+const uvt = getUvt(TAXABLE_YEAR);
+const list = deadlines();
+const first = list[0];
+const last = list[list.length - 1];
+const income = thresholdPesos(1_400);
+const wealth = thresholdPesos(4_500);
+const months = [8, 9, 10].map((month) => ({
+    month,
+    name: MONTHS[month - 1],
+    rows: list.filter(({ date }) => Number(date.slice(5, 7)) === month),
+}));
+const monthlyIncome = Math.ceil(income / 12);
+
+const steps = [
+    { title: "Mira tus topes", text: `Revisa si en ${TAXABLE_YEAR} superaste alguno de los cinco topes. Con uno solo ya estás obligado.` },
+    { title: "Saca o actualiza el RUT", text: "Para declarar necesitas el RUT con la responsabilidad de renta. Se hace gratis en el portal de la DIAN." },
+    { title: "Reúne los certificados", text: "Certificado de ingresos y retenciones (formulario 220), extractos bancarios, certificados de deudas, cesantías e inversiones." },
+    { title: "Revisa la información exógena", text: "En el portal de la DIAN ves lo que bancos y empresas reportaron de ti. Tu declaración debe cuadrar con eso." },
+    { title: "Diligencia el formulario 210", text: "Es el de personas naturales residentes. La DIAN te ofrece una propuesta prellenada que puedes revisar y corregir." },
+    { title: "Firma y paga a tiempo", text: "Presenta antes de tu fecha límite. Si hay impuesto a pagar, se paga en la misma fecha." },
+];
+
+const faqs = [
+    {
+        question: `¿Quién debe declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `Las personas naturales residentes que en ${TAXABLE_YEAR} superaron al menos uno de estos topes: ingresos brutos de ${formatCOP(income)} o más, patrimonio bruto de más de ${formatCOP(wealth)}, o consumos con tarjeta de crédito, compras totales o consignaciones de más de ${formatCOP(income)}. También quienes eran responsables de IVA al 31 de diciembre.`,
+    },
+    {
+        question: `¿Cuál es el tope de ingresos para declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `1.400 UVT de ${TAXABLE_YEAR}: ${formatCOP(income)} en el año, unos ${formatCOP(monthlyIncome)} al mes en promedio. Se cuentan los ingresos brutos, es decir, antes de descuentos de salud, pensión o retención.`,
+    },
+    {
+        question: `¿Cuál es el tope de patrimonio para declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `4.500 UVT: ${formatCOP(wealth)}. Es el patrimonio bruto al 31 de diciembre de ${TAXABLE_YEAR}, o sea, el valor de tus bienes sin restar las deudas. Un apartamento con hipoteca cuenta por su valor completo.`,
+    },
+    {
+        question: `¿Cuándo tengo que declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `Entre el ${formatDeadline(first.date)} y el ${formatDeadline(last.date)} de ${DECLARATION_YEAR}, según los dos últimos dígitos de tu NIT (tu cédula, sin el dígito de verificación). Los plazos los fija el Decreto 2229 de 2023 en días hábiles; aquí están calculados con los festivos de ${DECLARATION_YEAR}.`,
+    },
+    {
+        question: "¿Qué UVT se usa para saber si debo declarar?",
+        answer: `La del año gravable, no la del año en que declaras. Para la declaración de ${DECLARATION_YEAR} se usa la UVT de ${TAXABLE_YEAR}: ${formatCOP(uvt.value)} (${uvt.resolution}).`,
+    },
+    {
+        question: "Si estoy obligado pero no tengo que pagar nada, ¿igual debo declarar?",
+        answer: "Sí. La obligación es presentar la declaración, aunque el impuesto a cargo te dé cero o tengas saldo a favor. Muchas personas que ganan un salario terminan sin pagar porque la retención en la fuente ya cubrió el impuesto.",
+    },
+    {
+        question: "¿Qué pasa si no declaro estando obligado?",
+        answer: "La DIAN puede cobrarte la sanción por extemporaneidad (art. 641 del Estatuto Tributario) o, si te emplaza, la sanción por no declarar, que es más alta. Ninguna sanción tributaria es menor a 10 UVT. Lo mejor es declarar a tiempo, o lo antes posible si ya se te pasó.",
+    },
+    {
+        question: "¿Puedo declarar renta aunque no esté obligado?",
+        answer: "Sí. Declarar voluntariamente sirve, por ejemplo, para pedir la devolución de retenciones que te practicaron de más, o para tener un soporte de tus ingresos ante un banco.",
+    },
+    {
+        question: "¿Los colombianos que viven en el exterior tienen otras fechas?",
+        answer: "No. El decreto dice que las personas naturales residentes en el exterior declaran en los mismos plazos, según los dos últimos dígitos de su NIT.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/declarar-renta";
+const title = `¿Debo declarar renta en ${DECLARATION_YEAR}? Topes y calendario por cédula`;
+const description = `Descubre en un minuto si debes declarar renta en ${DECLARATION_YEAR}: ingresos de ${formatCOP(income)} o patrimonio de ${formatCOP(wealth)}. Con tu fecha límite según los dos últimos dígitos de tu cédula.`;
+const ogPath = "/og/declarar-renta.png";
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: "¿Debo declarar renta?",
+    crumb: "¿Debo declarar renta?",
+    review: RENTA_REVIEW,
+    image: ogPath,
+    faqs,
+    howTo: { name: `Cómo declarar renta en ${DECLARATION_YEAR}`, steps },
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`¿Debo declarar renta en ${DECLARATION_YEAR}? Topes y fechas`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="¿Debo declarar renta?"
+            links={[
+                { href: "#calculadora", label: "¿Debo declarar?" },
+                { href: "#calendario", label: `Calendario ${DECLARATION_YEAR}` },
+                { href: "#topes", label: "Topes" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>¿Debo declarar <span>renta</span> en {DECLARATION_YEAR}?</h1>
+            <p class="lead">
+                Sí, si en {TAXABLE_YEAR} tuviste <strong>ingresos de {formatCOP(income)} o más</strong>, un
+                <strong>patrimonio de más de {formatCOP(wealth)}</strong>, o compras, consumos con tarjeta o consignaciones
+                por más de {formatCOP(income)}. Se declara entre el {formatDeadline(first.date)} y el
+                {formatDeadline(last.date)} de {DECLARATION_YEAR}, según los dos últimos dígitos de tu cédula.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={RENTA_REVIEW}>{longDate(RENTA_REVIEW)}</time> · Topes con la UVT de
+                {TAXABLE_YEAR} ({formatCOP(uvt.value)}) · Plazos del <a href={DECREE_URL} rel="noopener">Decreto 2229 de 2023</a>
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo">
+            <h2 id="calculadora-titulo" class="sr-only">Calcula si debes declarar renta</h2>
+
+            <form class="form" data-form>
+                {
+                    THRESHOLDS.map(({ key, question, hint }) => (
+                        <div class="field">
+                            <label for={key}>{question}</label>
+                            <div class="money">
+                                <span aria-hidden="true">$</span>
+                                <input id={key} name={key} type="text" inputmode="numeric" autocomplete="off" placeholder="0" aria-describedby={`${key}-ayuda`} />
+                            </div>
+                            <p class="hint" id={`${key}-ayuda`}>{hint}</p>
+                        </div>
+                    ))
+                }
+                <label class="switch">
+                    <input type="checkbox" name="iva" />
+                    <span class="track" aria-hidden="true"></span>
+                    <span>Era responsable de IVA al 31 de diciembre de {TAXABLE_YEAR}</span>
+                </label>
+                <div class="field">
+                    <label for="digitos">Dos últimos dígitos de tu cédula o NIT</label>
+                    <input class="input digits" id="digitos" name="digitos" type="text" inputmode="numeric" maxlength="2" placeholder="00" autocomplete="off" aria-describedby="digitos-ayuda" />
+                    <p class="hint" id="digitos-ayuda">Sin el dígito de verificación. Te decimos tu fecha límite.</p>
+                </div>
+            </form>
+
+            <div class="result">
+                <div class="verdict" data-verdict="pending">
+                    <p class="verdict-kicker">Tu respuesta</p>
+                    <p class="verdict-title" data-title>Llena tus datos</p>
+                    <p class="verdict-text" data-text>Con superar uno solo de los topes ya estás obligado a declarar.</p>
+
+                    <ul class="meters" data-meters>
+                        {
+                            THRESHOLDS.map(({ key, label, uvt: limitUvt }) => (
+                                <li data-meter={key}>
+                                    <span class="meter-head">
+                                        <span>{label}</span>
+                                        <span class="meter-limit">{formatCOP(thresholdPesos(limitUvt))}</span>
+                                    </span>
+                                    <span class="meter-bar"><span style="--w: 0" /></span>
+                                </li>
+                            ))
+                        }
+                    </ul>
+
+                    <div class="deadline" data-deadline hidden>
+                        <p class="deadline-kicker">Tu fecha límite</p>
+                        <p class="deadline-date" data-date></p>
+                        <p class="deadline-rule" data-rule></p>
+                    </div>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="calendario" aria-labelledby="calendario-titulo">
+            <header class="head">
+                <h2 id="calendario-titulo">Calendario de renta {DECLARATION_YEAR} para personas naturales</h2>
+                <p>
+                    Busca los dos últimos dígitos de tu cédula. Ese día es el plazo para presentar y pagar en una sola cuota.
+                </p>
+            </header>
+            <div class="calendar">
+                {
+                    months.map(({ name, rows }) => (
+                        <div class="cal-month">
+                            <h3>{name.charAt(0).toUpperCase() + name.slice(1)}</h3>
+                            <ol>
+                                {rows.map(({ digits, date }) => (
+                                    <li data-digits={digits}>
+                                        <span class="cal-digits">{digits}</span>
+                                        <span class="cal-date">
+                                            <b>{Number(date.slice(8))}</b>
+                                            <small>{formatDeadline(date).split(" ")[0].slice(0, 3)}</small>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                    ))
+                }
+            </div>
+            <p class="cal-note">
+                Calculado con la regla permanente del <a href={DECREE_URL} rel="noopener">Decreto 2229 de 2023</a> (del séptimo día
+                hábil de agosto al décimo séptimo de octubre) y los festivos de {DECLARATION_YEAR}. Si la DIAN publica un
+                cambio, lo actualizamos.
+            </p>
+        </section>
+
+        <section id="topes" aria-labelledby="topes-titulo">
+            <header class="head">
+                <h2 id="topes-titulo">Topes para declarar renta en {DECLARATION_YEAR}</h2>
+                <p>Año gravable {TAXABLE_YEAR}, con la UVT de {formatCOP(uvt.value)}. Basta con superar uno.</p>
+            </header>
+            <table class="amounts">
+                <thead>
+                    <tr>
+                        <th scope="col">Concepto</th>
+                        <th scope="col" class="num">En UVT</th>
+                        <th scope="col" class="num">En pesos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {
+                        THRESHOLDS.map(({ label, uvt: limitUvt, inclusive }) => (
+                            <tr>
+                                <th scope="row">{label}</th>
+                                <td class="num">{inclusive ? "Desde" : "Más de"} {formatNumber(limitUvt)}</td>
+                                <td class="num strong">{formatCOP(thresholdPesos(limitUvt))}</td>
+                            </tr>
+                        ))
+                    }
+                    <tr>
+                        <th scope="row">Responsable de IVA</th>
+                        <td class="num">—</td>
+                        <td class="num strong">Siempre declara</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="rules">
+                <article>
+                    <h3>Ingresos brutos son todos</h3>
+                    <p>
+                        Salario, prima, vacaciones, honorarios, arriendos, intereses, dividendos, pensiones y ventas. Se suman
+                        antes de cualquier descuento. Con un salario de {formatCOP(monthlyIncome)} al mes ya llegas al tope.
+                    </p>
+                </article>
+                <article>
+                    <h3>El patrimonio no resta deudas</h3>
+                    <p>
+                        Es el valor bruto de todo lo que tienes al 31 de diciembre: inmuebles por su avalúo, carros, cuentas,
+                        inversiones y cesantías. Las deudas se restan después, en la declaración.
+                    </p>
+                </article>
+                <article>
+                    <h3>Los movimientos también cuentan</h3>
+                    <p>
+                        Aunque tus ingresos sean bajos, si moviste más de {formatCOP(income)} en consignaciones o gastaste esa
+                        cifra con tarjeta de crédito, la DIAN espera tu declaración.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="como-declarar" aria-labelledby="como-titulo">
+            <header class="head">
+                <h2 id="como-titulo">Cómo declarar, paso a paso</h2>
+                <p>Se hace en línea en el portal de la <a href={DIAN_URL} rel="noopener">DIAN</a>, con el formulario 210.</p>
+            </header>
+            <ol class="steps">
+                {
+                    steps.map(({ title, text }) => (
+                        <li>
+                            <h3>{title}</h3>
+                            <p>{text}</p>
+                        </li>
+                    ))
+                }
+            </ol>
+        </section>
+
+        <Faq faqs={faqs} subject="Declarar renta" />
+
+        <Colophon
+            sources={[
+                { label: "Estatuto Tributario (arts. 592 a 594-3)" },
+                { href: DECREE_URL, label: "Decreto 2229 de 2023" },
+                { href: UVT_URL, label: uvt.resolution },
+            ]}
+            related={[
+                { href: "/uvt", label: "UVT y conversor" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/calculadora-4x1000", label: "Calculadora del 4x1000" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { DECLARATION_YEAR, THRESHOLDS, deadlineFor, formatDeadline, mustFile, thresholdPesos, type RentaInput } from "@/lib/renta";
+    import { formatNumber, parseCOP } from "@/lib/uvt";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const card = document.querySelector<HTMLElement>("[data-verdict]")!;
+    const $ = (selector: string) => card.querySelector<HTMLElement>(selector)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const digitsInput = form.elements.namedItem("digitos") as HTMLInputElement;
+
+    // Agrupa de a tres mientras se escribe
+    for (const { key } of THRESHOLDS) {
+        const field = form.elements.namedItem(key) as HTMLInputElement;
+        field.addEventListener("input", () => {
+            const value = parseCOP(field.value);
+            field.value = value ? formatNumber(value) : "";
+        });
+    }
+
+    function update(): void {
+        const input: RentaInput = { iva: (form.elements.namedItem("iva") as HTMLInputElement).checked };
+        let any = input.iva;
+        for (const { key, uvt } of THRESHOLDS) {
+            const value = parseCOP((form.elements.namedItem(key) as HTMLInputElement).value);
+            input[key] = value;
+            if (value) any = true;
+            const meter = card.querySelector<HTMLElement>(`[data-meter="${key}"]`)!;
+            meter.querySelector<HTMLElement>(".meter-bar span")!.style.setProperty("--w", String(Math.min(1, value / thresholdPesos(uvt))));
+        }
+        const result = mustFile(input);
+        for (const { key } of THRESHOLDS) card.querySelector(`[data-meter="${key}"]`)!.classList.toggle("over", result.crossed.some((c) => c.key === key));
+
+        card.dataset.verdict = !any ? "pending" : result.must ? "yes" : "no";
+        if (!any) {
+            $("[data-title]").textContent = "Llena tus datos";
+            $("[data-text]").textContent = "Con superar uno solo de los topes ya estás obligado a declarar.";
+        } else if (result.must) {
+            const reasons = [...result.crossed.map((c) => c.label.toLowerCase()), ...(result.iva ? ["ser responsable de IVA"] : [])];
+            $("[data-title]").textContent = `Sí, debes declarar en ${DECLARATION_YEAR}`;
+            $("[data-text]").textContent = `Por ${reasons.join(", ").replace(/, ([^,]*)$/, " y $1")}.`;
+        } else {
+            $("[data-title]").textContent = "No estás obligado";
+            $("[data-text]").textContent = "Con esos valores no superas ningún tope. Puedes declarar voluntariamente si te conviene, por ejemplo para pedir devolución de retenciones.";
+        }
+
+        // Fecha límite
+        const digits = digitsInput.value.replace(/\D/g, "");
+        digitsInput.value = digits;
+        const box = $("[data-deadline]");
+        document.querySelectorAll(".calendar li.mine").forEach((li) => li.classList.remove("mine"));
+        if (digits.length === 2) {
+            const deadline = deadlineFor(Number(digits));
+            box.hidden = false;
+            $("[data-date]").textContent = `${formatDeadline(deadline.date)} de ${DECLARATION_YEAR}`;
+            $("[data-rule]").textContent = `Dígitos ${deadline.digits}: ${deadline.rule}.`;
+            document.querySelector(`.calendar li[data-digits="${deadline.digits}"]`)?.classList.add("mine");
+        } else box.hidden = true;
+
+        live.textContent = `${$("[data-title]").textContent}. ${box.hidden ? "" : `Fecha límite: ${$("[data-date]").textContent}.`}`;
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    update();
+</script>
+
+<style>
+    .digits {
+        width: 120px;
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        letter-spacing: 0.1em;
+        text-align: center;
+    }
+
+    .switch {
+        font-size: 0.98rem;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .verdict {
+        --tone: rgba(255, 255, 255, 0.75);
+
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+        transition: background 300ms ease;
+    }
+
+    .verdict[data-verdict="yes"] {
+        background: var(--red);
+    }
+
+    .verdict[data-verdict="no"] {
+        background: #1f4d3a;
+    }
+
+    .verdict-kicker,
+    .deadline-kicker {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    [data-verdict="yes"] .verdict-kicker,
+    [data-verdict="yes"] .deadline-kicker {
+        color: #fff;
+        opacity: 0.8;
+    }
+
+    .verdict-title {
+        margin-top: 8px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 1.6rem + 1.6vw, 2.8rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .verdict-text {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .meters {
+        display: grid;
+        gap: 12px;
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .meter-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.85rem;
+    }
+
+    .meter-limit {
+        color: rgba(255, 255, 255, 0.6);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .meter-bar {
+        display: block;
+        height: 8px;
+        margin-top: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+    }
+
+    .meter-bar span {
+        display: block;
+        width: calc(var(--w) * 100%);
+        height: 100%;
+        border-radius: inherit;
+        background: #fff;
+        transition: width 300ms var(--ease-out);
+    }
+
+    .over .meter-bar span {
+        background: var(--amber);
+    }
+
+    .over .meter-head span:first-child::after {
+        margin-left: 6px;
+        color: var(--amber);
+        font-weight: 700;
+        content: "· Superado";
+    }
+
+    .deadline {
+        margin-top: 22px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.22);
+    }
+
+    .deadline[hidden] {
+        display: none;
+    }
+
+    .deadline-date {
+        margin-top: 4px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .deadline-rule {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.88rem;
+    }
+
+    /* Calendario */
+    .calendar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px clamp(20px, 3vw, 40px);
+        align-items: start;
+    }
+
+    .cal-month h3 {
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--ink);
+    }
+
+    .cal-month ol {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-top: 12px;
+    }
+
+    .cal-month li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+        transition: background 200ms ease;
+    }
+
+    .cal-digits {
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .cal-date {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+    }
+
+    .cal-date b {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+    }
+
+    .cal-date small {
+        color: var(--muted);
+        font-size: 0.75rem;
+    }
+
+    .cal-month li.mine {
+        background: var(--red);
+        box-shadow: none;
+    }
+
+    .cal-month li.mine * {
+        color: #fff;
+    }
+
+    .cal-note {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    .cal-note a {
+        color: inherit;
+    }
+
+    #topes .amounts {
+        margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
+    }
+
+    .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px clamp(20px, 3vw, 40px);
+        counter-reset: step;
+    }
+
+    .steps li {
+        padding-top: 14px;
+        border-top: 2px solid var(--ink);
+        counter-increment: step;
+    }
+
+    .steps h3::before {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--red);
+        font-size: 0.9rem;
+        content: "Paso " counter(step);
+    }
+
+    .steps p {
+        margin-top: 8px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .verdict {
+            max-width: 560px;
+        }
+
+        .calendar,
+        .steps {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .cal-month ol {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        }
+    }
+</style>

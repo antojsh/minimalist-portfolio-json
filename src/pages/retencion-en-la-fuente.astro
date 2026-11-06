@@ -1,0 +1,610 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { CONCEPTS, RETENCION_REVIEW, TABLE_383, salaryThreshold, salaryWithholding } from "@/lib/retencion";
+import { formatCOP, formatNumber, getUvt } from "@/lib/uvt";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const DECREE_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/decreto_0572_2025.htm";
+const YEAR = Number(RETENCION_REVIEW.slice(0, 4));
+const uvt = getUvt(YEAR);
+const threshold = salaryThreshold(uvt.value, YEAR);
+const example = salaryWithholding({ salary: 10_000_000, uvt: uvt.value, year: YEAR });
+const groups = [...new Set(CONCEPTS.map(({ group }) => group))];
+const services = CONCEPTS.find(({ key }) => key === "servicios")!;
+const purchases = CONCEPTS.find(({ key }) => key === "compras")!;
+const pct = (rate: number) => `${String(Math.round(rate * 1000) / 10).replace(".", ",")} %`;
+
+const salaryRows = [threshold, 8_000_000, 10_000_000, 12_000_000, 15_000_000, 20_000_000, 30_000_000].map((salary) => ({
+    salary,
+    ...salaryWithholding({ salary, uvt: uvt.value, year: YEAR }),
+}));
+
+const faqs = [
+    {
+        question: `¿Desde qué salario hay retención en la fuente en ${YEAR}?`,
+        answer: `La retención empieza cuando el ingreso laboral gravado del mes pasa de 95 UVT (${formatCOP(95 * uvt.value)}). Sin deducciones, eso pasa con un salario de unos ${formatCOP(threshold)} al mes, porque antes se restan salud, pensión y la renta exenta del 25 %.`,
+    },
+    {
+        question: "¿Cómo se calcula la retención en la fuente por salarios?",
+        answer: "Con el procedimiento 1: al ingreso del mes se le restan los aportes obligatorios a salud y pensión, luego las deducciones (dependientes, intereses de vivienda, medicina prepagada) y las rentas exentas (aportes voluntarios y el 25 % del art. 206), con el límite del 40 %. El resultado se pasa a UVT y se aplica la tabla del artículo 383.",
+    },
+    {
+        question: `¿Cuánto me retienen con un salario de ${formatCOP(10_000_000)}?`,
+        answer: `Unos ${formatCOP(example.withholding)} al mes en ${YEAR}, sin deducciones adicionales. La base gravable queda en ${formatCOP(example.base)} (${example.baseUvt.toFixed(2).replace(".", ",")} UVT) después de restar salud, pensión, el Fondo de Solidaridad y la renta exenta del 25 %.`,
+    },
+    {
+        question: "¿Cómo puedo pagar menos retención?",
+        answer: "Reportando a tu empleador lo que te da derecho a deducir: dependientes económicos, intereses del crédito de vivienda, medicina prepagada, y haciendo aportes voluntarios a pensión o a cuentas AFC. Todo eso baja la base, siempre dentro de los límites de la ley.",
+    },
+    {
+        question: `¿Cuál es la retención por servicios en ${YEAR}?`,
+        answer: `${pct(services.rate)} si quien presta el servicio declara renta y ${pct(services.rateNoDeclarante!)} si no declara, sobre pagos desde 2 UVT (${formatCOP(2 * uvt.value)}). Esa base bajó de 4 a 2 UVT con el Decreto 572 de 2025, vigente de nuevo desde el 1 de julio de 2026.`,
+    },
+    {
+        question: `¿Cuál es la retención por compras en ${YEAR}?`,
+        answer: `${pct(purchases.rate)} para vendedores declarantes y ${pct(purchases.rateNoDeclarante!)} para no declarantes, en compras desde 10 UVT (${formatCOP(10 * uvt.value)}). Antes del Decreto 572 de 2025 la base era de 27 UVT.`,
+    },
+    {
+        question: "¿A los independientes se les aplica la tabla del artículo 383?",
+        answer: "Sí, en ciertos casos. Según el parágrafo 2 del artículo 383, a las personas naturales que reciben honorarios o compensación por servicios personales y no han contratado dos o más trabajadores para su actividad se les aplica la tabla de salarios en lugar de la tarifa fija.",
+    },
+    {
+        question: "¿Qué pasa si me retienen más de lo que debo de impuesto?",
+        answer: "La retención es un anticipo del impuesto de renta. Si en la declaración del año el impuesto da menos que lo que te retuvieron, te queda un saldo a favor que puedes pedir en devolución o compensar.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/retencion-en-la-fuente";
+const title = `Calculadora de retención en la fuente ${YEAR}: salarios, servicios y compras`;
+const description = `Calcula la retención en la fuente de un salario con la depuración del art. 383, o la de servicios, compras, honorarios y arriendos con las tarifas del Decreto 572. UVT ${YEAR}: ${formatCOP(uvt.value)}.`;
+const ogPath = "/og/retencion-en-la-fuente.png";
+const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora de retención en la fuente", crumb: "Retención en la fuente", review: RETENCION_REVIEW, image: ogPath, faqs });
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`Calculadora de retención en la fuente ${YEAR}`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Retención en la fuente"
+            links={[
+                { href: "#calculadora", label: "Calculadora" },
+                { href: "#tabla-383", label: "Tabla salarios" },
+                { href: "#tarifas", label: "Tarifas" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>Retención en la fuente <span>{YEAR}</span></h1>
+            <p class="lead">
+                Para empleados, contadores y quien paga facturas. En salarios, la retención empieza cuando el ingreso
+                gravado pasa de <strong>95 UVT ({formatCOP(95 * uvt.value)})</strong>, que sin deducciones es un salario de
+                unos <strong>{formatCOP(threshold)}</strong>. En servicios se retiene desde {formatCOP(2 * uvt.value)} y en
+                compras desde {formatCOP(10 * uvt.value)}.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={RETENCION_REVIEW}>{longDate(RETENCION_REVIEW)}</time> · UVT {YEAR}:
+                {formatCOP(uvt.value)} · Art. 383 del E.T. y <a href={DECREE_URL} rel="noopener">Decreto 572 de 2025</a>
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo" data-uvt={uvt.value} data-year={YEAR}>
+            <h2 id="calculadora-titulo" class="sr-only">Calcula la retención en la fuente</h2>
+
+            <div class="form">
+                <div class="tabs" role="tablist" aria-label="Tipo de pago">
+                    <button type="button" role="tab" id="tab-salario" aria-controls="panel-salario" aria-selected="true" data-tab="salario">Salario</button>
+                    <button type="button" role="tab" id="tab-terceros" aria-controls="panel-terceros" aria-selected="false" tabindex="-1" data-tab="terceros">Servicios, compras y honorarios</button>
+                </div>
+
+                <form class="form" id="panel-salario" role="tabpanel" aria-labelledby="tab-salario" data-salary>
+                    <div class="field">
+                        <label for="salario">Salario mensual</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="salario" name="salario" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(10_000_000)} />
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="otros">Otros pagos laborales del mes</label>
+                        <div class="money">
+                            <span aria-hidden="true">$</span>
+                            <input id="otros" name="otros" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                        </div>
+                        <p class="hint">Horas extra, comisiones, bonificaciones salariales.</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="integral" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Salario integral</span>
+                    </label>
+                    <details class="more">
+                        <summary>Deducciones y aportes voluntarios</summary>
+                        <label class="switch">
+                            <input type="checkbox" name="dependientes" />
+                            <span class="track" aria-hidden="true"></span>
+                            <span>Tengo dependientes económicos</span>
+                        </label>
+                        <div class="field">
+                            <label for="vivienda">Intereses de vivienda al mes</label>
+                            <div class="money"><span aria-hidden="true">$</span><input id="vivienda" name="vivienda" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label for="prepagada">Medicina prepagada al mes</label>
+                            <div class="money"><span aria-hidden="true">$</span><input id="prepagada" name="prepagada" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                        </div>
+                        <div class="field">
+                            <label for="voluntarios">Aportes voluntarios a pensión y AFC al mes</label>
+                            <div class="money"><span aria-hidden="true">$</span><input id="voluntarios" name="voluntarios" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                        </div>
+                    </details>
+                </form>
+
+                <form class="form" id="panel-terceros" role="tabpanel" aria-labelledby="tab-terceros" data-third hidden>
+                    <div class="field">
+                        <label for="concepto">Concepto</label>
+                        <select class="input" id="concepto" name="concepto">
+                            {
+                                groups.map((group) => (
+                                    <optgroup label={group}>
+                                        {CONCEPTS.filter((concept) => concept.group === group).map(({ key, label }) => (
+                                            <option value={key} selected={key === "servicios"}>{label}</option>
+                                        ))}
+                                    </optgroup>
+                                ))
+                            }
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="valor">Valor del pago, antes de IVA</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="valor" name="valor" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(1_000_000)} />
+                        </div>
+                    </div>
+                    <fieldset class="field" data-kind>
+                        <legend>¿Quien recibe el pago declara renta?</legend>
+                        <div class="options">
+                            <label class="option"><input type="radio" name="tipo" value="declarante" checked /><span><strong>Sí, declara</strong><small>Tarifa general</small></span></label>
+                            <label class="option"><input type="radio" name="tipo" value="no-declarante" /><span><strong>No declara</strong><small>Tarifa más alta</small></span></label>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+
+            <div class="result">
+                <div class="slip">
+                    <p class="slip-kicker" data-out="kicker">Retención del mes</p>
+                    <p class="slip-big" data-out="big">{formatCOP(example.withholding)}</p>
+                    <p class="slip-sub" data-out="sub">{(example.effective * 100).toFixed(2).replace(".", ",")} % de lo que recibes</p>
+                    <ol class="lines" data-out="lines">
+                        {
+                            example.lines.map(({ label, value, note }) => (
+                                <li>
+                                    <span>
+                                        {label}
+                                        {note && <small>{note}</small>}
+                                    </span>
+                                    <b>{formatCOP(Math.round(value))}</b>
+                                </li>
+                            ))
+                        }
+                        <li class="total-line">
+                            <span>Base gravable<small>{example.baseUvt.toFixed(2).replace(".", ",")} UVT</small></span>
+                            <b>{formatCOP(Math.round(example.base))}</b>
+                        </li>
+                    </ol>
+                    <p class="slip-note" data-out="note">Rango del art. 383: más de {example.row.from} UVT, tarifa marginal {pct(example.row.rate)}.</p>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="tabla-383" aria-labelledby="tabla-titulo">
+            <header class="head">
+                <h2 id="tabla-titulo">Tabla de retención por salarios {YEAR}</h2>
+                <p>Artículo 383 del Estatuto Tributario, con la UVT de {formatCOP(uvt.value)}. Se aplica sobre la base gravable mensual.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Base gravable mensual</th>
+                            <th scope="col" class="num">Tarifa marginal</th>
+                            <th scope="col">Retención</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            TABLE_383.map(({ from, to, rate, plus }) => (
+                                <tr data-row={from}>
+                                    <th scope="row">
+                                        {Number.isFinite(to) ? `Más de ${formatNumber(from)} hasta ${formatNumber(to)} UVT` : `Más de ${formatNumber(from)} UVT`}
+                                        <small>
+                                            {from ? `Desde ${formatCOP(from * uvt.value)}` : `Hasta ${formatCOP(to * uvt.value)}`}
+                                        </small>
+                                    </th>
+                                    <td class="num">{pct(rate)}</td>
+                                    <td>{rate ? `(Base en UVT − ${formatNumber(from)}) × ${pct(rate)}${plus ? ` + ${plus} UVT` : ""}` : "No hay retención"}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="subhead">Retención aproximada según el salario</h3>
+            <p class="hint">Sin deducciones ni aportes voluntarios; solo salud, pensión, solidaridad y la renta exenta del 25 %.</p>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Salario</th>
+                            <th scope="col" class="num">Base gravable</th>
+                            <th scope="col" class="num">Retención</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            salaryRows.map(({ salary, base, withholding }) => (
+                                <tr>
+                                    <th scope="row">{formatCOP(salary)}</th>
+                                    <td class="num">{formatCOP(Math.round(base))}</td>
+                                    <td class="num strong">{formatCOP(withholding)}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="tarifas" aria-labelledby="tarifas-titulo">
+            <header class="head">
+                <h2 id="tarifas-titulo">Tarifas y bases de retención {YEAR}</h2>
+                <p>Vigentes desde el 1 de julio de 2026, cuando volvió a regir el Decreto 572 de 2025. Bases con la UVT de {YEAR}.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Concepto</th>
+                            <th scope="col" class="num">Base mínima</th>
+                            <th scope="col" class="num">Declarante</th>
+                            <th scope="col" class="num">No declarante</th>
+                        </tr>
+                    </thead>
+                    {
+                        groups.map((group) => (
+                            <tbody>
+                                <tr class="group-row">
+                                    <th scope="rowgroup" colspan="4">{group}</th>
+                                </tr>
+                                {CONCEPTS.filter((concept) => concept.group === group).map(({ label, base, rate, rateNoDeclarante, note }) => (
+                                    <tr>
+                                        <th scope="row">
+                                            {label}
+                                            {note && <small>{note}</small>}
+                                        </th>
+                                        <td class="num">
+                                            {base ? `${base} UVT` : "Desde $1"}
+                                            {base ? <small>{formatCOP(base * uvt.value)}</small> : null}
+                                        </td>
+                                        <td class="num strong">{pct(rate)}</td>
+                                        <td class="num">{pct(rateNoDeclarante ?? rate)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        ))
+                    }
+                </table>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Retención en la fuente" />
+
+        <Colophon
+            sources={[{ label: "Estatuto Tributario (arts. 206, 336, 383, 387)" }, { href: DECREE_URL, label: "Decreto 572 de 2025" }, { label: uvt.resolution }]}
+            related={[
+                { href: "/uvt", label: "UVT y conversor" },
+                { href: "/declarar-renta", label: "¿Debo declarar renta?" },
+                { href: "/calculadora-iva", label: "Calculadora de IVA" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { CONCEPTS, salaryWithholding, thirdPartyWithholding, type PayeeKind } from "@/lib/retencion";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/uvt";
+
+    const section = document.querySelector<HTMLElement>("#calculadora")!;
+    const uvt = Number(section.dataset.uvt);
+    const year = Number(section.dataset.year);
+    const salaryForm = document.querySelector<HTMLFormElement>("[data-salary]")!;
+    const thirdForm = document.querySelector<HTMLFormElement>("[data-third]")!;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const pct = (rate: number) => `${String(Math.round(rate * 1000) / 10).replace(".", ",")} %`;
+    const money = (form: HTMLFormElement, name: string) => parseCOP((form.elements.namedItem(name) as HTMLInputElement).value);
+    const checked = (form: HTMLFormElement, name: string) => (form.elements.namedItem(name) as HTMLInputElement).checked;
+    const escape = (text: string) => text.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    let mode: "salario" | "terceros" = "salario";
+
+    for (const input of document.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]')) {
+        input.addEventListener("input", () => {
+            const value = parseCOP(input.value);
+            input.value = value ? formatNumber(value) : "";
+        });
+    }
+
+    const lineHtml = (label: string, value: string, note = "", css = "") =>
+        `<li class="${css}"><span>${escape(label)}${note ? `<small>${escape(note)}</small>` : ""}</span><b>${value}</b></li>`;
+
+    function salary() {
+        const result = salaryWithholding({
+            salary: money(salaryForm, "salario"),
+            other: money(salaryForm, "otros"),
+            integral: checked(salaryForm, "integral"),
+            dependents: checked(salaryForm, "dependientes"),
+            housing: money(salaryForm, "vivienda"),
+            prepaid: money(salaryForm, "prepagada"),
+            voluntary: money(salaryForm, "voluntarios"),
+            uvt,
+            year,
+        });
+        out("kicker").textContent = "Retención del mes";
+        out("big").textContent = formatCOP(result.withholding);
+        out("sub").textContent = result.withholding
+            ? `${(result.effective * 100).toFixed(2).replace(".", ",")} % de lo que recibes`
+            : "La base no pasa de 95 UVT: no hay retención";
+        out("lines").innerHTML =
+            result.lines.map(({ label, value, note }) => lineHtml(label, formatCOP(Math.round(value)), note)).join("") +
+            lineHtml("Base gravable", formatCOP(Math.round(result.base)), `${result.baseUvt.toFixed(2).replace(".", ",")} UVT`, "total-line");
+        out("note").textContent = result.row.rate
+            ? `Rango del art. 383: más de ${result.row.from} UVT, tarifa marginal ${pct(result.row.rate)}.`
+            : "Rango del art. 383: hasta 95 UVT, sin retención.";
+        for (const row of document.querySelectorAll<HTMLElement>("[data-row]")) row.classList.toggle("current", Number(row.dataset.row) === result.row.from);
+        live.textContent = `Retención: ${formatCOP(result.withholding)}.`;
+    }
+
+    function third() {
+        const concept = CONCEPTS.find(({ key }) => key === (thirdForm.elements.namedItem("concepto") as HTMLSelectElement).value)!;
+        const amount = money(thirdForm, "valor");
+        const kind = (thirdForm.querySelector<HTMLInputElement>('[name="tipo"]:checked')?.value ?? "declarante") as PayeeKind;
+        thirdForm.querySelector<HTMLElement>("[data-kind]")!.hidden = !concept.rateNoDeclarante;
+        const result = thirdPartyWithholding(concept, amount, kind, uvt);
+        out("kicker").textContent = concept.label;
+        out("big").textContent = formatCOP(result.withholding);
+        out("sub").textContent = result.applies
+            ? `Tarifa de ${pct(result.rate)}${concept.note ? ` · ${concept.note.toLowerCase()}` : ""}`
+            : `No hay retención: el pago no llega a la base de ${formatCOP(result.minimum)}`;
+        out("lines").innerHTML =
+            lineHtml("Valor del pago", formatCOP(amount)) +
+            lineHtml("Base mínima", result.minimum ? formatCOP(result.minimum) : "Desde $1", concept.base ? `${concept.base} UVT` : "") +
+            lineHtml("Retención", `−${formatCOP(result.withholding)}`, pct(result.rate)) +
+            lineHtml("Valor a girar", formatCOP(amount - result.withholding), "Antes de IVA y otras retenciones", "total-line");
+        out("note").textContent = concept.key === "honorarios-pn" ? "Si quien cobra no tiene dos o más trabajadores, puede aplicar la tabla del art. 383." : "Tarifas del Decreto 572 de 2025.";
+        live.textContent = `Retención: ${formatCOP(result.withholding)}.`;
+    }
+
+    const update = () => (mode === "salario" ? salary() : third());
+    salaryForm.addEventListener("input", update);
+    salaryForm.addEventListener("change", update);
+    thirdForm.addEventListener("input", update);
+    thirdForm.addEventListener("change", update);
+
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>("[data-tab]")];
+    function select(tab: HTMLButtonElement) {
+        for (const other of tabs) {
+            const on = other === tab;
+            other.setAttribute("aria-selected", String(on));
+            other.tabIndex = on ? 0 : -1;
+            document.getElementById(other.getAttribute("aria-controls")!)!.hidden = !on;
+        }
+        mode = tab.dataset.tab as typeof mode;
+        update();
+    }
+    tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => select(tab));
+        tab.addEventListener("keydown", (event) => {
+            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            const next = tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+            select(next);
+            next.focus();
+        });
+    });
+    update();
+</script>
+
+<style>
+    .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        padding: 4px;
+        border-radius: 14px;
+        background: rgba(21, 25, 30, 0.06);
+    }
+
+    .tabs button {
+        padding: 11px 8px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .tabs button[aria-selected="true"] {
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(21, 25, 30, 0.15);
+        color: var(--ink);
+    }
+
+    form[hidden],
+    fieldset[hidden] {
+        display: none;
+    }
+
+    .more {
+        display: grid;
+        gap: 18px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more[open] {
+        padding-bottom: 20px;
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .more .switch {
+        margin-bottom: 4px;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .slip {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .slip-kicker {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .slip-big {
+        margin-top: 8px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 2rem + 2.4vw, 3.8rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.95;
+    }
+
+    .slip-sub {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .lines {
+        display: grid;
+        margin-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .lines :global(li) {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.9rem;
+    }
+
+    .lines :global(small) {
+        display: block;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.76rem;
+    }
+
+    .lines :global(b) {
+        flex: none;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .lines :global(.total-line) {
+        border-bottom: 0;
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .lines :global(.total-line b) {
+        color: var(--amber);
+    }
+
+    .slip-note {
+        margin-top: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.82rem;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .table-wrap table {
+        min-width: 560px;
+    }
+
+    .amounts th small,
+    .amounts td small {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 400;
+    }
+
+    .amounts :global(tr.current) th,
+    .amounts :global(tr.current) td {
+        background: var(--red-soft);
+    }
+
+    .amounts .group-row th {
+        padding-top: 20px;
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+
+    .subhead {
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+    }
+
+    .subhead + .hint {
+        margin: 6px 0 14px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .slip {
+            max-width: 560px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .options {
+            --cols: 1;
+        }
+    }
+</style>

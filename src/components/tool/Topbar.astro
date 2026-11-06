@@ -1,0 +1,35 @@
+---
+interface Props {
+    crumb: string;
+    links: { href: string; label: string }[];
+}
+const { crumb, links } = Astro.props;
+---
+
+<header class="topbar">
+    <nav aria-label="Ruta de navegación">
+        <ol class="crumbs">
+            <li>
+                <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+            </li>
+            <li><a class="crumb-link" href="/herramientas">Herramientas</a></li>
+            <li aria-current="page">{crumb}</li>
+        </ol>
+    </nav>
+    <nav class="toc" aria-label="En esta página">
+        {links.map(({ href, label }) => <a href={href}>{label}</a>)}
+    </nav>
+</header>
+
+<style>
+    .crumb-link {
+        color: var(--muted) !important;
+        font-weight: 500 !important;
+    }
+
+    @media (max-width: 520px) {
+        li:has(.crumb-link) {
+            display: none;
+        }
+    }
+</style>

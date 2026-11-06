@@ -1,0 +1,385 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { GMF_EXEMPT_UVT, IMPUESTOS_REVIEW, gmf } from "@/lib/impuestos";
+import { formatCOP, formatNumber, getUvt } from "@/lib/uvt";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const YEAR = Number(IMPUESTOS_REVIEW.slice(0, 4));
+const uvt = getUvt(YEAR);
+const exemptCap = GMF_EXEMPT_UVT * uvt.value;
+const example = gmf(1_000_000);
+const rows = [100_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000].map((value) => ({
+    value,
+    tax: gmf(value).tax,
+    exempt: gmf(value, exemptCap).tax,
+}));
+
+const faqs = [
+    {
+        question: "¿Qué es el 4x1000?",
+        answer: "Es el gravamen a los movimientos financieros (GMF): un impuesto de 4 pesos por cada 1.000 que sacas o transfieres de una cuenta bancaria, es decir, el 0,4 %. Lo descuenta el banco automáticamente.",
+    },
+    {
+        question: "¿Cuánto me cobran de 4x1000 por un millón?",
+        answer: `${formatCOP(example.tax)}. Se multiplica el valor por 0,004. Si la cuenta está marcada como exenta y no has pasado el cupo del mes, no te cobran nada.`,
+    },
+    {
+        question: `¿Cuánto puedo retirar sin pagar 4x1000 en ${YEAR}?`,
+        answer: `Hasta 350 UVT al mes: ${formatCOP(exemptCap)} en ${YEAR}, de la cuenta de ahorros que marques como exenta (art. 879 del Estatuto Tributario). Lo que pase de ese valor en el mes paga el 0,4 %.`,
+    },
+    {
+        question: "¿La exención es por cuenta o por persona?",
+        answer: "La Ley 2277 de 2022 dispuso que el cupo de 350 UVT sea por persona, sumando sus cuentas de ahorro y depósitos electrónicos. Mientras el sistema financiero termina de implementarlo, lo usual sigue siendo marcar una cuenta como exenta en tu banco. Pregúntale a tu banco cómo te lo aplica.",
+    },
+    {
+        question: "¿Cómo marco una cuenta exenta del 4x1000?",
+        answer: "Se pide al banco por la app, la página o en una oficina. Solo puedes tener una cuenta marcada como exenta en todo el sistema financiero, así que escoge bien cuál.",
+    },
+    {
+        question: "¿El 4x1000 se puede descontar en la declaración de renta?",
+        answer: "Sí, en parte. El 50 % del GMF que efectivamente pagaste en el año es deducible, con el certificado que expide el banco (art. 115 del Estatuto Tributario).",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/calculadora-4x1000";
+const title = `Calculadora del 4x1000 ${YEAR}: cuánto te cobran y cuánto puedes sacar exento`;
+const description = `Calcula el 4x1000 (GMF) de un retiro o transferencia. En ${YEAR} puedes mover hasta ${formatCOP(exemptCap)} al mes sin pagarlo desde tu cuenta exenta.`;
+const ogPath = "/og/calculadora-4x1000.png";
+const jsonLd = toolJsonLd({ site, path, title, description, name: "Calculadora del 4x1000", crumb: "Calculadora del 4x1000", review: IMPUESTOS_REVIEW, image: ogPath, faqs });
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`Calculadora del 4x1000 ${YEAR}`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Calculadora del 4x1000"
+            links={[
+                { href: "#calculadora", label: "Calculadora" },
+                { href: "#tabla", label: "Tabla" },
+                { href: "#exencion", label: "Exención" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>Calculadora del <span>4x1000</span></h1>
+            <p class="lead">
+                Por cada {formatCOP(1_000)} que sacas o transfieres, el banco cobra {formatCOP(4)}: el <strong>0,4 %</strong>.
+                En {YEAR} puedes mover hasta <strong>{formatCOP(exemptCap)} al mes</strong> sin pagarlo desde tu cuenta
+                marcada como exenta.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={IMPUESTOS_REVIEW}>{longDate(IMPUESTOS_REVIEW)}</time> · Art. 879 del E.T. ·
+                UVT {YEAR}: {formatCOP(uvt.value)}
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo" data-cap={exemptCap}>
+            <h2 id="calculadora-titulo" class="sr-only">Calcula el 4x1000</h2>
+            <form class="form" data-form>
+                <div class="field">
+                    <label for="valor">¿Cuánto vas a retirar o transferir?</label>
+                    <div class="money big">
+                        <span aria-hidden="true">$</span>
+                        <input id="valor" name="valor" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(1_000_000)} />
+                    </div>
+                    <div class="chips" role="group" aria-label="Valores comunes">
+                        {[100_000, 500_000, 1_000_000, 5_000_000, 20_000_000].map((value) => (
+                            <button type="button" class="chip" data-amount={value}>{formatCOP(value)}</button>
+                        ))}
+                    </div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" name="exenta" />
+                    <span class="track" aria-hidden="true"></span>
+                    <span>Sale de mi cuenta exenta del 4x1000</span>
+                </label>
+                <div class="field" data-used hidden>
+                    <label for="usado">¿Cuánto has sacado este mes de esa cuenta?</label>
+                    <div class="money">
+                        <span aria-hidden="true">$</span>
+                        <input id="usado" name="usado" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                    </div>
+                    <p class="hint">El cupo exento es de {formatCOP(exemptCap)} al mes y se reinicia cada mes.</p>
+                </div>
+            </form>
+
+            <div class="result">
+                <div class="statement">
+                    <p class="statement-head">Movimiento</p>
+                    <dl class="statement-lines">
+                        <div><dt>Retiro o transferencia</dt><dd data-out="amount">{formatCOP(1_000_000)}</dd></div>
+                        <div><dt>Parte exenta</dt><dd data-out="exempt">$0</dd></div>
+                        <div><dt>Parte gravada</dt><dd data-out="taxed">{formatCOP(1_000_000)}</dd></div>
+                    </dl>
+                    <div class="statement-tax">
+                        <span>4x1000</span>
+                        <b data-out="tax">{formatCOP(example.tax)}</b>
+                    </div>
+                    <p class="statement-total">Sale de tu cuenta: <b data-out="total">{formatCOP(1_000_000 + example.tax)}</b></p>
+                    <div class="cap" data-cap-box hidden>
+                        <p>Cupo exento del mes</p>
+                        <span class="cap-bar"><span data-out="cap-bar" style="--w: 0"></span></span>
+                        <p class="cap-left" data-out="cap-left"></p>
+                    </div>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="tabla" aria-labelledby="tabla-titulo">
+            <header class="head">
+                <h2 id="tabla-titulo">Cuánto es el 4x1000 de…</h2>
+                <p>Desde una cuenta normal y desde una cuenta exenta con el cupo del mes sin usar.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Movimiento</th>
+                            <th scope="col" class="num">Cuenta normal</th>
+                            <th scope="col" class="num">Cuenta exenta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            rows.map(({ value, tax, exempt }) => (
+                                <tr>
+                                    <th scope="row">{formatCOP(value)}</th>
+                                    <td class="num strong">{formatCOP(tax)}</td>
+                                    <td class="num">{exempt ? formatCOP(exempt) : "$0"}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="exencion" aria-labelledby="exencion-titulo">
+            <header class="head">
+                <h2 id="exencion-titulo">Cómo no pagar 4x1000 de más</h2>
+                <p>Tres cosas que valen la pena revisar con tu banco.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>Marca una cuenta exenta</h3>
+                    <p>Sin marcar, pagas desde el primer peso. Marcada, tienes {formatCOP(exemptCap)} al mes libres. Escoge la cuenta donde te consignan el sueldo.</p>
+                </article>
+                <article>
+                    <h3>El cupo es mensual</h3>
+                    <p>Si en un mes sacas {formatCOP(exemptCap + 1_000_000)}, pagas el 4x1000 solo sobre el millón que pasa del cupo: {formatCOP(4_000)}.</p>
+                </article>
+                <article>
+                    <h3>Deduce la mitad en renta</h3>
+                    <p>El 50 % de lo que pagaste de 4x1000 en el año es deducible en tu declaración de renta. Pide el certificado a tu banco.</p>
+                </article>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Calculadora 4x1000" />
+
+        <Colophon
+            sources={[{ label: "Estatuto Tributario (arts. 115, 871 y 879)" }, { label: "Ley 2277 de 2022" }, { label: uvt.resolution }]}
+            related={[
+                { href: "/calculadora-iva", label: "Calculadora de IVA" },
+                { href: "/declarar-renta", label: "¿Debo declarar renta?" },
+                { href: "/uvt", label: "UVT" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { gmf } from "@/lib/impuestos";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/uvt";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const cap = Number(document.querySelector<HTMLElement>("#calculadora")!.dataset.cap);
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+
+    for (const name of ["valor", "usado"]) {
+        const input = field(name);
+        input.addEventListener("input", () => {
+            const value = parseCOP(input.value);
+            input.value = value ? formatNumber(value) : "";
+        });
+    }
+
+    function update(): void {
+        const amount = parseCOP(field("valor").value);
+        const exemptAccount = field("exenta").checked;
+        const used = exemptAccount ? parseCOP(field("usado").value) : 0;
+        const left = exemptAccount ? Math.max(0, cap - used) : 0;
+        const result = gmf(amount, left);
+        document.querySelector<HTMLElement>("[data-used]")!.hidden = !exemptAccount;
+        document.querySelector<HTMLElement>("[data-cap-box]")!.hidden = !exemptAccount;
+        out("amount").textContent = formatCOP(amount);
+        out("exempt").textContent = formatCOP(result.exempt);
+        out("taxed").textContent = formatCOP(result.taxed);
+        out("tax").textContent = formatCOP(result.tax);
+        out("total").textContent = formatCOP(amount + result.tax);
+        const usedAfter = Math.min(cap, used + result.exempt);
+        out("cap-bar").style.setProperty("--w", String(usedAfter / cap));
+        out("cap-left").textContent = `Te quedan ${formatCOP(cap - usedAfter)} de ${formatCOP(cap)} este mes.`;
+        live.textContent = `4x1000: ${formatCOP(result.tax)}.`;
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    for (const chip of document.querySelectorAll<HTMLButtonElement>("[data-amount]")) {
+        chip.addEventListener("click", () => {
+            field("valor").value = formatNumber(Number(chip.dataset.amount));
+            update();
+        });
+    }
+    update();
+</script>
+
+<style>
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    [data-used][hidden],
+    [data-cap-box][hidden] {
+        display: none;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    /* Extracto bancario */
+    .statement {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: #0f3d2e;
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .statement-head {
+        color: #9fe0b8;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .statement-lines {
+        display: grid;
+        margin-top: 14px;
+    }
+
+    .statement-lines div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .statement-lines dd {
+        margin: 0;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .statement-tax {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 16px;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .statement-tax b {
+        color: var(--amber);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.9rem + 2vw, 3.4rem);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.045em;
+    }
+
+    .statement-total {
+        margin-top: 6px;
+        color: rgba(255, 255, 255, 0.75);
+        text-align: right;
+    }
+
+    .statement-total b {
+        color: #fff;
+    }
+
+    .cap {
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .cap p {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.88rem;
+    }
+
+    .cap-bar {
+        display: block;
+        height: 10px;
+        margin: 8px 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+    }
+
+    .cap-bar span {
+        display: block;
+        width: calc(var(--w) * 100%);
+        height: 100%;
+        background: #9fe0b8;
+        transition: width 300ms var(--ease-out);
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .statement {
+            max-width: 520px;
+        }
+    }
+</style>

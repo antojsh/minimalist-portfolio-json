@@ -1,0 +1,28 @@
+---
+interface Props {
+    faqs: { question: string; answer: string }[];
+    subject: string;
+    note?: string;
+}
+import { basics } from "@cv";
+const { faqs, subject, note = "Es una guía de referencia y no reemplaza la asesoría de un contador." } = Astro.props;
+---
+
+<section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+    <header class="head stacked">
+        <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+        <p>
+            {note} ¿Ves un error? <a href={`mailto:${basics.email}?subject=${encodeURIComponent(subject)}`}>Escríbeme</a>.
+        </p>
+    </header>
+    <div class="faq-list">
+        {
+            faqs.map(({ question, answer }, index) => (
+                <details open={index === 0}>
+                    <summary>{question}</summary>
+                    <p>{answer}</p>
+                </details>
+            ))
+        }
+    </div>
+</section>

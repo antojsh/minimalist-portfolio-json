@@ -1,0 +1,1365 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import { basics } from "@cv";
+import { MAX_ENTRIES, PRESETS, RULETA_REVIEW, wheelLights, wheelSegments } from "@/lib/ruleta";
+
+const preset = PRESETS[0];
+const longDate = (date: string) => {
+    const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    return `${Number(date.slice(8))} de ${months[Number(date.slice(5, 7)) - 1]} de ${date.slice(0, 4)}`;
+};
+
+const uses = [
+    { title: "Rifas y sorteos", text: "Pon los números vendidos o los nombres de los participantes y gira frente a todos. Puedes sacar varios ganadores seguidos." },
+    { title: "Sorteos de Instagram", text: "Pega los comentarios de la publicación y la ruleta saca cada @usuario una sola vez, sin importar cuántas veces comentó." },
+    { title: "¿Quién paga?", text: "El almuerzo, las cervezas o el domicilio. Nadie puede decir que estaba arreglado." },
+    { title: "Turnos y equipos", text: "Quién expone primero, quién lava los platos o en qué orden juegan. Activa «Quitar al ganador» y gira hasta vaciarla." },
+    { title: "En clase", text: "Elige quién responde, qué tema le toca a cada grupo o la pregunta del día, en pantalla completa en el tablero." },
+    { title: "Decisiones", text: "¿Pizza o sushi? ¿Sí o no? Cuando no te decides, que decida la ruleta. Y si no te gusta el resultado, ya sabes lo que querías." },
+];
+
+const faqs = [
+    {
+        question: "¿La ruleta es aleatoria de verdad?",
+        answer: "Sí. El ganador se elige con crypto.getRandomValues, el generador criptográfico del navegador, el mismo que se usa para crear contraseñas. Cada opción tiene exactamente la misma probabilidad y la animación solo te muestra el resultado.",
+    },
+    {
+        question: "¿Cómo hago un sorteo de Instagram con la ruleta?",
+        answer: "Abre la publicación, copia los comentarios (en el computador puedes seleccionarlos todos) y pégalos en la pestaña «Sorteo de Instagram». La ruleta saca los @usuarios únicos, así que comentar varias veces no da más oportunidades. Excluye tu propia cuenta y gira.",
+    },
+    {
+        question: "¿Puedo sacar varios ganadores?",
+        answer: "Sí. Activa «Quitar al ganador después de cada giro» y gira las veces que necesites; cada ganador sale de la ruleta y queda en la lista de ganadores, en orden, para que la copies.",
+    },
+    {
+        question: "¿Cuántas opciones puedo poner?",
+        answer: `Hasta ${MAX_ENTRIES}. Con muchas opciones los nombres dejan de caber en la rueda, pero el sorteo funciona igual y el ganador aparece en grande al final.`,
+    },
+    {
+        question: "¿Puedo darle más probabilidad a una opción?",
+        answer: "Sí: escríbela varias veces. Cada línea es un segmento de la rueda, así que una opción repetida tres veces tiene el triple de probabilidad. Para quitar repetidos usa el botón «Quitar repetidos».",
+    },
+    {
+        question: "¿Se guardan los nombres que escribo?",
+        answer: "No salen de tu navegador. Si copias el enlace, los nombres van después del símbolo # de la dirección, una parte que el navegador nunca le envía al servidor.",
+    },
+    {
+        question: "¿Funciona en el celular?",
+        answer: "Sí, y también en pantalla completa para proyectarla en un tablero o en una transmisión en vivo. Puedes apagar el sonido si estás en un lugar silencioso.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/ruleta", site).href;
+const title = "Ruleta aleatoria: gira la ruleta de nombres para sorteos y rifas";
+const description = "Ruleta de nombres gratis para sorteos, rifas, sorteos de Instagram y decidir quién paga. Aleatoria de verdad, con sonido, pantalla completa y sin registro.";
+const ogPath = "/og/ruleta.png";
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: RULETA_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            mainEntity: { "@id": `${pageUrl}#ruleta` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#ruleta`,
+            name: "Ruleta aleatoria",
+            url: pageUrl,
+            applicationCategory: "UtilitiesApplication",
+            operatingSystem: "Web",
+            inLanguage: "es",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Ruleta", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt="Ruleta aleatoria de nombres con luces y puntero"
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Ruleta</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#ruleta">Ruleta</a>
+                <a href="#usos">Usos</a>
+                <a href="#instagram">Sorteo de Instagram</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero intro">
+            <h1>Ruleta <span>aleatoria</span></h1>
+            <p class="lead">
+                Escribe los nombres, toca <strong>Girar</strong> y que decida la suerte. Para rifas, sorteos de Instagram,
+                turnos o para saber quién paga. Aleatoria de verdad y sin registro.
+            </p>
+        </section>
+
+        <section id="ruleta" class="arena" aria-labelledby="ruleta-titulo">
+            <h2 id="ruleta-titulo" class="sr-only">Ruleta</h2>
+
+            <div class="stage" data-stage>
+                <label class="sr-only" for="titulo">Título del sorteo</label>
+                <input class="stage-title" id="titulo" type="text" maxlength="80" value={preset.title} autocomplete="off" spellcheck="false" />
+
+                <div class="wheel-wrap">
+                    <svg class="wheel" viewBox="0 0 1000 1000" aria-hidden="true">
+                        <defs>
+                            <radialGradient id="rim" cx="50%" cy="50%" r="50%">
+                                <stop offset="88%" stop-color="#2a3139" />
+                                <stop offset="100%" stop-color="#0d1013" />
+                            </radialGradient>
+                            <radialGradient id="shine" cx="50%" cy="35%" r="65%">
+                                <stop offset="0%" stop-color="#fff" stop-opacity="0.18" />
+                                <stop offset="60%" stop-color="#fff" stop-opacity="0" />
+                            </radialGradient>
+                        </defs>
+                        <circle cx="500" cy="500" r="498" fill="url(#rim)" />
+                        <circle cx="500" cy="500" r="446" fill="none" stroke="#fcd116" stroke-width="6" />
+                        <g class="lights" data-lights set:html={wheelLights(28)} />
+                        <g class="spin" data-spin>
+                            <g data-segments set:html={wheelSegments(preset.entries)} />
+                        </g>
+                        <circle cx="500" cy="500" r="440" fill="url(#shine)" pointer-events="none" />
+                    </svg>
+
+                    <div class="pointer" data-pointer aria-hidden="true">
+                        <svg viewBox="0 0 60 80"><path d="M30 78 L4 18 A28 28 0 1 1 56 18 Z" /><circle cx="30" cy="26" r="9" /></svg>
+                    </div>
+
+                    <button type="button" class="hub" data-spin-button aria-describedby="ruleta-estado">
+                        <span>Girar</span>
+                    </button>
+                </div>
+
+                <div class="stage-bar">
+                    <p class="stage-status" id="ruleta-estado" data-status>{preset.entries.length} opciones · toca Girar o presiona espacio</p>
+                    <button type="button" class="icon-button" data-fullscreen aria-label="Pantalla completa">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="tabs" role="tablist" aria-label="Cómo cargar las opciones">
+                    <button type="button" role="tab" id="tab-lista" aria-controls="panel-lista" aria-selected="true" data-tab="lista">Lista</button>
+                    <button type="button" role="tab" id="tab-instagram" aria-controls="panel-instagram" aria-selected="false" tabindex="-1" data-tab="instagram">Sorteo de Instagram</button>
+                </div>
+
+                <div class="tab-panel" role="tabpanel" id="panel-lista" aria-labelledby="tab-lista">
+                    <label class="panel-label" for="opciones">
+                        Opciones <span data-count>{preset.entries.length}</span>
+                    </label>
+                    <textarea id="opciones" rows="9" spellcheck="false" placeholder="Una opción por línea">{preset.entries.join("\n")}</textarea>
+                    <div class="tools-row">
+                        <button type="button" class="chip" data-action="shuffle">Mezclar</button>
+                        <button type="button" class="chip" data-action="sort">Ordenar A–Z</button>
+                        <button type="button" class="chip" data-action="dedupe">Quitar repetidos</button>
+                        <button type="button" class="chip" data-action="clear">Vaciar</button>
+                    </div>
+                    <p class="panel-label small">Plantillas</p>
+                    <div class="tools-row">
+                        {PRESETS.map(({ key, label }) => (
+                            <button type="button" class="chip ghost" data-preset={key}>{label}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="tab-panel" role="tabpanel" id="panel-instagram" aria-labelledby="tab-instagram" hidden>
+                    <label class="panel-label" for="comentarios">Pega los comentarios</label>
+                    <textarea id="comentarios" rows="7" spellcheck="false" placeholder="@laura.gomez ¡Yo quiero! @carlos_88&#10;@andres.r Participo 🙌"></textarea>
+                    <label class="panel-label small" for="excluir">Cuentas que no participan</label>
+                    <input class="input" id="excluir" type="text" placeholder="@tu_cuenta, @tu_negocio" autocomplete="off" />
+                    <p class="hint" data-handles>Sacamos cada @usuario una sola vez, aunque haya comentado varias veces.</p>
+                    <button type="button" class="primary" data-use-handles disabled>Usar en la ruleta</button>
+                </div>
+
+                <div class="settings">
+                    <label class="switch">
+                        <input type="checkbox" data-remove />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Quitar al ganador después de cada giro</span>
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" data-sound checked />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Sonido</span>
+                    </label>
+                </div>
+
+                <div class="history" data-history hidden>
+                    <div class="history-head">
+                        <p class="panel-label">Ganadores</p>
+                        <div class="tools-row">
+                            <button type="button" class="chip" data-copy-history>Copiar</button>
+                            <button type="button" class="chip" data-reset-history>Borrar</button>
+                        </div>
+                    </div>
+                    <ol data-history-list></ol>
+                </div>
+
+                <button type="button" class="share" data-share>Copiar enlace con esta ruleta</button>
+            </div>
+        </section>
+
+        <dialog class="winner" data-winner aria-labelledby="ganador-nombre">
+            <p class="winner-kicker" data-winner-kicker>¡Tenemos ganador!</p>
+            <p class="winner-name" id="ganador-nombre" data-winner-name></p>
+            <div class="winner-actions">
+                <button type="button" class="primary" data-again>Girar otra vez</button>
+                <button type="button" class="secondary" data-remove-again>Quitar y girar</button>
+                <button type="button" class="link-button" data-close>Cerrar</button>
+            </div>
+        </dialog>
+
+        <canvas class="confetti" data-confetti aria-hidden="true"></canvas>
+        <p class="sr-only" aria-live="assertive" data-live></p>
+
+        <section id="usos" aria-labelledby="usos-titulo">
+            <header class="head">
+                <h2 id="usos-titulo">Para qué sirve</h2>
+                <p>Todo lo que necesite un «que decida la suerte», sin papelitos ni discusiones.</p>
+            </header>
+            <div class="uses">
+                {
+                    uses.map(({ title, text }) => (
+                        <article>
+                            <h3>{title}</h3>
+                            <p>{text}</p>
+                        </article>
+                    ))
+                }
+            </div>
+        </section>
+
+        <section id="instagram" aria-labelledby="instagram-titulo">
+            <header class="head">
+                <h2 id="instagram-titulo">Cómo hacer un sorteo de Instagram transparente</h2>
+                <p>Lo que más confianza da es que tus seguidores vean el giro. Así lo puedes hacer en cinco minutos.</p>
+            </header>
+            <div class="steps">
+                <ol>
+                    <li><strong>Copia los comentarios.</strong> Desde el computador, abre la publicación, despliega todos los comentarios y selecciónalos.</li>
+                    <li><strong>Pégalos en «Sorteo de Instagram».</strong> La ruleta saca cada @usuario una vez; comentar diez veces no da más oportunidades.</li>
+                    <li><strong>Excluye tu cuenta</strong> y las de tu negocio para que no salgan sorteadas.</li>
+                    <li><strong>Graba la pantalla o haz un en vivo</strong> en pantalla completa, con el título del sorteo visible.</li>
+                    <li><strong>Gira y publica el resultado.</strong> Si necesitas suplentes, activa «Quitar al ganador» y gira de nuevo.</li>
+                </ol>
+                <aside class="fair">
+                    <h3>¿Por qué es justa?</h3>
+                    <p>
+                        El ganador se elige con <code>crypto.getRandomValues</code>, el generador criptográfico del navegador,
+                        sin sesgos: cada opción tiene la misma probabilidad. La animación solo lo muestra. Nada se envía a
+                        ningún servidor.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Actualizado el <time datetime={RULETA_REVIEW}>{longDate(RULETA_REVIEW)}</time>. ¿Se te ocurre algo
+                    para mejorarla? <a href={`mailto:${basics.email}?subject=Ruleta`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. La ruleta funciona
+                completa en tu navegador.
+            </p>
+            <p>
+                También te sirve: <a href="/dias-habiles">Días hábiles</a> ·
+                <a href="/interes-compuesto">Interés compuesto</a> ·
+                <a href="/festivos-colombia-2027">Festivos 2027</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import {
+        PRESETS,
+        decodeShare,
+        encodeShare,
+        extractHandles,
+        indexAt,
+        parseEntries,
+        secureFraction,
+        secureIndex,
+        shuffle,
+        targetRotation,
+        wheelSegments,
+        colorAt,
+    } from "@/lib/ruleta";
+
+    const $ = <T extends Element = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
+    const textarea = $<HTMLTextAreaElement>("#opciones");
+    const titleInput = $<HTMLInputElement>("#titulo");
+    const segments = $<SVGGElement>("[data-segments]");
+    const spinGroup = $<SVGGElement>("[data-spin]");
+    const spinButton = $<HTMLButtonElement>("[data-spin-button]");
+    const pointer = $("[data-pointer]");
+    const stage = $("[data-stage]");
+    const status = $("[data-status]");
+    const live = $("[data-live]");
+    const dialog = $<HTMLDialogElement>("[data-winner]");
+    const removeToggle = $<HTMLInputElement>("[data-remove]");
+    const soundToggle = $<HTMLInputElement>("[data-sound]");
+    const historyBox = $("[data-history]");
+    const historyList = $("[data-history-list]");
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let entries: string[] = parseEntries(textarea.value);
+    let rotation = 0;
+    let spinning = false;
+    let lastWinner = -1;
+    const winners: string[] = [];
+
+    /* Cargar desde un enlace compartido */
+    const shared = location.hash.length > 1 ? decodeShare(location.hash.slice(1)) : null;
+    if (shared?.entries.length) {
+        entries = shared.entries;
+        textarea.value = entries.join("\n");
+        if (shared.title) titleInput.value = shared.title;
+    }
+
+    function render() {
+        segments.innerHTML = wheelSegments(entries);
+        $("[data-count]").textContent = String(entries.length);
+        status.textContent = entries.length
+            ? `${entries.length} ${entries.length === 1 ? "opción" : "opciones"} · toca Girar o presiona espacio`
+            : "Escribe al menos dos opciones";
+        spinButton.disabled = entries.length < 2;
+    }
+
+    function setEntries(next: string[], { syncText = true } = {}) {
+        entries = next;
+        if (syncText) textarea.value = entries.join("\n");
+        render();
+    }
+
+    textarea.addEventListener("input", () => setEntries(parseEntries(textarea.value), { syncText: false }));
+
+    /* Herramientas de la lista */
+    document.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((button) =>
+        button.addEventListener("click", () => {
+            if (spinning) return;
+            const action = button.dataset.action;
+            if (action === "shuffle") setEntries(shuffle(entries));
+            if (action === "sort") setEntries([...entries].sort((a, b) => a.localeCompare(b, "es", { numeric: true })));
+            if (action === "dedupe") setEntries([...new Map(entries.map((entry) => [entry.toLowerCase(), entry])).values()]);
+            if (action === "clear") {
+                setEntries([]);
+                textarea.focus();
+            }
+        }),
+    );
+
+    document.querySelectorAll<HTMLButtonElement>("[data-preset]").forEach((button) =>
+        button.addEventListener("click", () => {
+            if (spinning) return;
+            const preset = PRESETS.find((item) => item.key === button.dataset.preset)!;
+            titleInput.value = preset.title;
+            setEntries(preset.entries);
+        }),
+    );
+
+    /* Pestañas */
+    const tabs = [...document.querySelectorAll<HTMLButtonElement>("[data-tab]")];
+    function selectTab(tab: HTMLButtonElement) {
+        for (const other of tabs) {
+            const selected = other === tab;
+            other.setAttribute("aria-selected", String(selected));
+            other.tabIndex = selected ? 0 : -1;
+            $(`#${other.getAttribute("aria-controls")}`).hidden = !selected;
+        }
+    }
+    tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => selectTab(tab));
+        tab.addEventListener("keydown", (event) => {
+            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            const next = tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+            selectTab(next);
+            next.focus();
+        });
+    });
+
+    /* Sorteo de Instagram */
+    const comments = $<HTMLTextAreaElement>("#comentarios");
+    const exclude = $<HTMLInputElement>("#excluir");
+    const useHandles = $<HTMLButtonElement>("[data-use-handles]");
+    let handles: string[] = [];
+    function readHandles() {
+        handles = extractHandles(comments.value, { exclude: exclude.value });
+        useHandles.disabled = handles.length < 2;
+        $("[data-handles]").textContent = comments.value.trim()
+            ? `Encontramos ${handles.length} ${handles.length === 1 ? "participante único" : "participantes únicos"}.`
+            : "Sacamos cada @usuario una sola vez, aunque haya comentado varias veces.";
+    }
+    comments.addEventListener("input", readHandles);
+    exclude.addEventListener("input", readHandles);
+    useHandles.addEventListener("click", () => {
+        setEntries(handles);
+        if (titleInput.value === PRESETS[0].title) titleInput.value = "Sorteo de Instagram";
+        selectTab(tabs[0]);
+        stage.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    });
+
+    /* Sonido: un clic corto por cada segmento que pasa */
+    let audio: AudioContext | undefined;
+    function tick(pitch = 1) {
+        pointer.classList.remove("flick");
+        void pointer.offsetWidth;
+        pointer.classList.add("flick");
+        if (!soundToggle.checked) return;
+        audio ??= new AudioContext();
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(900 * pitch, now);
+        osc.frequency.exponentialRampToValueAtTime(380 * pitch, now + 0.045);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+    }
+
+    function fanfare() {
+        if (!soundToggle.checked || !audio) return;
+        const now = audio.currentTime;
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, index) => {
+            const osc = audio!.createOscillator();
+            const gain = audio!.createGain();
+            osc.type = "triangle";
+            osc.frequency.value = freq;
+            const start = now + index * 0.09;
+            gain.gain.setValueAtTime(0.0001, start);
+            gain.gain.exponentialRampToValueAtTime(0.14, start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + (index === 3 ? 0.7 : 0.2));
+            osc.connect(gain).connect(audio!.destination);
+            osc.start(start);
+            osc.stop(start + 0.8);
+        });
+    }
+
+    /* Confeti */
+    const canvas = $<HTMLCanvasElement>("[data-confetti]");
+    function confetti(colors: string[]) {
+        if (reducedMotion) return;
+        const ctx = canvas.getContext("2d")!;
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        canvas.width = innerWidth * dpr;
+        canvas.height = innerHeight * dpr;
+        ctx.scale(dpr, dpr);
+        const pieces = Array.from({ length: 180 }, () => ({
+            x: innerWidth / 2 + (Math.random() - 0.5) * innerWidth * 0.3,
+            y: innerHeight * 0.45,
+            vx: (Math.random() - 0.5) * 16,
+            vy: -Math.random() * 16 - 6,
+            size: 6 + Math.random() * 8,
+            spin: Math.random() * Math.PI,
+            vspin: (Math.random() - 0.5) * 0.4,
+            color: colors[Math.floor(Math.random() * colors.length)],
+        }));
+        const start = performance.now();
+        canvas.hidden = false;
+        const frame = (now: number) => {
+            const elapsed = now - start;
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            for (const p of pieces) {
+                p.vy += 0.42;
+                p.vx *= 0.99;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.spin += p.vspin;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.spin);
+                ctx.globalAlpha = Math.max(0, 1 - elapsed / 3200);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+                ctx.restore();
+            }
+            if (elapsed < 3200) requestAnimationFrame(frame);
+            else {
+                ctx.clearRect(0, 0, innerWidth, innerHeight);
+                canvas.hidden = true;
+            }
+        };
+        requestAnimationFrame(frame);
+    }
+
+    /* Giro */
+    const easeOut = (t: number) => 1 - (1 - t) ** 4;
+
+    function spin() {
+        if (spinning || entries.length < 2) return;
+        if (dialog.open) dialog.close();
+        spinning = true;
+        stage.classList.add("is-spinning");
+        spinButton.disabled = true;
+        textarea.readOnly = true;
+        audio ??= soundToggle.checked ? new AudioContext() : undefined;
+        audio?.resume();
+
+        // El ganador se decide aquí, con el generador criptográfico; la animación solo lo muestra
+        const winner = secureIndex(entries.length);
+        const count = entries.length;
+        const from = rotation;
+        const to = targetRotation(from, winner, count, secureFraction(), 6 + secureIndex(3));
+        const duration = reducedMotion ? 600 : 5200 + secureIndex(1200);
+        const startTime = performance.now();
+        let lastIndex = indexAt(from, count);
+        status.textContent = "Girando…";
+
+        const step = (now: number) => {
+            const t = Math.min(1, (now - startTime) / duration);
+            rotation = from + (to - from) * easeOut(t);
+            spinGroup.style.transform = `rotate(${rotation}deg)`;
+            const current = indexAt(rotation, count);
+            if (current !== lastIndex) {
+                lastIndex = current;
+                if (!reducedMotion) tick(1 + (1 - t) * 0.25);
+            }
+            if (t < 1) requestAnimationFrame(step);
+            else finish(winner);
+        };
+        requestAnimationFrame(step);
+    }
+
+    function finish(index: number) {
+        spinning = false;
+        stage.classList.remove("is-spinning");
+        textarea.readOnly = false;
+        rotation %= 360;
+        spinGroup.style.transform = `rotate(${rotation}deg)`;
+        lastWinner = index;
+        const name = entries[index];
+
+        winners.push(name);
+        historyBox.hidden = false;
+        historyList.innerHTML = winners.map((item) => `<li>${item.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)}</li>`).join("");
+
+        const color = colorAt(index, entries.length);
+        dialog.style.setProperty("--winner", color.fill);
+        dialog.style.setProperty("--winner-text", color.text);
+        $("[data-winner-kicker]").textContent = titleInput.value.trim() || "¡Tenemos ganador!";
+        $("[data-winner-name]").textContent = name;
+        const canRemove = entries.length > 2;
+        $("[data-remove-again]").hidden = !canRemove || removeToggle.checked;
+        $("[data-again]").textContent = removeToggle.checked && canRemove ? `Quitar a ${name.length > 18 ? "este" : name} y girar` : "Girar otra vez";
+        dialog.showModal();
+        fanfare();
+        confetti(["#fcd116", "#003893", "#c42a1a", "#ffffff", "#f0a598"]);
+        live.textContent = `Ganó ${name}.`;
+        status.textContent = `Ganó ${name}`;
+        spinButton.disabled = entries.length < 2;
+        if (removeToggle.checked && canRemove) {
+            // Se quita al cerrar o al volver a girar, para que el nombre siga en la rueda mientras se celebra
+            dialog.dataset.pendingRemoval = "true";
+        }
+    }
+
+    function removeLastWinner() {
+        if (lastWinner < 0 || lastWinner >= entries.length) return;
+        const next = [...entries];
+        next.splice(lastWinner, 1);
+        lastWinner = -1;
+        setEntries(next);
+    }
+
+    function closeDialog() {
+        if (dialog.dataset.pendingRemoval) {
+            delete dialog.dataset.pendingRemoval;
+            removeLastWinner();
+        }
+        if (dialog.open) dialog.close();
+    }
+
+    spinButton.addEventListener("click", spin);
+    $("[data-again]").addEventListener("click", () => {
+        closeDialog();
+        spin();
+    });
+    $("[data-remove-again]").addEventListener("click", () => {
+        if (dialog.open) dialog.close();
+        delete dialog.dataset.pendingRemoval;
+        removeLastWinner();
+        spin();
+    });
+    $("[data-close]").addEventListener("click", closeDialog);
+    dialog.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeDialog();
+    });
+    dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) closeDialog();
+    });
+
+    // Espacio para girar cuando no se está escribiendo
+    document.addEventListener("keydown", (event) => {
+        const target = event.target as HTMLElement;
+        if (event.code !== "Space" || target.closest("input, textarea, button, select, summary, [contenteditable]")) return;
+        if (!stage.getBoundingClientRect().bottom || dialog.open) return;
+        event.preventDefault();
+        spin();
+    });
+
+    /* Historial */
+    $("[data-copy-history]").addEventListener("click", async (event) => {
+        const button = event.currentTarget as HTMLButtonElement;
+        try {
+            await navigator.clipboard.writeText(winners.map((name, index) => `${index + 1}. ${name}`).join("\n"));
+            button.textContent = "Copiado";
+        } catch {
+            button.textContent = "No se pudo";
+        }
+        setTimeout(() => (button.textContent = "Copiar"), 1500);
+    });
+    $("[data-reset-history]").addEventListener("click", () => {
+        winners.length = 0;
+        historyList.innerHTML = "";
+        historyBox.hidden = true;
+    });
+
+    /* Compartir */
+    const share = $<HTMLButtonElement>("[data-share]");
+    share.addEventListener("click", async () => {
+        const url = `${location.origin}${location.pathname}#${encodeShare(titleInput.value, entries)}`;
+        history.replaceState(null, "", url);
+        try {
+            await navigator.clipboard.writeText(url);
+            share.textContent = "Enlace copiado";
+        } catch {
+            share.textContent = "Copia la dirección del navegador";
+        }
+        setTimeout(() => (share.textContent = "Copiar enlace con esta ruleta"), 2000);
+    });
+
+    /* Pantalla completa */
+    $("[data-fullscreen]").addEventListener("click", () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else stage.requestFullscreen?.().catch(() => {});
+    });
+
+    render();
+</script>
+
+<style>
+    .intro h1 {
+        max-width: none;
+    }
+
+    /* Escenario: la ruleta sobre fondo oscuro con un reflector */
+    .arena {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+        gap: 28px;
+        align-items: start;
+        margin-top: clamp(2rem, 4vw, 3rem);
+    }
+
+    .stage {
+        position: relative;
+        display: grid;
+        justify-items: center;
+        gap: 18px;
+        padding: clamp(18px, 3vw, 32px);
+        border-radius: 28px;
+        background:
+            radial-gradient(60% 50% at 50% 42%, rgba(252, 209, 22, 0.16), transparent 70%),
+            radial-gradient(90% 70% at 50% 120%, rgba(196, 42, 26, 0.28), transparent 70%),
+            var(--board);
+        overflow: hidden;
+    }
+
+    .stage:fullscreen {
+        align-content: center;
+        border-radius: 0;
+    }
+
+    .stage-title {
+        width: 100%;
+        padding: 4px 8px;
+        border: 0;
+        border-radius: 10px;
+        outline: 0;
+        background: transparent;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(1.5rem, 1rem + 2vw, 2.4rem);
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        text-align: center;
+    }
+
+    .stage-title:hover,
+    .stage-title:focus {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .wheel-wrap {
+        position: relative;
+        width: min(100%, 600px, calc(100vh - 200px));
+        min-width: min(100%, 300px);
+        aspect-ratio: 1;
+    }
+
+    .stage:fullscreen .wheel-wrap {
+        width: min(82vh, 92vw);
+    }
+
+    .wheel {
+        display: block;
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.5));
+    }
+
+    .spin {
+        transform-box: view-box;
+        transform-origin: 500px 500px;
+        will-change: transform;
+    }
+
+    .wheel :global(text) {
+        font-family: var(--font-display);
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        pointer-events: none;
+    }
+
+    .wheel :global(path),
+    .wheel :global(circle:not(.bulb)) {
+        stroke: rgba(13, 16, 19, 0.35);
+        stroke-width: 2;
+    }
+
+    /* Bombillos: titilan más rápido mientras gira */
+    .lights :global(.bulb) {
+        fill: #fff6c9;
+        filter: drop-shadow(0 0 6px rgba(252, 209, 22, 0.9));
+        animation: bulb 1.6s steps(2, jump-none) infinite;
+    }
+
+    .lights :global(.bulb.odd) {
+        animation-delay: -0.8s;
+    }
+
+    .is-spinning .lights :global(.bulb) {
+        animation-duration: 0.24s;
+    }
+
+    @keyframes bulb {
+        50% {
+            fill: #6b5a12;
+            filter: none;
+        }
+    }
+
+    .pointer {
+        position: absolute;
+        top: -2.5%;
+        left: 50%;
+        width: 9%;
+        transform: translateX(-50%);
+        transform-origin: 50% 30%;
+        filter: drop-shadow(0 6px 6px rgba(0, 0, 0, 0.45));
+    }
+
+    .pointer svg {
+        display: block;
+        width: 100%;
+    }
+
+    .pointer path {
+        fill: #fcd116;
+        stroke: #15191e;
+        stroke-width: 3;
+    }
+
+    .pointer circle {
+        fill: #15191e;
+    }
+
+    .pointer.flick {
+        animation: flick 140ms ease-out;
+    }
+
+    @keyframes flick {
+        30% {
+            transform: translateX(-50%) rotate(-16deg);
+        }
+    }
+
+    .hub {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        display: grid;
+        place-items: center;
+        width: 22%;
+        aspect-ratio: 1;
+        border: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #3a434d, #15191e 70%);
+        box-shadow:
+            0 0 0 6px #fcd116,
+            0 0 0 12px #15191e,
+            0 14px 30px rgba(0, 0, 0, 0.5);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(0.95rem, 0.6rem + 1.6vw, 1.6rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transform: translate(-50%, -50%);
+        transition: transform 160ms var(--ease-out);
+    }
+
+    .hub:hover:not(:disabled) {
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    .hub:active:not(:disabled) {
+        transform: translate(-50%, -50%) scale(0.96);
+    }
+
+    .hub:disabled {
+        cursor: default;
+    }
+
+    .is-spinning .hub span {
+        opacity: 0.45;
+    }
+
+    .hub:focus-visible {
+        outline: 3px solid #fff;
+        outline-offset: 14px;
+    }
+
+    .stage-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .stage-status {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.9rem;
+    }
+
+    .icon-button {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .icon-button svg {
+        width: 20px;
+        fill: none;
+        stroke: #fff;
+        stroke-width: 2;
+        stroke-linecap: round;
+    }
+
+    .icon-button:hover {
+        border-color: #fff;
+    }
+
+    /* Panel de opciones */
+    .panel {
+        display: grid;
+        gap: 18px;
+        padding: clamp(18px, 3vw, 26px);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--sheet);
+    }
+
+    .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        padding: 4px;
+        border-radius: 14px;
+        background: rgba(21, 25, 30, 0.06);
+    }
+
+    .tabs button {
+        padding: 10px 8px;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .tabs button[aria-selected="true"] {
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(21, 25, 30, 0.15);
+        color: var(--ink);
+    }
+
+    .tab-panel {
+        display: grid;
+        gap: 10px;
+    }
+
+    .tab-panel[hidden] {
+        display: none;
+    }
+
+    .panel-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .panel-label span {
+        padding: 1px 9px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+    }
+
+    .panel-label.small {
+        margin-top: 6px;
+        font-size: 0.95rem;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 180px;
+        padding: 12px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        outline: 0;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.98rem;
+        line-height: 1.55;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+    }
+
+    textarea:read-only {
+        opacity: 0.6;
+    }
+
+    .tools-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 6px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .chip.ghost {
+        background: transparent;
+    }
+
+    .primary,
+    .secondary {
+        padding: 13px 18px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--red);
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .primary:disabled {
+        background: var(--line-strong);
+        cursor: default;
+    }
+
+    .secondary {
+        background: var(--ink);
+    }
+
+    .settings {
+        display: grid;
+        gap: 12px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+    }
+
+    .settings .switch {
+        font-size: 0.95rem;
+    }
+
+    .history {
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+    }
+
+    .history[hidden] {
+        display: none;
+    }
+
+    .history-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .history ol {
+        display: grid;
+        gap: 4px;
+        max-height: 180px;
+        margin-top: 10px;
+        overflow-y: auto;
+        counter-reset: winner;
+    }
+
+    .history :global(li) {
+        color: var(--ink);
+        font-weight: 600;
+        counter-increment: winner;
+    }
+
+    .history :global(li)::before {
+        display: inline-block;
+        min-width: 2ch;
+        margin-right: 10px;
+        color: var(--red);
+        font-family: var(--font-display);
+        content: counter(winner);
+    }
+
+    .share {
+        padding: 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .share:hover {
+        border-color: var(--ink);
+    }
+
+    /* Ganador */
+    .winner {
+        --winner: var(--red);
+        --winner-text: #fff;
+
+        width: min(92vw, 520px);
+        padding: 0;
+        border: 0;
+        border-radius: 28px;
+        background: var(--sheet);
+        box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.6);
+        text-align: center;
+        overflow: hidden;
+    }
+
+    .winner[open] {
+        animation: pop 420ms var(--ease-out);
+    }
+
+    .winner::backdrop {
+        background: rgba(13, 16, 19, 0.6);
+        backdrop-filter: blur(3px);
+    }
+
+    @keyframes pop {
+        from {
+            opacity: 0;
+            transform: scale(0.85) translateY(20px);
+        }
+    }
+
+    .winner-kicker {
+        padding: 18px 24px;
+        background: var(--winner);
+        color: var(--winner-text);
+        font-size: 0.9rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .winner-name {
+        padding: clamp(28px, 6vw, 44px) 24px 8px;
+        overflow-wrap: anywhere;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.6rem + 4vw, 4rem);
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .winner-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 24px;
+    }
+
+    .winner-actions .primary:only-of-type,
+    .winner-actions [hidden] + .link-button {
+        grid-column: auto;
+    }
+
+    .winner-actions [hidden] {
+        display: none;
+    }
+
+    .winner-actions .link-button {
+        grid-column: 1 / -1;
+        padding: 6px;
+        border: 0;
+        background: none;
+        color: var(--muted);
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .winner-actions:has([data-remove-again][hidden]) .primary {
+        grid-column: 1 / -1;
+    }
+
+    .confetti {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        width: 100vw;
+        height: 100vh;
+        pointer-events: none;
+    }
+
+    .confetti[hidden] {
+        display: none;
+    }
+
+    /* Contenido */
+    .uses {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 32px clamp(24px, 4vw, 48px);
+    }
+
+    .uses article {
+        padding-top: 16px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .uses p {
+        margin-top: 8px;
+    }
+
+    .steps {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .steps ol {
+        display: grid;
+        gap: 14px;
+        counter-reset: step;
+    }
+
+    .steps li {
+        position: relative;
+        padding: 0 0 14px 44px;
+        border-bottom: 1px solid var(--line);
+        color: var(--text-soft);
+        line-height: 1.6;
+        counter-increment: step;
+    }
+
+    .steps li::before {
+        position: absolute;
+        top: -2px;
+        left: 0;
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.9rem;
+        font-weight: 800;
+        content: counter(step);
+    }
+
+    .steps strong {
+        color: var(--ink);
+    }
+
+    .fair {
+        padding: clamp(20px, 3vw, 28px);
+        border-radius: 20px;
+        background: var(--board);
+    }
+
+    .fair h3 {
+        color: #fff;
+    }
+
+    .fair p {
+        margin-top: 10px;
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .fair code {
+        color: var(--amber);
+        font-family: var(--font-mono);
+        font-size: 0.88em;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .lights :global(.bulb),
+        .winner[open],
+        .pointer.flick {
+            animation: none;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .arena,
+        .steps {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .uses {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .uses {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .stage {
+            margin-inline: calc(var(--gutter) * -0.5);
+            padding-inline: 10px;
+        }
+    }
+</style>

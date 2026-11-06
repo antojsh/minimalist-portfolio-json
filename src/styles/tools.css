@@ -149,7 +149,7 @@
 }
 
 /* Secciones */
-.tool > section:not(.hero, .workbench) {
+.tool > section:not(.hero, .workbench, .arena) {
     margin-top: clamp(4.5rem, 10vw, 8rem);
     scroll-margin-top: 24px;
 }

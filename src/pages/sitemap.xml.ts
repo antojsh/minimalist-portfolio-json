@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { RULETA_REVIEW } from "@/lib/ruleta";
 import { INTERES_REVIEW } from "@/lib/interes-compuesto";
 import { CREDITO_REVIEW } from "@/lib/credito";
 import { DIAS_HABILES_REVIEW } from "@/lib/dias-habiles";
@@ -18,6 +19,7 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     })),
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
+    { path: "/ruleta", changefreq: "monthly", priority: "0.9", lastmod: RULETA_REVIEW },
     { path: "/interes-compuesto", changefreq: "monthly", priority: "0.9", lastmod: INTERES_REVIEW },
     { path: "/simulador-credito", changefreq: "monthly", priority: "0.9", lastmod: CREDITO_REVIEW },
     { path: "/dias-habiles", changefreq: "monthly", priority: "0.9", lastmod: DIAS_HABILES_REVIEW },

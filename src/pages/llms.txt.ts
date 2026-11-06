@@ -16,7 +16,7 @@ export const GET: APIRoute = ({ site }) => {
 
     const body = `# ${basics.name}
 
-> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral, salario mínimo, días hábiles, crédito e interés compuesto.
+> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral, salario mínimo, días hábiles, crédito e interés compuesto, además de una ruleta para sorteos.
 
 ## Páginas
 
@@ -27,6 +27,7 @@ ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivo
 - [Contador de días hábiles](${url("/dias-habiles")}): días hábiles y calendario entre dos fechas, y fecha de vencimiento de un plazo en días hábiles, con los festivos de Colombia. ${FESTIVOS_YEARS.map((year) => `${year}: ${countBetween(`${year}-01-01`, `${year}-12-31`, { includeStart: true }).business} días hábiles`).join("; ")}.
 - [Simulador de crédito](${url("/simulador-credito")}): cuota mensual con tasa E.A., M.V. o N.A.M.V., cuota fija o abono constante a capital, seguros, abonos extra y tabla de amortización descargable. Cuota fija = monto × i ÷ (1 − (1 + i)^−n), con i = (1 + E.A.)^(1/12) − 1.
 - [Calculadora de interés compuesto](${url("/interes-compuesto")}): cuánto tendrás con aportes periódicos, cuánto ahorrar para una meta o en cuánto tiempo llegas; con capitalización nominal o efectiva, aportes que suben cada año, inflación, comisiones, impuestos, gráfica año a año, regla del 72 y costo de esperar. Funciona en varias monedas.
+- [Ruleta aleatoria](${url("/ruleta")}): ruleta de nombres para sorteos, rifas y decisiones; elige con crypto.getRandomValues, saca @usuarios únicos de comentarios de Instagram, quita ganadores para sorteos múltiples, pantalla completa y enlace para compartir. Todo en el navegador.
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
 
 ## Datos

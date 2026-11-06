@@ -112,6 +112,17 @@ const fontsUrl =
     line-gap-override: 0%;
   }
 
+  /* Igual para los títulos: Arial Bold escalada al ancho y la altura de Bricolage Grotesque */
+  @font-face {
+    font-family: "Bricolage Fallback";
+    src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"), local("Arial");
+    font-weight: 500 900;
+    size-adjust: 92.5%;
+    ascent-override: 100.5%;
+    descent-override: 29.2%;
+    line-gap-override: 0%;
+  }
+
   :root {
     --background: #f6f3ed;
     --surface: #ffffff;
@@ -127,7 +138,7 @@ const fontsUrl =
     --success: #1c8f57;
     --dark: #15191e;
 
-    --font-display: "Bricolage Grotesque", "Inter", "Inter Fallback", ui-sans-serif, system-ui,
+    --font-display: "Bricolage Grotesque", "Bricolage Fallback", "Inter Fallback", ui-sans-serif, system-ui,
       sans-serif;
     --font-body: "Inter", "Inter Fallback", ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", sans-serif;

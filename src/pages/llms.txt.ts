@@ -2,23 +2,27 @@ import type { APIRoute } from "astro";
 import { basics } from "@cv";
 import { FESTIVOS_YEARS, LAST_REVIEW, formatLong, getHolidays, getLongWeekends } from "@/lib/festivos";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { SALARIO_MINIMO_REVIEW, employerCost, isRevealed, latestWage, nextWage } from "@/lib/salario-minimo";
 import { PRIMA_REVIEW, calculatePrima, formatCOP, getMinimumWage, transportLimit } from "@/lib/prima";
 
 // Resumen del sitio para buscadores con IA (propuesta llms.txt)
 export const GET: APIRoute = ({ site }) => {
     const url = (path: string) => new URL(path, site).href;
     const wage = getMinimumWage(2026);
+    const latest = latestWage();
+    const hiring = employerCost(latest);
     const minimumPrima = calculatePrima({ salary: wage.salary, transport: true, start: "2026-07-01", end: "2026-12-31", wage });
 
     const body = `# ${basics.name}
 
-> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios y de liquidación laboral.
+> Desarrollador full stack en ${basics.location.city}, Colombia, con foco en frontend. Este sitio reúne su portafolio, guías de los festivos de Colombia (${FESTIVOS_YEARS.join(", ")}) y calculadoras de prima de servicios, liquidación laboral y salario mínimo.
 
 ## Páginas
 
 - [Portafolio](${url("/")}): experiencia, proyectos personales y contacto.
 ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivos-colombia-${year}`)}): los ${getHolidays(year).length} festivos con su día de la semana, ${getLongWeekends(year).length} puentes, Semana Santa, días hábiles, planes de vacaciones y la Ley Emiliani.`).join("\n")}
 - [Calculadora de prima de servicios](${url("/calculadora-prima")}): calcula la prima de junio o diciembre con auxilio de transporte, pagos variables y días trabajados.
+- [Salario mínimo ${nextWage.year}](${url(`/salario-minimo-${nextWage.year}`)}): ${isRevealed ? "el valor oficial" : "cuándo se define"}, simulador del aumento, salario mínimo vigente y costo de contratar a alguien con el mínimo.
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
 
 ## Datos
@@ -43,6 +47,13 @@ Revisado el ${PRIMA_REVIEW}. Según el artículo 306 del Código Sustantivo del 
 - Salario mínimo ${wage.year}: ${formatCOP(wage.salary)} (${wage.salaryDecree}). Auxilio de transporte: ${formatCOP(wage.transport)} (${wage.transportDecree}), para quien gana hasta ${formatCOP(transportLimit(wage))}.
 - Prima de un semestre completo con el salario mínimo: ${formatCOP(minimumPrima.total)}.
 - Es proporcional al tiempo trabajado (sentencia C-042 de 2003) y no paga aportes a salud ni pensión (art. 307).
+
+## Salario mínimo en Colombia
+
+Revisado el ${SALARIO_MINIMO_REVIEW}. ${isRevealed ? `El salario mínimo de ${nextWage.year} es ${formatCOP(latest.salary)} (${latest.salaryDecree}).` : `El salario mínimo de ${nextWage.year} todavía no se conoce: la Comisión de Concertación negocia desde el 1 de diciembre, tiene hasta el 15 para un acuerdo y, si no lo hay, el Gobierno lo decreta a más tardar el 30 de diciembre (Ley 278 de 1996).`}
+
+- Salario mínimo vigente (${latest.year}): ${formatCOP(latest.salary)}, más ${formatCOP(latest.transport)} de auxilio de transporte.
+- Costo mensual de un empleado con el mínimo para una empresa exonerada de salud, SENA e ICBF (art. 114-1 E.T.): ${formatCOP(hiring.monthly)}, con pensión 12 %, ARL riesgo I 0,522 %, caja 4 % y prestaciones provisionadas (cesantías, intereses, prima y vacaciones).
 
 ## Liquidación de un contrato de trabajo en Colombia
 

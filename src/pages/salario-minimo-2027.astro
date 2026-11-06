@@ -1,0 +1,1594 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { basics } from "@cv";
+import { formatLong } from "@/lib/festivos";
+import { MINIMUM_WAGES, formatCOP, transportLimit } from "@/lib/prima";
+import {
+    SALARIO_MINIMO_REVIEW,
+    employerCost,
+    formatPercent,
+    isRevealed,
+    latestWage,
+    monthlyHours,
+    nextWage,
+    takeHome,
+    wageCalendar,
+    wageHistory,
+    weeklyHours,
+    withIncrease,
+} from "@/lib/salario-minimo";
+
+const LAW_278_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=343";
+const ET_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=6533";
+
+const YEAR = nextWage.year;
+// Si ya salió el decreto, todo lo de abajo se calcula con el nuevo; si no, con el vigente
+const current = latestWage();
+const previous = MINIMUM_WAGES.length > 1 ? MINIMUM_WAGES[MINIMUM_WAGES.length - 2] : undefined;
+const revealedIncrease = isRevealed && previous ? current.salary / previous.salary - 1 : 0;
+
+const calendar = wageCalendar(YEAR);
+const decreeDeadline = calendar[2].date;
+const history = wageHistory();
+const pastIncreases = history.filter(({ year }) => year < YEAR).slice(-4).reverse();
+const defaultIncrease = pastIncreases.find(({ year }) => year === YEAR - 2)?.increase ?? 0.1;
+
+const cost = employerCost(current);
+const costFull = employerCost(current, { exempt: false });
+const net = takeHome(current);
+const hours = monthlyHours(`${current.year}-12-31`);
+const dailyWage = current.salary / 30;
+const hourlyWage = current.salary / hours;
+const limit = transportLimit(current);
+const simulated = withIncrease(current, defaultIncrease);
+const simulatedCost = employerCost(simulated);
+
+// El tablero: los dígitos del mínimo nuevo, o signos de pregunta con la misma forma
+const boardText = isRevealed ? formatCOP(current.salary) : "$?.???.???";
+const longDate = (date: string) => formatLong(date).replace(/^\S+ /, "");
+const pct = (rate: number) => formatPercent(rate, 1);
+
+const groups = [
+    { key: "pago", label: "Lo que recibe el trabajador" },
+    { key: "seguridad", label: "Seguridad social y parafiscales" },
+    { key: "prestaciones", label: "Prestaciones, provisionadas cada mes" },
+] as const;
+
+const faqs = [
+    isRevealed
+        ? {
+              question: `¿Cuánto es el salario mínimo ${YEAR} en Colombia?`,
+              answer: `${formatCOP(current.salary)} al mes, un aumento de ${pct(revealedIncrease)} frente a ${previous?.year}. El auxilio de transporte quedó en ${formatCOP(current.transport)}. Lo fijaron el ${current.salaryDecree} y el ${current.transportDecree}.`,
+          }
+        : {
+              question: `¿Cuánto es el salario mínimo ${YEAR} en Colombia?`,
+              answer: `Todavía no se sabe. Se negocia en diciembre de ${YEAR - 1} y, si no hay acuerdo, el Gobierno lo decreta a más tardar el 30 de diciembre. Mientras tanto rige el de ${current.year}: ${formatCOP(current.salary)}.`,
+          },
+    {
+        question: `¿Cuándo se sabe el salario mínimo ${YEAR}?`,
+        answer: `La Ley 278 de 1996 fija el calendario: la Comisión de Concertación empieza el 1 de diciembre, tiene hasta el 15 para llegar a un acuerdo y, si no lo logra, el Gobierno lo fija por decreto a más tardar el 30 de diciembre. El nuevo valor rige desde el 1 de enero de ${YEAR}.`,
+    },
+    {
+        question: "¿Cómo se decide cuánto sube el salario mínimo?",
+        answer: "Si no hay acuerdo, el Gobierno debe tener en cuenta la meta de inflación del Banco de la República para el año siguiente, la productividad, la contribución de los salarios al ingreso nacional, el crecimiento del PIB y la inflación (IPC) del año que termina. Así lo dice el artículo 8 de la Ley 278 de 1996.",
+    },
+    {
+        question: `¿Cuánto es el salario mínimo ${current.year} con auxilio de transporte?`,
+        answer: `${formatCOP(current.salary + current.transport)}: ${formatCOP(current.salary)} de salario más ${formatCOP(current.transport)} de auxilio de transporte. Después de descontar el 4 % de salud y el 4 % de pensión, al trabajador le llegan ${formatCOP(net)}.`,
+    },
+    {
+        question: `¿Cuánto le cuesta a una empresa un empleado con el mínimo en ${current.year}?`,
+        answer: `Unos ${formatCOP(cost.monthly)} al mes y ${formatCOP(cost.yearly)} al año, contando salario, auxilio, seguridad social y prestaciones. Si la empresa no está exonerada de salud, SENA e ICBF, sube a ${formatCOP(costFull.monthly)} al mes. A eso se suma la dotación.`,
+    },
+    {
+        question: "¿Qué empresas no pagan salud, SENA ni ICBF?",
+        answer: "Las sociedades y las personas naturales con dos o más empleados no pagan el 8,5 % de salud, el 2 % del SENA ni el 3 % del ICBF por los trabajadores que ganan menos de diez salarios mínimos (art. 114-1 del Estatuto Tributario). La caja de compensación, la pensión y la ARL se pagan siempre.",
+    },
+    {
+        question: "¿Cuánto cuesta una empleada doméstica con el mínimo?",
+        answer: `Quien contrata a una sola persona como persona natural no está exonerado de salud, así que paga el 8,5 %, además de pensión, ARL, caja de compensación y prestaciones. El servicio doméstico no paga SENA ni ICBF. Con el mínimo de ${current.year} son unos ${formatCOP(costFull.monthly - (costFull.items.find((item) => item.key === "sena")?.value ?? 0) - (costFull.items.find((item) => item.key === "icbf")?.value ?? 0))} al mes.`,
+    },
+    {
+        question: "¿Qué cosas suben cuando sube el salario mínimo?",
+        answer: `El auxilio de transporte, la pensión mínima (que es igual al salario mínimo), el tope para recibir auxilio (dos mínimos, hoy ${formatCOP(limit)}), el salario integral (mínimo 13 salarios mínimos) y la base mínima de cotización de los independientes. Muchas multas y trámites ya no se calculan en salarios mínimos sino en UVT.`,
+    },
+    {
+        question: `¿Cuánto vale la hora y el día con el mínimo de ${current.year}?`,
+        answer: `El día vale ${formatCOP(dailyWage)} (salario ÷ 30). La hora ordinaria vale ${formatCOP(hourlyWage)} con la jornada de ${weeklyHours(`${current.year}-12-31`)} horas semanales de la Ley 2101 de 2021, que da ${hours} horas al mes.`,
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL(`/salario-minimo-${YEAR}`, site).href;
+const title = isRevealed
+    ? `Salario mínimo ${YEAR} en Colombia: ${formatCOP(current.salary)} (sube ${pct(revealedIncrease)})`
+    : `Salario mínimo ${YEAR} en Colombia: cuándo se sabe y cuánto quedaría`;
+const description = isRevealed
+    ? `El salario mínimo ${YEAR} quedó en ${formatCOP(current.salary)} y el auxilio de transporte en ${formatCOP(current.transport)}. Mira cuánto recibes y cuánto cuesta contratar a alguien con el mínimo.`
+    : `El salario mínimo ${YEAR} se define en diciembre. Mientras tanto: el de ${current.year} es ${formatCOP(current.salary)}, simula el aumento y mira cuánto cuesta contratar a alguien con el mínimo.`;
+const ogPath = `/og/salario-minimo-${YEAR}.png`;
+const image = new URL(ogPath, site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: SALARIO_MINIMO_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            about: { "@type": "Thing", name: `Salario mínimo en Colombia ${YEAR}` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: `Salario mínimo ${YEAR}`, item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+---
+
+<Layout
+    title={title}
+    description={description}
+    image={ogPath}
+    imageAlt={isRevealed
+        ? `Salario mínimo ${YEAR} en Colombia: ${formatCOP(current.salary)}`
+        : `Salario mínimo ${YEAR} en Colombia: todavía por definir`}
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="flag" aria-hidden="true"></div>
+
+    <main>
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Salario mínimo {YEAR}</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                {!isRevealed && <a href="#simulador">Simulador</a>}
+                <a href="#hoy">Mínimo {current.year}</a>
+                <a href="#costo">Costo de contratar</a>
+                <a href="#historico">Histórico</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero" data-revealed={isRevealed ? "" : undefined}>
+            <h1>Salario mínimo <span>{YEAR}</span></h1>
+
+            <div class="board" role="img" aria-label={isRevealed ? `${formatCOP(current.salary)} al mes` : "Valor todavía por definir"}>
+                <p class="board-label" aria-hidden="true">
+                    <span>Colombia · SMMLV {YEAR}</span>
+                    <span class="status">{isRevealed ? "Confirmado" : "Por definir"}</span>
+                </p>
+                <p class="flaps" aria-hidden="true" data-flaps>
+                    {
+                        [...boardText].map((char) => (
+                            <span class:list={["flap", { sep: char === "." || char === "$", unknown: char === "?" }]}>{char}</span>
+                        ))
+                    }
+                </p>
+                <p class="board-foot" aria-hidden="true">
+                    {
+                        isRevealed ? (
+                            <span>
+                                Sube {pct(revealedIncrease)} · Auxilio {formatCOP(current.transport)}
+                            </span>
+                        ) : (
+                            <span data-countdown>
+                                Plazo del decreto: {longDate(decreeDeadline)}
+                            </span>
+                        )
+                    }
+                </p>
+            </div>
+
+            {
+                isRevealed ? (
+                    <p class="lead">
+                        Ya es oficial: el salario mínimo de {YEAR} es <strong>{formatCOP(current.salary)}</strong>, un
+                        aumento de <strong>{pct(revealedIncrease)}</strong> frente a los {formatCOP(previous?.salary ?? 0)} de{" "}
+                        {previous?.year}. Con el auxilio de transporte de {formatCOP(current.transport)}, quien gana el mínimo
+                        recibe {formatCOP(current.salary + current.transport)} al mes.
+                    </p>
+                ) : (
+                    <p class="lead">
+                        <strong>Todavía no se sabe.</strong> El aumento se negocia en diciembre y, si empresarios y
+                        sindicatos no se ponen de acuerdo, el Gobierno lo decreta a más tardar el{" "}
+                        {longDate(decreeDeadline)}. Mientras tanto rige el de {current.year}:{" "}
+                        <strong>{formatCOP(current.salary)}</strong> más {formatCOP(current.transport)} de auxilio de
+                        transporte.
+                    </p>
+                )
+            }
+
+            <ol class="timeline" aria-label={`Calendario del salario mínimo ${YEAR}`}>
+                {
+                    calendar.map(({ date, label, text }) => (
+                        <li data-date={date} data-state={isRevealed ? "done" : undefined}>
+                            <time datetime={date}>{longDate(date)}</time>
+                            <strong>{label}</strong>
+                            <span>{text}</span>
+                        </li>
+                    ))
+                }
+            </ol>
+
+            <p class="updated">
+                Actualizado el <time datetime={SALARIO_MINIMO_REVIEW}>{longDate(SALARIO_MINIMO_REVIEW)} de {SALARIO_MINIMO_REVIEW.slice(0, 4)}</time>
+                · Según la <a href={LAW_278_URL} rel="noopener">Ley 278 de 1996</a>, el {current.salaryDecree} y el
+                {current.transportDecree}
+            </p>
+        </section>
+
+        {
+            !isRevealed && (
+                <section id="simulador" class="simulator" aria-labelledby="simulador-titulo">
+                    <header class="head">
+                        <h2 id="simulador-titulo">¿Y si sube…?</h2>
+                        <p>
+                            Mueve el porcentaje y mira cómo quedaría. Es una simulación, no un pronóstico: supone que el
+                            auxilio de transporte sube lo mismo que el salario.
+                        </p>
+                    </header>
+
+                    <div class="sim">
+                        <div class="sim-control">
+                            <label for="aumento">Aumento</label>
+                            <output for="aumento" class="sim-rate" data-rate>
+                                {pct(defaultIncrease)}
+                            </output>
+                            <input
+                                id="aumento"
+                                type="range"
+                                min="0"
+                                max="25"
+                                step="0.1"
+                                value={(Math.round(defaultIncrease * 1000) / 10).toString()}
+                                data-range
+                            />
+                            <div class="chips" role="group" aria-label="Aumentos de años anteriores">
+                                {pastIncreases.map(({ year, increase }) => (
+                                    <button type="button" class="chip" data-increase={increase} aria-pressed={year === YEAR - 2 ? "true" : "false"}>
+                                        Como {year} <b>{pct(increase)}</b>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <dl class="sim-results" aria-live="polite">
+                            <div class="sim-main">
+                                <dt>Salario mínimo {YEAR}</dt>
+                                <dd data-sim="salary">{formatCOP(simulated.salary)}</dd>
+                            </div>
+                            <div>
+                                <dt>Auxilio de transporte</dt>
+                                <dd data-sim="transport">{formatCOP(simulated.transport)}</dd>
+                            </div>
+                            <div>
+                                <dt>Recibe al mes</dt>
+                                <dd data-sim="net">{formatCOP(takeHome(simulated))}</dd>
+                            </div>
+                            <div>
+                                <dt>Le cuesta a la empresa</dt>
+                                <dd data-sim="cost">{formatCOP(simulatedCost.monthly)}</dd>
+                            </div>
+                            <div>
+                                <dt>Más que en {current.year}</dt>
+                                <dd data-sim="diff">+{formatCOP(simulated.salary - current.salary)}</dd>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+            )
+        }
+
+        <section id="hoy" aria-labelledby="hoy-titulo">
+            <header class="head">
+                <h2 id="hoy-titulo">El salario mínimo {current.year}</h2>
+                <p>
+                    {current.salaryDecree} y {current.transportDecree}. Rige del 1 de enero al 31 de diciembre de
+                    {" "}{current.year}.
+                </p>
+            </header>
+
+            <dl class="figures">
+                <div class="figure-main">
+                    <dt>Salario mínimo</dt>
+                    <dd>{formatCOP(current.salary)}</dd>
+                </div>
+                <div>
+                    <dt>Auxilio de transporte</dt>
+                    <dd>{formatCOP(current.transport)}</dd>
+                    <small>Para quien gana hasta {formatCOP(limit)}</small>
+                </div>
+                <div>
+                    <dt>Salario más auxilio</dt>
+                    <dd>{formatCOP(current.salary + current.transport)}</dd>
+                </div>
+                <div>
+                    <dt>Le llega al trabajador</dt>
+                    <dd>{formatCOP(net)}</dd>
+                    <small>Menos 4 % de salud y 4 % de pensión</small>
+                </div>
+                <div>
+                    <dt>Día de trabajo</dt>
+                    <dd>{formatCOP(dailyWage)}</dd>
+                </div>
+                <div>
+                    <dt>Hora ordinaria</dt>
+                    <dd>{formatCOP(hourlyWage)}</dd>
+                    <small>Jornada de {weeklyHours(`${current.year}-12-31`)} horas semanales</small>
+                </div>
+            </dl>
+        </section>
+
+        <section id="costo" aria-labelledby="costo-titulo">
+            <header class="head">
+                <h2 id="costo-titulo">Cuánto cuesta contratar a alguien con el mínimo</h2>
+                <p>
+                    Por cada peso de salario, la empresa pone <strong data-cost="factor">{cost.factor.toFixed(2).replace(".", ",")}</strong>.
+                    Las prestaciones se pagan en fechas distintas, pero aquí van mes a mes, como se provisionan.
+                </p>
+            </header>
+
+            <div class="cost">
+                <div class="cost-table">
+                    <label class="switch">
+                        <input type="checkbox" checked data-exempt />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Exonerada de salud, SENA e ICBF</span>
+                    </label>
+                    <p class="hint">
+                        Sociedades y personas naturales con dos o más empleados (<a href={ET_URL} rel="noopener">art. 114-1 del Estatuto Tributario</a>).
+                        Si contratas a una sola persona, apágalo.
+                    </p>
+
+                    <table class="amounts">
+                        <caption class="sr-only">Costo mensual de un empleado con el salario mínimo de {current.year}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Concepto</th>
+                                <th scope="col">Tarifa</th>
+                                <th scope="col">Al mes</th>
+                            </tr>
+                        </thead>
+                        {
+                            groups.map((group) => (
+                                <tbody>
+                                    <tr class="group-row">
+                                        <th scope="rowgroup" colspan="2">{group.label}</th>
+                                        <td class="money-cell" data-group={group.key}>
+                                            {formatCOP(group.key === "pago" ? cost.pay : group.key === "seguridad" ? cost.social : cost.benefits)}
+                                        </td>
+                                    </tr>
+                                    {cost.items
+                                        .filter((item) => item.group === group.key)
+                                        .map((item) => (
+                                            <tr data-item={item.key}>
+                                                <th scope="row">{item.label}</th>
+                                                <td data-rate>{item.rate}</td>
+                                                <td class="value-cell" data-value>{formatCOP(item.value)}</td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            ))
+                        }
+                        <tfoot>
+                            <tr>
+                                <th scope="row" colspan="2">Total al mes</th>
+                                <td class="money-cell" data-cost="monthly">{formatCOP(cost.monthly)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <aside class="cost-summary" aria-label="Resumen del costo">
+                    <p class="cost-label">Un empleado con el mínimo cuesta</p>
+                    <p class="cost-total"><span data-cost="monthly">{formatCOP(cost.monthly)}</span><small>al mes</small></p>
+                    <p class="cost-year"><span data-cost="yearly">{formatCOP(cost.yearly)}</span> al año</p>
+
+                    <div class="stack" aria-hidden="true">
+                        <span class="seg pago" style={`--w: ${cost.pay / cost.monthly}`} data-seg="pago"></span>
+                        <span class="seg seguridad" style={`--w: ${cost.social / cost.monthly}`} data-seg="seguridad"></span>
+                        <span class="seg prestaciones" style={`--w: ${cost.benefits / cost.monthly}`} data-seg="prestaciones"></span>
+                    </div>
+                    <ul class="legend">
+                        <li><i class="pago"></i>Salario y auxilio</li>
+                        <li><i class="seguridad"></i>Seguridad social</li>
+                        <li><i class="prestaciones"></i>Prestaciones</li>
+                    </ul>
+
+                    <p class="fine">
+                        Sin contar la dotación: quien gana hasta dos mínimos recibe tres entregas de ropa y calzado al año.
+                        ARL de riesgo I; en oficios de más riesgo la tarifa sube.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section id="historico" aria-labelledby="historico-titulo">
+            <header class="head">
+                <h2 id="historico-titulo">Cómo ha subido el mínimo</h2>
+                <p>Salario mínimo y auxilio de transporte de cada año, con el aumento frente al anterior.</p>
+            </header>
+
+            <table class="amounts history">
+                <caption class="sr-only">Histórico del salario mínimo en Colombia</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Año</th>
+                        <th scope="col">Aumento</th>
+                        <th scope="col">Auxilio</th>
+                        <th scope="col">Salario mínimo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {
+                        [...history].reverse().map(({ year, salary, transport, increase }) => (
+                            <tr>
+                                <th scope="row">{year}</th>
+                                <td>
+                                    <span class="growth" style={`--w: ${Math.min(1, increase / 0.25)}`}>
+                                        {pct(increase)}
+                                    </span>
+                                </td>
+                                <td>{formatCOP(transport)}</td>
+                                <td class="money-cell">{formatCOP(salary)}</td>
+                            </tr>
+                        ))
+                    }
+                    {
+                        !isRevealed && (
+                            <tr class="pending">
+                                <th scope="row">{YEAR}</th>
+                                <td>Por definir</td>
+                                <td>?</td>
+                                <td class="money-cell">$?.???.???</td>
+                            </tr>
+                        )
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Los valores son de referencia y no reemplazan la asesoría de un contador. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=Salario%20m%C3%ADnimo%20${YEAR}`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+                <a href={LAW_278_URL} rel="noopener">Ley 278 de 1996</a>,
+                <a href={ET_URL} rel="noopener">Estatuto Tributario</a>, {current.salaryDecree} y {current.transportDecree}.
+            </p>
+            <p>
+                También te sirve: <a href="/calculadora-prima">Calculadora de prima</a> ·
+                <a href="/liquidacion-laboral">Liquidación laboral</a> ·
+                <a href={`/festivos-colombia-${YEAR}`}>Festivos {YEAR}</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import { formatLong, todayInColombia } from "@/lib/festivos";
+    import { formatCOP } from "@/lib/prima";
+    import { employerCost, formatPercent, latestWage, takeHome, withIncrease } from "@/lib/salario-minimo";
+
+    const current = latestWage();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const today = todayInColombia();
+    const dayNumber = (date: string) => Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86_400_000;
+
+    // Calendario: qué ya pasó y qué sigue, con la fecha de hoy
+    const milestones = [...document.querySelectorAll<HTMLElement>(".timeline li")];
+    if (!document.querySelector(".hero[data-revealed]")) {
+        const next = milestones.find((item) => item.dataset.date! >= today);
+        for (const item of milestones) item.dataset.state = item.dataset.date! < today ? "done" : item === next ? "next" : "";
+
+        const countdown = document.querySelector<HTMLElement>("[data-countdown]");
+        const deadline = milestones[2]?.dataset.date;
+        if (countdown && deadline) {
+            const days = dayNumber(deadline) - dayNumber(today);
+            countdown.textContent =
+                days > 1
+                    ? `Faltan ${days} días para el decreto`
+                    : days === 1
+                      ? "El decreto sale a más tardar mañana"
+                      : days === 0
+                        ? "Hoy vence el plazo del decreto"
+                        : `Debió salir el ${formatLong(deadline).replace(/^\S+ /, "")}`;
+        }
+
+        // Los signos de pregunta giran de vez en cuando, como un tablero que no se decide
+        const unknowns = [...document.querySelectorAll<HTMLElement>(".flap.unknown")];
+        if (!reducedMotion && unknowns.length) {
+            const spin = (flap: HTMLElement) => {
+                let turns = 4 + Math.floor(Math.random() * 6);
+                const tick = () => {
+                    flap.classList.remove("turn");
+                    void flap.offsetWidth;
+                    flap.classList.add("turn");
+                    flap.textContent = turns > 0 ? String(Math.floor(Math.random() * 10)) : "?";
+                    if (turns-- > 0) setTimeout(tick, 70);
+                };
+                tick();
+            };
+            unknowns.forEach((flap, index) => setTimeout(() => spin(flap), 300 + index * 90));
+            setInterval(() => spin(unknowns[Math.floor(Math.random() * unknowns.length)]), 1400);
+        }
+    }
+
+    // Simulador del aumento
+    const range = document.querySelector<HTMLInputElement>("[data-range]");
+    if (range) {
+        const chips = [...document.querySelectorAll<HTMLButtonElement>(".chip")];
+        const set = (key: string, text: string) => {
+            const node = document.querySelector(`[data-sim="${key}"]`);
+            if (node) node.textContent = text;
+        };
+        const update = (): void => {
+            const increase = Number(range.value) / 100;
+            const wage = withIncrease(current, increase);
+            document.querySelector("[data-rate]")!.textContent = formatPercent(increase, 1);
+            range.style.setProperty("--p", String(Number(range.value) / Number(range.max)));
+            set("salary", formatCOP(wage.salary));
+            set("transport", formatCOP(wage.transport));
+            set("net", formatCOP(takeHome(wage)));
+            set("cost", formatCOP(employerCost(wage).monthly));
+            set("diff", `+${formatCOP(wage.salary - current.salary)}`);
+            for (const chip of chips) {
+                const value = Math.round(Number(chip.dataset.increase) * 1000) / 10;
+                chip.setAttribute("aria-pressed", String(value === Number(range.value)));
+            }
+        };
+        range.addEventListener("input", update);
+        for (const chip of chips) {
+            chip.addEventListener("click", () => {
+                range.value = String(Math.round(Number(chip.dataset.increase) * 1000) / 10);
+                update();
+            });
+        }
+        update();
+    }
+
+    // Costo de contratar, con o sin exoneración
+    const exempt = document.querySelector<HTMLInputElement>("[data-exempt]");
+    exempt?.addEventListener("change", () => {
+        const cost = employerCost(current, { exempt: exempt.checked });
+        for (const item of cost.items) {
+            const row = document.querySelector(`[data-item="${item.key}"]`);
+            if (!row) continue;
+            row.querySelector("[data-rate]")!.textContent = item.rate;
+            row.querySelector("[data-value]")!.textContent = formatCOP(item.value);
+        }
+        const groups = { pago: cost.pay, seguridad: cost.social, prestaciones: cost.benefits };
+        for (const [key, value] of Object.entries(groups)) {
+            document.querySelector(`[data-group="${key}"]`)!.textContent = formatCOP(value);
+            document.querySelector<HTMLElement>(`[data-seg="${key}"]`)?.style.setProperty("--w", String(value / cost.monthly));
+        }
+        document.querySelectorAll('[data-cost="monthly"]').forEach((node) => (node.textContent = formatCOP(cost.monthly)));
+        document.querySelector('[data-cost="yearly"]')!.textContent = formatCOP(cost.yearly);
+        document.querySelector('[data-cost="factor"]')!.textContent = cost.factor.toFixed(2).replace(".", ",");
+    });
+</script>
+
+<style>
+    main {
+        --red: #c42a1a;
+        --red-ink: #a32113;
+        --red-soft: #f9e0d9;
+        --sheet: #fffdf9;
+        --board: #15191e;
+        --flap: #22282f;
+        --amber: #fcd116;
+        --gutter: clamp(16px, 4vw, 40px);
+
+        width: min(1200px, 100%);
+        margin: auto;
+        padding: 0 var(--gutter) clamp(3rem, 6vw, 5rem);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    a {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    .flag {
+        height: 8px;
+        background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%);
+    }
+
+    /* Encabezado */
+    .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 20px 0;
+    }
+
+    .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .crumbs li + li::before {
+        margin-right: 10px;
+        color: var(--line-strong);
+        content: "/";
+    }
+
+    .crumbs a {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .monogram {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .toc {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .toc a {
+        flex: none;
+        padding: 8px 13px;
+        border-radius: 8px;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+    .toc a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    /* Portada */
+    .hero {
+        padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+
+    h1 {
+        font-size: clamp(2.9rem, 1.4rem + 5.6vw, 6rem);
+        font-weight: 800;
+        letter-spacing: -0.055em;
+        line-height: 0.9;
+    }
+
+    h1 span {
+        color: var(--red);
+    }
+
+    /* Tablero de aeropuerto */
+    .board {
+        width: fit-content;
+        max-width: 100%;
+        margin-top: clamp(1.75rem, 4vw, 2.5rem);
+        padding: clamp(14px, 2.5vw, 24px);
+        border-radius: 18px;
+        background: var(--board);
+        box-shadow:
+            inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+            0 24px 48px -24px rgba(21, 25, 30, 0.55);
+    }
+
+    .board-label,
+    .board-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: clamp(0.7rem, 0.6rem + 0.3vw, 0.82rem);
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .board-foot {
+        margin-top: 14px;
+        color: var(--amber);
+    }
+
+    .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--amber);
+    }
+
+    .status::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: blink 1.4s steps(2, jump-none) infinite;
+        content: "";
+    }
+
+    [data-revealed] .status {
+        color: #7ee0a1;
+    }
+
+    [data-revealed] .status::before {
+        animation: none;
+    }
+
+    .flaps {
+        display: flex;
+        gap: clamp(3px, 0.6vw, 6px);
+        margin-top: 14px;
+        perspective: 400px;
+    }
+
+    .flap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: clamp(26px, 6.4vw, 72px);
+        height: clamp(42px, 10vw, 108px);
+        border-radius: clamp(4px, 0.8vw, 8px);
+        background: linear-gradient(var(--flap) 0 49.5%, #1a1f25 49.5% 50.5%, var(--flap) 50.5%);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(1.7rem, 0.6rem + 5.4vw, 4.8rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .flap::after {
+        position: absolute;
+        inset: 50% 0 auto;
+        height: 1px;
+        background: rgba(0, 0, 0, 0.55);
+        content: "";
+    }
+
+    .flap.sep {
+        width: auto;
+        min-width: clamp(12px, 2.4vw, 28px);
+        background: none;
+        box-shadow: none;
+        color: rgba(255, 255, 255, 0.55);
+    }
+
+    .flap.sep::after {
+        display: none;
+    }
+
+    .flap.unknown {
+        color: var(--amber);
+    }
+
+    .flap.turn {
+        animation: flip 70ms ease-out;
+    }
+
+    @keyframes flip {
+        from {
+            transform: rotateX(-70deg);
+        }
+    }
+
+    @keyframes blink {
+        50% {
+            opacity: 0.2;
+        }
+    }
+
+    .lead {
+        max-width: 60ch;
+        margin-top: 28px;
+        color: var(--text);
+        font-size: clamp(1.08rem, 1rem + 0.35vw, 1.25rem);
+        line-height: 1.6;
+    }
+
+    .lead strong {
+        color: var(--ink);
+    }
+
+    /* Calendario */
+    .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: clamp(2rem, 4vw, 2.75rem);
+    }
+
+    .timeline li {
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        padding-top: 16px;
+        border-top: 3px solid var(--line-strong);
+    }
+
+    .timeline time {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .timeline strong {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+    }
+
+    .timeline span {
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+
+    .timeline li[data-state="done"] {
+        border-top-color: var(--ink);
+    }
+
+    .timeline li[data-state="next"] {
+        border-top-color: var(--red);
+    }
+
+    .timeline li[data-state="next"] time {
+        color: var(--red-ink);
+    }
+
+    .timeline li[data-state="next"] time::after {
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--red-soft);
+        color: var(--red-ink);
+        font-size: 0.72rem;
+        text-transform: none;
+        content: "Lo que sigue";
+    }
+
+    .updated {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .updated a {
+        color: inherit;
+    }
+
+    /* Secciones */
+    section:not(.hero) {
+        margin-top: clamp(4.5rem, 10vw, 8rem);
+        scroll-margin-top: 24px;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 1.3rem + 2.4vw, 3.1rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .head {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 14px 48px;
+        align-items: end;
+        margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+    }
+
+    .head.stacked {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .head p {
+        max-width: 46ch;
+        font-size: 1.05rem;
+    }
+
+    .head a,
+    .head strong {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    /* Simulador */
+    .sim {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+        padding-top: clamp(1.5rem, 3vw, 2rem);
+        border-top: 2px solid var(--ink);
+    }
+
+    .sim-control {
+        display: grid;
+        gap: 14px;
+    }
+
+    .sim-control label {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .sim-rate {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(3rem, 2rem + 4vw, 5rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 0.9;
+    }
+
+    input[type="range"] {
+        --p: 0.4;
+
+        width: 100%;
+        height: 32px;
+        background: transparent;
+        cursor: pointer;
+        appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--ink) calc(var(--p) * 100%), var(--line-strong) 0);
+    }
+
+    input[type="range"]::-moz-range-track {
+        height: 6px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--ink) calc(var(--p) * 100%), var(--line-strong) 0);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 26px;
+        height: 26px;
+        margin-top: -10px;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background: #fff;
+        appearance: none;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border: 3px solid var(--ink);
+        border-radius: 50%;
+        background: #fff;
+    }
+
+    input[type="range"]:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 4px;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .chip {
+        padding: 8px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition:
+            background 150ms ease,
+            color 150ms ease;
+    }
+
+    .chip b {
+        color: var(--ink);
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+    }
+
+    .chip[aria-pressed="true"] {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: #fff;
+    }
+
+    .chip[aria-pressed="true"] b {
+        color: #fff;
+    }
+
+    .sim-results {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 32px;
+    }
+
+    .sim-results div {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .sim-results .sim-main {
+        grid-column: 1 / -1;
+        padding-top: 0;
+    }
+
+    .sim-results dt,
+    .figures dt {
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .sim-results dd,
+    .figures dd {
+        margin-top: 4px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.3rem, 1.1rem + 0.7vw, 1.7rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .sim-results .sim-main dd {
+        font-size: clamp(2.4rem, 1.6rem + 3vw, 3.8rem);
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    /* El mínimo de hoy */
+    .figures {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 2px solid var(--ink);
+    }
+
+    .figures div {
+        display: grid;
+        align-content: start;
+        padding: 22px 24px 22px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .figures .figure-main dd {
+        color: var(--red);
+    }
+
+    .figures small {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.82rem;
+    }
+
+    /* Costo de contratar */
+    .cost {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .cost-table {
+        display: grid;
+        gap: 10px;
+    }
+
+    .hint {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .hint a {
+        color: inherit;
+    }
+
+    .switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        cursor: pointer;
+    }
+
+    .switch input {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .track {
+        position: relative;
+        flex: none;
+        width: 46px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--line-strong);
+        transition: background 200ms ease;
+    }
+
+    .track::after {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(21, 25, 30, 0.25);
+        transition: transform 200ms var(--ease-out);
+        content: "";
+    }
+
+    .switch input:checked + .track {
+        background: var(--ink);
+    }
+
+    .switch input:checked + .track::after {
+        transform: translateX(18px);
+    }
+
+    .switch input:focus-visible + .track {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .amounts {
+        margin-top: 14px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .amounts thead th {
+        padding: 12px 12px 12px 0;
+        border-bottom: 1px solid var(--line-strong);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .amounts tbody th,
+    .amounts tbody td,
+    .amounts tfoot th,
+    .amounts tfoot td {
+        padding: 12px 12px 12px 0;
+        border-bottom: 1px solid var(--line);
+        font-variant-numeric: tabular-nums;
+        text-align: left;
+    }
+
+    .amounts tbody th {
+        color: var(--ink);
+        font-weight: 500;
+    }
+
+    .amounts tbody td {
+        color: var(--text-soft);
+    }
+
+    .amounts thead th:last-child,
+    .amounts tbody td:last-child,
+    .amounts tfoot td:last-child {
+        padding-right: 0;
+        text-align: right;
+    }
+
+    .amounts .group-row th {
+        padding-top: 22px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-weight: 700;
+    }
+
+    .amounts .group-row td {
+        padding-top: 22px;
+    }
+
+    .amounts tbody td.value-cell {
+        color: var(--ink);
+    }
+
+    .amounts td.money-cell {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .amounts tfoot th,
+    .amounts tfoot td {
+        border-top: 2px solid var(--ink);
+        border-bottom: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .amounts tfoot td.money-cell {
+        color: var(--red);
+        font-size: 1.4rem;
+    }
+
+    .cost-summary {
+        position: sticky;
+        top: 24px;
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 18px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .cost-label {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.9rem;
+    }
+
+    .cost-total {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        margin-top: 6px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.3rem, 1.8rem + 1.8vw, 3.2rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .cost-total small {
+        color: rgba(255, 255, 255, 0.6);
+        font-family: var(--font-body, inherit);
+        font-size: 0.95rem;
+        font-weight: 500;
+        letter-spacing: 0;
+    }
+
+    .cost-year {
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .cost-year span {
+        color: var(--amber);
+        font-weight: 700;
+    }
+
+    .stack {
+        display: flex;
+        gap: 3px;
+        height: 14px;
+        margin-top: 24px;
+    }
+
+    .seg {
+        flex: var(--w) 1 0;
+        border-radius: 4px;
+        transition: flex-grow 300ms var(--ease-out);
+    }
+
+    .pago {
+        background: #fff;
+    }
+
+    .seguridad {
+        background: var(--amber);
+    }
+
+    .prestaciones {
+        background: #e0705f;
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 12px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.82rem;
+    }
+
+    .legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+    }
+
+    .fine {
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    /* Histórico */
+    .history {
+        margin-top: 0;
+    }
+
+    .history thead th:nth-child(2) {
+        width: 40%;
+    }
+
+    .growth {
+        position: relative;
+        display: inline-block;
+        min-width: 4.5em;
+        padding-left: calc(var(--w) * min(160px, 22vw) + 10px);
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .growth::before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: calc(var(--w) * min(160px, 22vw));
+        height: 10px;
+        border-radius: 3px;
+        background: var(--red);
+        transform: translateY(-50%);
+        content: "";
+    }
+
+    .history .pending th,
+    .history .pending td {
+        color: var(--muted);
+    }
+
+    .history .pending td.money-cell {
+        color: var(--red);
+    }
+
+    /* Preguntas */
+    .faq {
+        display: grid;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+        gap: 0 clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .faq .head {
+        position: sticky;
+        top: 24px;
+    }
+
+    details {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .faq-list details:first-child {
+        border-top: 2px solid var(--ink);
+    }
+
+    .faq-list summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.12rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .faq-list summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .faq-list summary::after {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        background:
+            linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat,
+            linear-gradient(var(--ink), var(--ink)) center / 2px 100% no-repeat;
+        transition: transform 250ms var(--ease-out);
+        content: "";
+    }
+
+    .faq-list details[open] summary::after {
+        transform: rotate(45deg);
+    }
+
+    .faq-list details p {
+        max-width: 62ch;
+        padding-bottom: 22px;
+    }
+
+    /* Pie */
+    .colophon {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 40px;
+        margin-top: clamp(5rem, 10vw, 8rem);
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+    }
+
+    .colophon p {
+        max-width: 70ch;
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    .colophon a {
+        color: var(--ink);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .status::before {
+            animation: none;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .sim,
+        .cost,
+        .faq {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .cost-summary,
+        .faq .head {
+            position: static;
+        }
+
+        .timeline {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px 16px;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .head {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .toc {
+            width: 100%;
+        }
+
+        .figures {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .history thead th:nth-child(3),
+        .history td:nth-child(3) {
+            display: none;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .sim-results {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>

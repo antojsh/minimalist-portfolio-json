@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { SALARIO_MINIMO_REVIEW, nextWage } from "@/lib/salario-minimo";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
@@ -14,6 +15,7 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     })),
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
+    { path: `/salario-minimo-${nextWage.year}`, changefreq: "weekly", priority: "0.9", lastmod: SALARIO_MINIMO_REVIEW },
 ];
 
 export const GET: APIRoute = ({ site }) => {

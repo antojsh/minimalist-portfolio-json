@@ -14,8 +14,20 @@ export interface MinimumWage {
     transportDecree: string;
 }
 
-// Agrega aquí el año nuevo cuando salgan los decretos de diciembre
-export const MINIMUM_WAGES: MinimumWage[] = [
+/**
+ * Salario mínimo del año que viene. Mientras sea null, la página /salario-minimo-2027 muestra
+ * que todavía no se sabe. Cuando salgan los decretos de diciembre, llena estos valores y listo:
+ * la página, la prima y la liquidación lo empiezan a usar solos.
+ */
+export const NEXT_MINIMUM_WAGE = {
+    year: 2027,
+    salary: null as number | null,
+    transport: null as number | null,
+    salaryDecree: "",
+    transportDecree: "",
+};
+
+const KNOWN_WAGES: MinimumWage[] = [
     {
         year: 2026,
         salary: 1_750_905,
@@ -24,6 +36,13 @@ export const MINIMUM_WAGES: MinimumWage[] = [
         transportDecree: "Decreto 1470 de 2025",
     },
 ];
+
+export const isNextWageKnown = (next = NEXT_MINIMUM_WAGE): next is MinimumWage =>
+    next.salary != null && next.transport != null;
+
+export const MINIMUM_WAGES: MinimumWage[] = isNextWageKnown(NEXT_MINIMUM_WAGE)
+    ? [...KNOWN_WAGES, NEXT_MINIMUM_WAGE]
+    : KNOWN_WAGES;
 
 export const getMinimumWage = (year: number) =>
     MINIMUM_WAGES.find((wage) => wage.year === year) ?? MINIMUM_WAGES[MINIMUM_WAGES.length - 1];

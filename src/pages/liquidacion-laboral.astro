@@ -1,0 +1,1933 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { basics } from "@cv";
+import { MONTHS_SHORT, formatLong } from "@/lib/festivos";
+import {
+    CONTRACT_TYPES,
+    ENDINGS,
+    LIQUIDACION_REVIEW,
+    calculateLiquidacion,
+    formatCOP,
+    formatNumber,
+    isCompensated,
+    type Ending,
+} from "@/lib/liquidacion";
+import { getMinimumWage, transportLimit } from "@/lib/prima";
+
+const CST_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=199983";
+const LAW_50_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=281";
+const LAW_2466_URL = "https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=260676";
+
+const TODAY = LIQUIDACION_REVIEW;
+const YEAR = Number(TODAY.slice(0, 4));
+const wage = getMinimumWage(YEAR);
+const limit = transportLimit(wage);
+
+// Ejemplo inicial: tres años y medio con el mínimo, despido sin justa causa
+const example = {
+    contract: "indefinido",
+    ending: "despido-sin-justa-causa",
+    start: `${YEAR - 3}-05-02`,
+    end: TODAY,
+    salary: wage.salary,
+    transport: true,
+    unpaidSalaryDays: Number(TODAY.slice(8, 10)),
+} as const;
+const result = calculateLiquidacion(example);
+
+// Indemnización con el mínimo, por años de servicio
+const compensationRows = [1, 2, 3, 5, 10, 15, 20].map((years) => {
+    const low = years <= 1 ? 30 : 30 + 20 * (years - 1);
+    const high = years <= 1 ? 20 : 20 + 15 * (years - 1);
+    return { years, low, high, value: Math.round((wage.salary / 30) * low) };
+});
+
+type Mark = "si" | "no" | "a-veces";
+const concepts = ["Salario pendiente", "Cesantías e intereses", "Prima", "Vacaciones", "Indemnización"];
+const matrix: { ending: Ending; label: string; marks: Mark[] }[] = ENDINGS.map(({ value, label }) => ({
+    ending: value,
+    label,
+    marks: ["si", "si", "si", "si", isCompensated(value) ? "si" : value === "mutuo-acuerdo" ? "a-veces" : "no"],
+}));
+
+const longDate = (date: string) => `${formatLong(date).replace(/^\S+ /, "")} de ${date.slice(0, 4)}`;
+
+const faqs = [
+    {
+        question: "¿Qué me deben pagar en la liquidación?",
+        answer: "Siempre: el salario que te deban, las cesantías y sus intereses del año en curso, la prima del semestre en curso y las vacaciones que no alcanzaste a disfrutar. Si te despidieron sin justa causa, además la indemnización del artículo 64 del Código Sustantivo del Trabajo.",
+    },
+    {
+        question: "¿Si renuncio me pagan liquidación?",
+        answer: "Sí. Renunciar no te quita las prestaciones sociales: te pagan salario pendiente, cesantías, intereses, prima y vacaciones proporcionales al tiempo trabajado. Lo único que no recibes es la indemnización, que es solo para despidos sin justa causa.",
+    },
+    {
+        question: "¿Cuánto es la indemnización por despido sin justa causa?",
+        answer: `En un contrato indefinido, si ganas menos de 10 salarios mínimos: 30 días de salario por el primer año y 20 días por cada año siguiente, en proporción. Si ganas 10 mínimos o más: 20 días por el primer año y 15 por cada año siguiente. Con el mínimo de ${YEAR} y tres años de trabajo son 70 días, ${formatCOP((wage.salary / 30) * 70)}. La reforma laboral de 2025 no cambió estos valores.`,
+    },
+    {
+        question: "¿Cómo se indemniza un contrato a término fijo?",
+        answer: "Con los salarios del tiempo que faltaba para que se venciera el contrato. Si te despiden sin justa causa cuando faltan cuatro meses, te deben cuatro meses de salario. En el contrato por obra o labor es el tiempo que faltaba para terminar la obra, y nunca menos de 15 días.",
+    },
+    {
+        question: "¿Cuándo me tienen que pagar la liquidación?",
+        answer: "El día en que termina el contrato. La ley no da un plazo adicional. Si el empleador no paga y no tiene una razón de buena fe, el artículo 65 lo obliga a pagar un día de salario por cada día de retraso, hasta por 24 meses; después corren intereses moratorios. Si ganas el mínimo, esa sanción no tiene el tope de 24 meses.",
+    },
+    {
+        question: "¿Cómo se calculan las cesantías en la liquidación?",
+        answer: "Salario más auxilio de transporte, por los días trabajados en el año de la terminación, dividido entre 360. Las cesantías de años anteriores no van en la liquidación porque el empleador debió consignarlas en tu fondo antes del 15 de febrero; si no lo hizo, te las debe pagar directamente.",
+    },
+    {
+        question: "¿Cuánto son los intereses de las cesantías?",
+        answer: "El 12 % anual sobre las cesantías, en proporción a los días trabajados: cesantías × días × 0,12 ÷ 360. Te los paga directamente el empleador, no el fondo.",
+    },
+    {
+        question: "¿Cómo se pagan las vacaciones que no tomé?",
+        answer: "Al terminar el contrato se compensan en dinero por año y por fracción de año (art. 189). Por cada año trabajado ganas 15 días hábiles; el valor de cada día es el salario mensual dividido entre 30. No incluye el auxilio de transporte ni las horas extra.",
+    },
+    {
+        question: "¿Me descuentan salud y pensión en la liquidación?",
+        answer: "Solo sobre el salario pendiente: 4 % para salud y 4 % para pensión, más el Fondo de Solidaridad Pensional si ganas 4 mínimos o más. Las cesantías, los intereses, la prima y la indemnización no pagan aportes. La indemnización y otros pagos sí pueden tener retención en la fuente si tus ingresos son altos.",
+    },
+    {
+        question: "¿Qué pasa si me despiden en el periodo de prueba?",
+        answer: "Cualquiera de los dos puede terminar el contrato sin preaviso y sin indemnización. Igual te deben pagar el salario y las prestaciones por los días trabajados.",
+    },
+    {
+        question: "¿Qué es el despido indirecto?",
+        answer: "Cuando renuncias porque el empleador incumplió sus obligaciones: no te paga, te acosa o te cambia las condiciones de forma grave. Debes decir el motivo por escrito en la carta de renuncia. Si un juez te da la razón, se indemniza igual que un despido sin justa causa.",
+    },
+    {
+        question: "¿Me pueden despedir si estoy embarazada o incapacitado?",
+        answer: "No sin permiso del Ministerio del Trabajo. Las trabajadoras en embarazo o lactancia y quienes tienen una condición de salud que les dificulta trabajar tienen estabilidad laboral reforzada. Un despido sin ese permiso puede ser anulado por un juez, con reintegro y una indemnización adicional. Busca asesoría antes de firmar.",
+    },
+    {
+        question: "¿Tengo que firmar el paz y salvo?",
+        answer: "No estás obligado a firmar si no estás de acuerdo con los valores. Firmar la liquidación tampoco te hace perder derechos que la ley considera irrenunciables, pero es mejor revisar cada cifra antes. Puedes dejar constancia escrita de tu desacuerdo.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const pageUrl = new URL("/liquidacion-laboral", site).href;
+const title = `Calculadora de liquidación laboral ${YEAR}: cesantías, prima, vacaciones e indemnización`;
+const description = `Calcula tu liquidación si renunciaste o te despidieron: salario pendiente, cesantías, intereses, prima, vacaciones e indemnización, con el detalle de cada cuenta.`;
+const image = new URL("/og/liquidacion-laboral.png", site).href;
+const personId = new URL("/#person", site).href;
+
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: title,
+            description,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": new URL("/#website", site).href },
+            author: { "@id": personId },
+            dateModified: LIQUIDACION_REVIEW,
+            primaryImageOfPage: { "@type": "ImageObject", url: image, width: 1200, height: 630 },
+            about: { "@type": "Thing", name: "Liquidación de contrato de trabajo en Colombia" },
+            mainEntity: { "@id": `${pageUrl}#calculadora` },
+            breadcrumb: { "@id": `${pageUrl}#breadcrumb` },
+        },
+        {
+            "@type": "WebApplication",
+            "@id": `${pageUrl}#calculadora`,
+            name: "Calculadora de liquidación laboral",
+            url: pageUrl,
+            applicationCategory: "FinanceApplication",
+            operatingSystem: "Web",
+            inLanguage: "es-CO",
+            isAccessibleForFree: true,
+            offers: { "@type": "Offer", price: 0, priceCurrency: "COP" },
+            author: { "@id": personId },
+        },
+        {
+            "@type": "FAQPage",
+            "@id": `${pageUrl}#preguntas`,
+            mainEntity: faqs.map(({ question, answer }) => ({
+                "@type": "Question",
+                name: question,
+                acceptedAnswer: { "@type": "Answer", text: answer },
+            })),
+        },
+        {
+            "@type": "BreadcrumbList",
+            "@id": `${pageUrl}#breadcrumb`,
+            itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Inicio", item: site },
+                { "@type": "ListItem", position: 2, name: "Liquidación laboral", item: pageUrl },
+            ],
+        },
+        {
+            "@type": "Person",
+            "@id": personId,
+            name: basics.name,
+            url: site,
+            sameAs: basics.profiles.map(({ url }) => url),
+        },
+    ],
+};
+
+const markLabel: Record<Mark, string> = { si: "Sí", no: "No", "a-veces": "Si lo pactan" };
+---
+
+<Layout
+    title={title}
+    description={description}
+    image="/og/liquidacion-laboral.png"
+    imageAlt="Acta de liquidación con salario, cesantías, intereses, prima, vacaciones e indemnización"
+    imageWidth={1200}
+    imageHeight={630}
+    canvas={false}
+    jsonLd={jsonLd}
+>
+    <div class="flag" aria-hidden="true"></div>
+
+    <main>
+        <header class="topbar">
+            <nav aria-label="Ruta de navegación">
+                <ol class="crumbs">
+                    <li>
+                        <a href="/"><span class="monogram" aria-hidden="true">AS</span>antojsh.dev</a>
+                    </li>
+                    <li aria-current="page">Liquidación laboral</li>
+                </ol>
+            </nav>
+            <nav class="toc" aria-label="En esta página">
+                <a href="#calculadora">Calculadora</a>
+                <a href="#que-te-pagan">Qué te pagan</a>
+                <a href="#indemnizacion">Indemnización</a>
+                <a href="#plazos">Plazos</a>
+                <a href="#preguntas">Preguntas</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>Calculadora de <span>liquidación</span> laboral</h1>
+            <p class="lead">
+                Renunciaste o te despidieron: te deben <strong>salario pendiente, cesantías, intereses, prima y
+                vacaciones</strong>, y si el despido fue sin justa causa, también una <strong>indemnización</strong>.
+                Llena tus datos y revisa cada cuenta antes de firmar.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={LIQUIDACION_REVIEW}>{longDate(LIQUIDACION_REVIEW)}</time>
+                · Según el <a href={CST_URL} rel="noopener">Código Sustantivo del Trabajo</a>, la
+                <a href={LAW_50_URL} rel="noopener">Ley 50 de 1990</a> y la
+                <a href={LAW_2466_URL} rel="noopener">Ley 2466 de 2025</a>
+            </p>
+        </section>
+
+        <section id="calculadora" class="calculator" aria-labelledby="calculadora-titulo">
+            <h2 id="calculadora-titulo" class="sr-only">Calcula tu liquidación</h2>
+
+            <form class="form" data-form>
+                <fieldset class="group">
+                    <legend>Tu contrato</legend>
+                    <div class="options three">
+                        {
+                            CONTRACT_TYPES.map(({ value, label, hint }) => (
+                                <label class="option">
+                                    <input type="radio" name="contrato" value={value} checked={value === example.contract} />
+                                    <span>
+                                        <strong>{label}</strong>
+                                        <small>{hint}</small>
+                                    </span>
+                                </label>
+                            ))
+                        }
+                    </div>
+                    <div class="pair">
+                        <label class="small-field">
+                            Primer día de trabajo
+                            <input type="date" name="inicio" value={example.start} required />
+                        </label>
+                        <label class="small-field">
+                            Último día de trabajo
+                            <input type="date" name="fin" value={example.end} required />
+                        </label>
+                    </div>
+                    <label class="small-field" data-agreed hidden>
+                        <span data-agreed-label>Fecha en que vencía el contrato</span>
+                        <input type="date" name="pactado" />
+                        <small class="hint" data-agreed-hint>Con ella se calcula la indemnización si te despidieron antes.</small>
+                    </label>
+                </fieldset>
+
+                <fieldset class="group">
+                    <legend>¿Cómo terminó?</legend>
+                    <div class="endings">
+                        {
+                            ENDINGS.map(({ value, label, hint }) => (
+                                <label class="ending" data-ending={value}>
+                                    <input type="radio" name="terminacion" value={value} checked={value === example.ending} />
+                                    <span>
+                                        <strong>{label}</strong>
+                                        <small>{hint}</small>
+                                    </span>
+                                </label>
+                            ))
+                        }
+                    </div>
+                </fieldset>
+
+                <fieldset class="group">
+                    <legend>Tu salario</legend>
+                    <div class="money">
+                        <span aria-hidden="true">$</span>
+                        <input
+                            id="salario"
+                            name="salario"
+                            type="text"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            value={formatNumber(wage.salary)}
+                            aria-label="Salario mensual"
+                            aria-describedby="salario-ayuda"
+                        />
+                    </div>
+                    <p class="hint" id="salario-ayuda">
+                        Salario básico mensual, antes de descuentos.
+                        <button type="button" class="link" data-minimum>Usar el mínimo ({formatCOP(wage.salary)})</button>
+                    </p>
+                    <label class="switch">
+                        <input type="checkbox" name="auxilio" checked />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Recibía auxilio de transporte</span>
+                    </label>
+                    <p class="hint" data-transport-hint>Le corresponde a quien gana hasta {formatCOP(limit)}.</p>
+                    <label class="switch">
+                        <input type="checkbox" name="integral" />
+                        <span class="track" aria-hidden="true"></span>
+                        <span>Tenía salario integral</span>
+                    </label>
+                    <p class="hint">
+                        Mínimo 13 salarios mínimos ({formatCOP(wage.salary * 13)}). Ya incluye cesantías, intereses y
+                        prima.
+                    </p>
+                </fieldset>
+
+                <details class="more">
+                    <summary>Horas extra, comisiones y otros pagos</summary>
+                    <div class="more-body">
+                        <label class="small-field">
+                            Horas extra y trabajo en dominicales o festivos
+                            <span class="money compact">
+                                <span aria-hidden="true">$</span>
+                                <input name="extras" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                            </span>
+                            <small class="hint">Promedio mensual del último año. No cuenta para vacaciones.</small>
+                        </label>
+                        <label class="small-field">
+                            Comisiones, recargo nocturno y otros pagos que son salario
+                            <span class="money compact">
+                                <span aria-hidden="true">$</span>
+                                <input name="variables" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                            </span>
+                            <small class="hint">Promedio mensual del último año. Bonos ocasionales y viáticos no cuentan.</small>
+                        </label>
+                    </div>
+                </details>
+
+                <details class="more">
+                    <summary>Salario y vacaciones pendientes</summary>
+                    <div class="more-body">
+                        <label class="small-field">
+                            Días de salario que te deben
+                            <input name="pendientes" type="number" min="0" max="31" inputmode="numeric" />
+                            <small class="hint">Calculado desde el inicio del mes. Cámbialo si te pagan por quincena.</small>
+                        </label>
+                        <label class="small-field">
+                            Días de vacaciones pendientes
+                            <input name="vacaciones" type="number" min="0" step="0.01" inputmode="decimal" />
+                            <small class="hint" data-vacation-hint>
+                                Calculado con el año de servicio en curso, suponiendo que disfrutaste las de cada año
+                                cumplido. Si te deben periodos anteriores, súmalos (15 días hábiles por año).
+                            </small>
+                        </label>
+                        <label class="small-field">
+                            Días de licencia no remunerada este año
+                            <input name="licencias" type="number" min="0" max="360" inputmode="numeric" placeholder="0" />
+                            <small class="hint">Esos días no suman. Las incapacidades y las vacaciones sí.</small>
+                        </label>
+                        <label class="check">
+                            <input type="checkbox" name="anteriores" />
+                            <span>No me consignaron las cesantías del año pasado</span>
+                        </label>
+                    </div>
+                </details>
+            </form>
+
+            <div class="act" id="resultado" data-act>
+                <header class="act-head">
+                    <span class="act-kicker">Acta de liquidación</span>
+                    <span class="act-period" data-period>
+                        Del {longDate(example.start)} al {longDate(example.end)}
+                    </span>
+                </header>
+                <ul class="items" data-items>
+                    {
+                        result.items.map(({ key, label, value, formula, note }) => (
+                            <li class:list={["item", { minus: value < 0 }]} data-key={key}>
+                                <span class="item-row">
+                                    <span>{label}</span>
+                                    <b>{value < 0 ? `−${formatCOP(-value)}` : formatCOP(value)}</b>
+                                </span>
+                                <span class="item-calc">{formula}</span>
+                                <span class="item-note">{note}</span>
+                            </li>
+                        ))
+                    }
+                </ul>
+                <p class="act-total">
+                    <span>Total a recibir</span>
+                    <b data-total>{formatCOP(result.total)}</b>
+                    <span class="stamp" data-stamp aria-hidden="true">Con indemnización</span>
+                </p>
+                <p class="late" data-late>
+                    Te la deben pagar el último día de trabajo. Por cada día de retraso sin justificación, el
+                    empleador te debe <b data-daily>{formatCOP(result.dailySalary)}</b> más (art. 65).
+                </p>
+                <p class="sr-only" aria-live="polite" data-announce></p>
+            </div>
+        </section>
+
+        <a class="peek" href="#resultado" data-peek aria-hidden="true" tabindex="-1">
+            <span>Tu liquidación</span>
+            <b data-peek-total>{formatCOP(result.total)}</b>
+            <span class="peek-more">Ver detalle</span>
+        </a>
+
+        <section class="periods" aria-labelledby="periodos-titulo">
+            <header class="head">
+                <h2 id="periodos-titulo">Qué tiempo cubre cada pago</h2>
+                <p>
+                    Cada concepto se cuenta desde una fecha distinta. Por eso la liquidación no es simplemente
+                    "un salario por año".
+                </p>
+            </header>
+            <div class="timeline" data-timeline>
+                <div class="months" aria-hidden="true">
+                    {MONTHS_SHORT.map((month) => <span>{month}</span>)}
+                </div>
+                <div class="track-row">
+                    <span class="track-label">Cesantías e intereses <small data-span="cesantias">{result.severanceDays} días</small></span>
+                    <span class="lane"><span class="bar" data-bar="cesantias"></span></span>
+                </div>
+                <div class="track-row">
+                    <span class="track-label">Prima <small data-span="prima">{result.primaDays} días</small></span>
+                    <span class="lane"><span class="bar" data-bar="prima"></span></span>
+                </div>
+                <div class="track-row whole">
+                    <span class="track-label">Vacaciones e indemnización <small data-span="todo">{result.serviceDays} días</small></span>
+                    <span class="lane"><span class="bar full"></span></span>
+                    <span class="whole-note" data-whole-note>Todo el contrato</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="que-te-pagan" aria-labelledby="pagan-titulo">
+            <header class="head">
+                <h2 id="pagan-titulo">Qué te pagan según cómo terminó</h2>
+                <p>
+                    Las prestaciones se pagan siempre, sin importar quién terminó el contrato. La indemnización
+                    depende de cómo terminó.
+                </p>
+            </header>
+            <div class="matrix-wrap">
+                <table class="matrix">
+                    <caption class="sr-only">Pagos de la liquidación según la forma de terminación</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Cómo terminó</th>
+                            {concepts.map((concept) => <th scope="col">{concept}</th>)}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            matrix.map(({ label, marks }) => (
+                                <tr>
+                                    <th scope="row">{label}</th>
+                                    {marks.map((mark) => (
+                                        <td class={mark}>{markLabel[mark]}</td>
+                                    ))}
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="indemnizacion" aria-labelledby="indemnizacion-titulo">
+            <header class="head">
+                <h2 id="indemnizacion-titulo">Indemnización por despido sin justa causa</h2>
+                <p>
+                    Contrato indefinido, artículo 64. La reforma laboral de 2025 no cambió estos días. Valores con
+                    el salario mínimo de {YEAR}.
+                </p>
+            </header>
+            <div class="comp">
+                <table class="amounts">
+                    <caption class="sr-only">Días de indemnización por años trabajados</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Años trabajados</th>
+                            <th scope="col">Menos de 10 mínimos</th>
+                            <th scope="col">Con el mínimo</th>
+                            <th scope="col">10 mínimos o más</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            compensationRows.map(({ years, low, high, value }) => (
+                                <tr>
+                                    <th scope="row">{years} {years === 1 ? "año o menos" : "años"}</th>
+                                    <td>{low} días</td>
+                                    <td class="strong">{formatCOP(value)}</td>
+                                    <td>{high} días</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+                <div class="comp-notes">
+                    <article>
+                        <h3>Término fijo</h3>
+                        <p>Los salarios que faltaban hasta la fecha de vencimiento del contrato.</p>
+                    </article>
+                    <article>
+                        <h3>Obra o labor</h3>
+                        <p>El tiempo que faltaba para terminar la obra, nunca menos de 15 días de salario.</p>
+                    </article>
+                    <article>
+                        <h3>Fracciones de año</h3>
+                        <p>
+                            Se pagan en proporción: con el mínimo, dos años y medio son 30 + 20 × 1,5 = 60 días.
+                        </p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="plazos" aria-labelledby="plazos-titulo">
+            <header class="head">
+                <h2 id="plazos-titulo">Plazos y sanciones</h2>
+                <p>Si el empleador se demora, la deuda crece. Estas son las fechas que debes tener presentes.</p>
+            </header>
+            <ol class="deadlines">
+                <li>
+                    <strong>El último día de trabajo</strong>
+                    <span>Se paga la liquidación completa. Si no, corre un día de salario por cada día de retraso (art. 65).</span>
+                </li>
+                <li>
+                    <strong>31 de enero</strong>
+                    <span>Plazo para pagar los intereses de cesantías del año anterior. Si no los pagan, se deben dobles.</span>
+                </li>
+                <li>
+                    <strong>14 de febrero</strong>
+                    <span>Plazo para consignar las cesantías del año anterior en el fondo. Si no, un día de salario por cada día de retraso (Ley 50 de 1990, art. 99).</span>
+                </li>
+                <li>
+                    <strong>Tres años</strong>
+                    <span>Tiempo que tienes para reclamar ante un juez. Después, los derechos laborales prescriben.</span>
+                </li>
+            </ol>
+        </section>
+
+        <section id="preguntas" class="faq" aria-labelledby="preguntas-titulo">
+            <header class="head stacked">
+                <h2 id="preguntas-titulo">Preguntas frecuentes</h2>
+                <p>
+                    Esta calculadora es una guía y no reemplaza la asesoría de un abogado laboral, sobre todo si hay
+                    un fuero o una demanda de por medio. ¿Ves un error?
+                    <a href={`mailto:${basics.email}?subject=Liquidaci%C3%B3n%20laboral`}>Escríbeme</a>.
+                </p>
+            </header>
+            <div class="faq-list">
+                {
+                    faqs.map(({ question, answer }, index) => (
+                        <details open={index === 0}>
+                            <summary>{question}</summary>
+                            <p>{answer}</p>
+                        </details>
+                    ))
+                }
+            </div>
+        </section>
+
+        <footer class="colophon">
+            <p>
+                Hecho por <a href="/">{basics.name}</a>, desarrollador en {basics.location.city}. Fuentes:
+                <a href={CST_URL} rel="noopener">Código Sustantivo del Trabajo</a> (arts. 64, 65, 189, 249 y 306),
+                <a href={LAW_50_URL} rel="noopener">Ley 50 de 1990</a>, Ley 52 de 1975,
+                <a href={LAW_2466_URL} rel="noopener">Ley 2466 de 2025</a>, {wage.salaryDecree} y {wage.transportDecree}.
+            </p>
+            <p>
+                También te sirve: <a href="/calculadora-prima">Calculadora de prima</a> ·
+                <a href="/festivos-colombia-2027">Festivos 2027</a>
+            </p>
+        </footer>
+    </main>
+</Layout>
+
+<script>
+    import { addDays, formatLong, todayInColombia } from "@/lib/festivos";
+    import {
+        calculateLiquidacion,
+        days360,
+        formatCOP,
+        formatNumber,
+        isCompensated,
+        parseCOP,
+        type ContractType,
+        type Ending,
+    } from "@/lib/liquidacion";
+    import { getMinimumWage, transportLimit } from "@/lib/prima";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]");
+    const act = document.querySelector<HTMLElement>("[data-act]");
+
+    if (form != null && act != null) {
+        const input = (name: string) => form.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+        const checked = (name: string) => form.querySelector<HTMLInputElement>(`[name="${name}"]:checked`)!.value;
+        const one = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
+
+        const startInput = input("inicio");
+        const endInput = input("fin");
+        const agreedInput = input("pactado");
+        const salaryInput = input("salario");
+        const transportInput = input("auxilio");
+        const integralInput = input("integral");
+        const pendingInput = input("pendientes");
+        const vacationInput = input("vacaciones");
+        const moneyInputs = [salaryInput, input("extras"), input("variables")];
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        let transportTouched = false;
+        let pendingTouched = false;
+        let vacationTouched = false;
+        let shownTotal = parseCOP(one("[data-total]").textContent ?? "");
+
+        const longDate = (date: string) => `${formatLong(date).replace(/^\S+ /, "")} de ${date.slice(0, 4)}`;
+        const money = (value: number) => (value < 0 ? `−${formatCOP(-value)}` : formatCOP(value));
+        const escape = (text: string) =>
+            text.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]!);
+
+        const formatMoney = (field: HTMLInputElement) => {
+            const value = parseCOP(field.value);
+            const caret = field.value.length - (field.selectionStart ?? field.value.length);
+            field.value = value ? formatNumber(value) : "";
+            const position = Math.max(0, field.value.length - caret);
+            field.setSelectionRange(position, position);
+        };
+
+        const animateTotal = (target: number) => {
+            const element = one("[data-total]");
+            if (reduceMotion || shownTotal === target) {
+                element.textContent = formatCOP(target);
+                shownTotal = target;
+                return;
+            }
+            const from = shownTotal;
+            const startTime = performance.now();
+            shownTotal = target;
+            const step = (now: number) => {
+                const progress = Math.min(1, (now - startTime) / 450);
+                element.textContent = formatCOP(from + (target - from) * (1 - (1 - progress) ** 3));
+                if (progress < 1 && shownTotal === target) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+        };
+
+        // Posición de una fecha dentro de su año, de 0 a 1
+        const yearFraction = (date: string, edge: "start" | "end") =>
+            Math.min(1, (days360(`${date.slice(0, 4)}-01-01`, date) - (edge === "start" ? 1 : 0)) / 360);
+
+        const update = (): void => {
+            const contract = checked("contrato") as ContractType;
+            const ending = checked("terminacion") as Ending;
+            const start = startInput.value;
+            let end = endInput.value;
+            if (!start || !end) return;
+            if (end < start) end = start;
+
+            const wage = getMinimumWage(Number(end.slice(0, 4)));
+            const salary = parseCOP(salaryInput.value);
+            const integral = integralInput.checked;
+
+            // El auxilio se marca solo según el salario hasta que la persona lo cambie
+            if (!transportTouched) transportInput.checked = !integral && salary > 0 && salary <= transportLimit(wage);
+            transportInput.disabled = integral;
+            one("[data-transport-hint]").textContent =
+                !integral && transportInput.checked && salary > transportLimit(wage)
+                    ? `Ojo: con más de ${formatCOP(transportLimit(wage))} no corresponde auxilio de transporte.`
+                    : `Le corresponde a quien gana hasta ${formatCOP(transportLimit(wage))}.`;
+
+            // Días de salario pendientes: por defecto, los del mes de la terminación
+            if (!pendingTouched) pendingInput.value = String(Math.min(30, Number(end.slice(8, 10))));
+
+            // Fecha pactada solo para término fijo y obra
+            const needsAgreed = contract !== "indefinido";
+            one("[data-agreed]").hidden = !needsAgreed;
+            one("[data-agreed-label]").textContent =
+                contract === "fijo" ? "Fecha en que vencía el contrato" : "Fecha en que iba a terminar la obra";
+            agreedInput.min = addDays(end, 1);
+            one<HTMLLabelElement>('[data-ending="fin-del-plazo"]').hidden = !needsAgreed;
+            if (!needsAgreed && ending === "fin-del-plazo") {
+                form.querySelector<HTMLInputElement>('[name="terminacion"][value="renuncia"]')!.checked = true;
+                return update();
+            }
+
+            const result = calculateLiquidacion({
+                contract,
+                ending,
+                start,
+                end,
+                agreedEnd: agreedInput.value || undefined,
+                salary,
+                integral,
+                transport: transportInput.checked,
+                overtime: parseCOP(input("extras").value),
+                variable: parseCOP(input("variables").value),
+                vacationPending: vacationTouched ? Math.max(0, Number(vacationInput.value) || 0) : undefined,
+                unpaidSalaryDays: Math.max(0, Number(pendingInput.value) || 0),
+                unpaidLeave: Math.max(0, Number(input("licencias").value) || 0),
+                previousSeveranceOwed: input("anteriores").checked,
+            });
+
+            // Mientras la persona no lo cambie, el campo muestra el cálculo por defecto
+            if (!vacationTouched) vacationInput.value = String(Math.round(result.vacationPending * 100) / 100);
+
+            one("[data-period]").textContent = `Del ${longDate(start)} al ${longDate(end)}`;
+            one("[data-items]").innerHTML = result.items
+                .map(
+                    ({ key, label, value, formula, note }) => `
+                    <li class="item${value < 0 ? " minus" : ""}" data-key="${key}">
+                        <span class="item-row"><span>${escape(label)}</span><b>${money(value)}</b></span>
+                        <span class="item-calc">${escape(formula)}</span>
+                        <span class="item-note">${escape(note)}</span>
+                    </li>`,
+                )
+                .join("");
+            one("[data-stamp]").hidden = result.compensationDays === 0;
+            one("[data-daily]").textContent = formatCOP(result.dailySalary);
+            one("[data-peek-total]").textContent = formatCOP(result.total);
+            one("[data-announce]").textContent = `Tu liquidación es de ${formatCOP(result.total)}.`;
+            animateTotal(result.total);
+
+            // Si el despido merece indemnización pero falta la fecha pactada, se avisa
+            one("[data-agreed-hint]").textContent =
+                needsAgreed && isCompensated(ending) && !agreedInput.value
+                    ? "Escríbela para calcular la indemnización."
+                    : "Con ella se calcula la indemnización si te despidieron antes.";
+
+            // Línea de tiempo del año de la terminación
+            const bar = (name: string, from: string) => {
+                const element = one(`[data-bar="${name}"]`);
+                element.style.setProperty("--from", String(yearFraction(from, "start")));
+                element.style.setProperty("--to", String(yearFraction(end, "end")));
+            };
+            bar("cesantias", result.severanceStart);
+            bar("prima", result.primaStart);
+            one('[data-span="cesantias"]').textContent = `${result.severanceDays} días`;
+            one('[data-span="prima"]').textContent = `${result.primaDays} días`;
+            one('[data-span="todo"]').textContent = `${result.serviceDays} días`;
+            const years = result.serviceDays / 360;
+            one("[data-whole-note]").textContent =
+                `Todo el contrato: ${years >= 1 ? `${years.toFixed(1).replace(".", ",")} años` : `${Math.round(years * 12)} meses`}, desde el ${longDate(start)}`;
+        };
+
+        // Arranca con la fecha de hoy como último día
+        const today = todayInColombia();
+        endInput.value = today;
+        endInput.max = addDays(today, 365);
+
+        form.addEventListener("submit", (event) => event.preventDefault());
+        form.addEventListener("input", (event) => {
+            const target = event.target as HTMLInputElement;
+            if (moneyInputs.includes(target)) formatMoney(target);
+            if (target === transportInput) transportTouched = true;
+            if (target === pendingInput) pendingTouched = true;
+            if (target === vacationInput) vacationTouched = vacationInput.value !== "";
+            if (target === integralInput && integralInput.checked) transportTouched = false;
+            update();
+        });
+        form.querySelector("[data-minimum]")!.addEventListener("click", () => {
+            salaryInput.value = formatNumber(getMinimumWage(Number(endInput.value.slice(0, 4))).salary);
+            integralInput.checked = false;
+            transportTouched = false;
+            update();
+        });
+
+        update();
+
+        // En móvil el acta queda debajo del formulario: una barra muestra el total mientras escribes
+        const peek = one("[data-peek]");
+        let formVisible = false;
+        let actVisible = false;
+        const sync = () => peek.classList.toggle("is-visible", formVisible && !actVisible);
+        new IntersectionObserver(([entry]) => {
+            formVisible = entry.isIntersecting;
+            sync();
+        }).observe(form);
+        new IntersectionObserver(([entry]) => {
+            actVisible = entry.isIntersecting;
+            sync();
+        }).observe(act);
+    }
+</script>
+
+<style>
+    main {
+        --red: #c42a1a;
+        --red-ink: #a32113;
+        --red-soft: #f9e0d9;
+        --sheet: #fffdf9;
+        --gutter: clamp(16px, 4vw, 40px);
+
+        width: min(1200px, 100%);
+        margin: auto;
+        padding: 0 var(--gutter) clamp(3rem, 6vw, 5rem);
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
+
+    a {
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+    }
+
+    a:hover {
+        text-decoration-color: currentColor;
+    }
+
+    [hidden] {
+        display: none !important;
+    }
+
+    .flag {
+        height: 8px;
+        background: linear-gradient(#fcd116 0 50%, #003893 50% 75%, #ce1126 75%);
+    }
+
+    /* Encabezado */
+    .topbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 20px 0;
+    }
+
+    .crumbs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .crumbs li + li::before {
+        margin-right: 10px;
+        color: var(--line-strong);
+        content: "/";
+    }
+
+    .crumbs a {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .monogram {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .toc {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .toc a {
+        flex: none;
+        padding: 8px 13px;
+        border-radius: 8px;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+    }
+
+    .toc a:hover {
+        background: rgba(21, 25, 30, 0.06);
+        color: var(--ink);
+    }
+
+    /* Portada */
+    .hero {
+        padding-top: clamp(2rem, 5vw, 3.5rem);
+    }
+
+    h1 {
+        max-width: 13ch;
+        font-size: clamp(2.7rem, 1.3rem + 5.4vw, 5.8rem);
+        font-weight: 800;
+        letter-spacing: -0.055em;
+        line-height: 0.92;
+    }
+
+    h1 span {
+        color: var(--red);
+    }
+
+    .lead {
+        max-width: 62ch;
+        margin-top: 26px;
+        color: var(--text);
+        font-size: clamp(1.08rem, 1rem + 0.35vw, 1.25rem);
+        line-height: 1.6;
+    }
+
+    .lead strong {
+        color: var(--ink);
+    }
+
+    .updated {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .updated a {
+        color: inherit;
+    }
+
+    /* Calculadora */
+    .calculator {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
+        gap: 40px clamp(40px, 6vw, 80px);
+        align-items: start;
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+        padding-top: clamp(2rem, 4vw, 2.75rem);
+        border-top: 2px solid var(--ink);
+        scroll-margin-top: 24px;
+    }
+
+    .form {
+        display: grid;
+        gap: 34px;
+    }
+
+    .group {
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+
+    legend {
+        margin-bottom: 14px;
+        padding: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .options.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .endings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .option,
+    .ending {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .option input,
+    .ending input {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .option > span,
+    .ending > span {
+        display: grid;
+        gap: 2px;
+        height: 100%;
+        padding: 13px 15px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease;
+    }
+
+    .option strong,
+    .ending strong {
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 650;
+        line-height: 1.3;
+    }
+
+    .option small,
+    .ending small {
+        color: var(--muted);
+        font-size: 0.8rem;
+    }
+
+    .option:hover > span,
+    .ending:hover > span {
+        border-color: var(--ink);
+    }
+
+    .option input:checked + span,
+    .ending input:checked + span {
+        border-color: var(--ink);
+        box-shadow: inset 0 0 0 1px var(--ink);
+    }
+
+    .ending input:checked + span small {
+        color: var(--red-ink);
+        font-weight: 600;
+    }
+
+    .option input:focus-visible + span,
+    .ending input:focus-visible + span {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .pair {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 4px;
+    }
+
+    .small-field {
+        display: grid;
+        gap: 6px;
+        color: var(--text-soft);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .small-field > input {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        color: var(--ink);
+        font: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .small-field > input[type="number"] {
+        width: 140px;
+    }
+
+    .small-field > input:focus,
+    .money:focus-within {
+        border-color: var(--ink);
+        outline: 0;
+        box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+    }
+
+    .money {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 18px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+    }
+
+    .money > span {
+        color: var(--muted);
+        font-family: var(--font-display);
+        font-size: 1.6rem;
+        font-weight: 700;
+    }
+
+    .money input {
+        width: 100%;
+        min-width: 0;
+        padding: 14px 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.6rem, 1.3rem + 1vw, 2.1rem);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.03em;
+    }
+
+    .money.compact {
+        padding: 0 14px;
+    }
+
+    .money.compact > span {
+        font-size: 1.1rem;
+    }
+
+    .money.compact input {
+        padding: 10px 0;
+        font-size: 1.15rem;
+    }
+
+    .hint {
+        color: var(--muted);
+        font-size: 0.85rem;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    .link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        text-decoration-color: var(--line-strong);
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+
+    .switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 8px;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .switch input {
+        position: absolute;
+        opacity: 0;
+    }
+
+    .track {
+        position: relative;
+        flex: none;
+        width: 46px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--line-strong);
+        transition: background 200ms ease;
+    }
+
+    .track::after {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(21, 25, 30, 0.25);
+        transition: transform 200ms var(--ease-out);
+        content: "";
+    }
+
+    .switch input:checked + .track {
+        background: var(--ink);
+    }
+
+    .switch input:checked + .track::after {
+        transform: translateX(18px);
+    }
+
+    .switch input:disabled + .track {
+        opacity: 0.4;
+    }
+
+    .switch input:focus-visible + .track {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .check {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .check input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--ink);
+    }
+
+    .more {
+        border-top: 1px solid var(--line);
+    }
+
+    .more + .more {
+        margin-top: -34px;
+    }
+
+    .more:last-child {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .more-body {
+        display: grid;
+        gap: 20px;
+        padding-bottom: 24px;
+    }
+
+    /* El acta de liquidación */
+    .act {
+        position: sticky;
+        top: 20px;
+        display: grid;
+        gap: 18px;
+        padding: 28px 28px 30px;
+        border-top: 6px solid var(--ink);
+        background: var(--sheet);
+        box-shadow:
+            0 0 0 1px var(--line),
+            0 40px 60px -40px rgba(21, 25, 30, 0.45);
+        scroll-margin-top: 20px;
+    }
+
+    .act-head {
+        display: grid;
+        gap: 4px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--ink);
+    }
+
+    .act-kicker {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .act-period {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .items {
+        display: grid;
+    }
+
+    .items :global(.item) {
+        display: grid;
+        gap: 2px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .items :global(.item:first-child) {
+        padding-top: 0;
+    }
+
+    .items :global(.item-row) {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .items :global(.item-row)::after {
+        order: 1;
+        flex: 1;
+        border-bottom: 1px dotted var(--line-strong);
+        content: "";
+    }
+
+    .items :global(.item-row b) {
+        order: 2;
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .items :global(.item.minus .item-row b) {
+        color: var(--red-ink);
+    }
+
+    .items :global(.item[data-key="indemnizacion"] .item-row b) {
+        color: var(--red);
+    }
+
+    .items :global(.item-calc) {
+        color: var(--text-soft);
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+    }
+
+    .items :global(.item-note) {
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+
+    .act-total {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px 12px;
+    }
+
+    .act-total b {
+        grid-column: 1 / -1;
+        grid-row: 2;
+    }
+
+    .act-total > span:first-child {
+        color: var(--text-soft);
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .act-total b {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.9rem + 1.8vw, 3.2rem);
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    /* Sello que aparece cuando hay indemnización */
+    .stamp {
+        grid-row: 1;
+        grid-column: 2;
+        padding: 4px 10px;
+        border: 2px solid var(--red);
+        border-radius: 8px;
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transform: rotate(-4deg);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .stamp {
+            animation: stamp 350ms var(--ease-out);
+        }
+    }
+
+    @keyframes stamp {
+        from {
+            transform: rotate(-4deg) scale(1.6);
+            opacity: 0;
+        }
+    }
+
+    .late {
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(21, 25, 30, 0.05);
+        color: var(--text-soft);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+
+    .late b {
+        color: var(--ink);
+    }
+
+    /* Barra con el total en móvil */
+    .peek {
+        display: none;
+    }
+
+    @media (max-width: 1023px) {
+        .peek {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            z-index: 10;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 14px;
+            background: var(--ink);
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.88rem;
+            text-decoration: none;
+            box-shadow: 0 20px 40px -16px rgba(21, 25, 30, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(16px);
+            transition:
+                opacity 200ms ease,
+                transform 250ms var(--ease-out);
+        }
+
+        .peek.is-visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: none;
+        }
+
+        .peek b {
+            color: #fff;
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+        }
+
+        .peek-more {
+            margin-left: auto;
+            color: #fff;
+            font-weight: 600;
+        }
+    }
+
+    /* Secciones */
+    section:not(.hero, .calculator) {
+        margin-top: clamp(4.5rem, 10vw, 8rem);
+        scroll-margin-top: 24px;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 1.3rem + 2.4vw, 3.1rem);
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    h3 {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .head {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        gap: 14px 48px;
+        align-items: end;
+        margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+    }
+
+    .head.stacked {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .head p {
+        max-width: 48ch;
+        font-size: 1.05rem;
+    }
+
+    .head a {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    /* Línea de tiempo */
+    .timeline {
+        display: grid;
+        gap: 14px;
+        padding-top: 16px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .months,
+    .track-row {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 20px;
+        align-items: center;
+    }
+
+    .months {
+        grid-template-columns: 220px repeat(12, minmax(0, 1fr));
+        gap: 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .months::before {
+        content: "";
+    }
+
+    .months span {
+        padding-left: 6px;
+        border-left: 1px solid var(--line);
+    }
+
+    .track-label {
+        display: grid;
+        color: var(--ink);
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .track-label small {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .lane {
+        position: relative;
+        height: 34px;
+        border-radius: 8px;
+        background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px calc(100% / 12));
+    }
+
+    .bar {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: calc(var(--from, 0) * 100%);
+        width: calc((var(--to, 1) - var(--from, 0)) * 100%);
+        min-width: 4px;
+        border-radius: 6px;
+        background: var(--red);
+        transition:
+            left 300ms var(--ease-out),
+            width 300ms var(--ease-out);
+    }
+
+    .track-row + .track-row .bar:not(.full) {
+        background: var(--red-soft);
+        box-shadow: inset 0 0 0 1px var(--red);
+    }
+
+    .bar.full {
+        --from: 0;
+        --to: 1;
+
+        background: var(--ink);
+    }
+
+    /* Esta fila no usa la escala de meses: cubre todo el contrato */
+    .whole {
+        grid-template-rows: auto auto;
+        margin-top: 14px;
+        padding-top: 18px;
+        border-top: 1px dashed var(--line-strong);
+    }
+
+    .whole .lane {
+        background: none;
+    }
+
+    .whole-note {
+        grid-column: 2;
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    /* Matriz de pagos */
+    .matrix-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .matrix {
+        min-width: 720px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .matrix th,
+    .matrix td {
+        padding: 14px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: center;
+    }
+
+    .matrix thead th {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        vertical-align: bottom;
+    }
+
+    .matrix th:first-child {
+        padding-left: 0;
+        text-align: left;
+    }
+
+    .matrix tbody th {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .matrix td {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .matrix .si {
+        color: var(--ink);
+    }
+
+    .matrix .no {
+        color: var(--muted);
+        font-weight: 400;
+    }
+
+    .matrix .a-veces {
+        color: var(--text-soft);
+        font-weight: 500;
+    }
+
+    .matrix td:last-child.si {
+        color: var(--red);
+        font-weight: 800;
+    }
+
+    /* Indemnización */
+    .comp {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 40px clamp(40px, 6vw, 80px);
+        align-items: start;
+    }
+
+    .amounts {
+        border-top: 2px solid var(--ink);
+    }
+
+    .amounts thead th {
+        padding: 12px 10px 12px 0;
+        border-bottom: 1px solid var(--line-strong);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+        vertical-align: bottom;
+    }
+
+    .amounts tbody th,
+    .amounts tbody td {
+        padding: 14px 10px 14px 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--text-soft);
+        font-variant-numeric: tabular-nums;
+        text-align: left;
+    }
+
+    .amounts tbody th {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .amounts tbody td.strong {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 800;
+    }
+
+    .comp-notes {
+        display: grid;
+        gap: 24px;
+    }
+
+    .comp-notes article {
+        padding-top: 16px;
+        border-top: 1px solid var(--line-strong);
+    }
+
+    .comp-notes p {
+        margin-top: 6px;
+        line-height: 1.55;
+    }
+
+    /* Plazos */
+    .deadlines {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border-top: 2px solid var(--ink);
+    }
+
+    .deadlines li {
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        padding: 22px 24px 8px 0;
+    }
+
+    .deadlines li + li {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+    }
+
+    .deadlines strong {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.05;
+    }
+
+    .deadlines span {
+        line-height: 1.55;
+    }
+
+    /* Preguntas */
+    .faq {
+        display: grid;
+        grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+        gap: 0 clamp(40px, 7vw, 96px);
+        align-items: start;
+    }
+
+    .faq .head {
+        position: sticky;
+        top: 24px;
+    }
+
+    .faq-list details {
+        border-bottom: 1px solid var(--line);
+    }
+
+    .faq-list details:first-child {
+        border-top: 2px solid var(--ink);
+    }
+
+    .faq-list summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.12rem;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .faq-list summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .faq-list summary::after {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        background:
+            linear-gradient(var(--ink), var(--ink)) center / 100% 2px no-repeat,
+            linear-gradient(var(--ink), var(--ink)) center / 2px 100% no-repeat;
+        transition: transform 250ms var(--ease-out);
+        content: "";
+    }
+
+    .faq-list details[open] summary::after {
+        transform: rotate(45deg);
+    }
+
+    .faq-list details p {
+        max-width: 62ch;
+        padding-bottom: 22px;
+    }
+
+    /* Pie */
+    .colophon {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 40px;
+        margin-top: clamp(5rem, 10vw, 8rem);
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+    }
+
+    .colophon p {
+        max-width: 70ch;
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    .colophon a {
+        color: var(--ink);
+    }
+
+    @media (max-width: 1023px) {
+        .calculator,
+        .comp,
+        .faq {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .faq .head {
+            position: static;
+        }
+
+        .act {
+            position: relative;
+            top: 0;
+        }
+
+        .act {
+            max-width: 520px;
+        }
+
+        .deadlines {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .deadlines li:nth-child(3) {
+            padding-left: 0;
+            border-left: 0;
+        }
+
+        .deadlines li:nth-child(n + 3) {
+            border-top: 1px solid var(--line);
+        }
+    }
+
+    @media (max-width: 760px) {
+        .head {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .toc {
+            width: 100%;
+        }
+
+        .options.three,
+        .endings {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .months,
+        .track-row {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 6px;
+        }
+
+        .months {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            font-size: 0.66rem;
+        }
+
+        .months::before {
+            display: none;
+        }
+
+        .months span {
+            padding-left: 2px;
+        }
+
+        .whole-note {
+            grid-column: 1;
+        }
+
+        .track-row {
+            margin-top: 6px;
+        }
+
+        .deadlines {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .deadlines li,
+        .deadlines li + li {
+            padding: 18px 0;
+            border-left: 0;
+        }
+
+        .deadlines li + li {
+            border-top: 1px solid var(--line);
+        }
+    }
+
+    @media (max-width: 420px) {
+        .pair {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .act {
+            padding-inline: 20px;
+        }
+    }
+</style>

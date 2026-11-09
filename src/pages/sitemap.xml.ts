@@ -12,7 +12,6 @@ import { INTERES_REVIEW } from "@/lib/interes-compuesto";
 import { CREDITO_REVIEW } from "@/lib/credito";
 import { DIAS_HABILES_REVIEW } from "@/lib/dias-habiles";
 import { SALARIO_MINIMO_REVIEW, nextWage } from "@/lib/salario-minimo";
-import { RESCATE_REVIEW } from "@/lib/ley-rescate";
 import { getPublishedPosts } from "@/lib/blog";
 
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
@@ -45,11 +44,11 @@ export const GET: APIRoute = async ({ site }) => {
     const posts = await getPublishedPosts();
     const blog = [
         { path: "/blog", changefreq: "weekly", priority: "0.6", lastmod: posts[0]?.date.toISOString().slice(0, 10) },
-        ...posts.map(({ slug, date }) => ({
+        ...posts.map(({ slug, date, updated }) => ({
             path: `/blog/${slug}`,
             changefreq: "weekly",
             priority: "0.8",
-            lastmod: slug === "ley-de-rescate-economico" ? RESCATE_REVIEW : date.toISOString().slice(0, 10),
+            lastmod: updated ?? date.toISOString().slice(0, 10),
         })),
     ];
     const urls = [...pages, ...blog]

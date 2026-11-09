@@ -1,0 +1,1548 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { DECLARATION_YEAR, TAXABLE_YEAR, THRESHOLDS, thresholdPesos } from "@/lib/renta";
+import {
+    CERTIFICATES_DUE,
+    DEADLINE_MONTHS,
+    FIRST_DEADLINE,
+    GLOBAL_LIMIT,
+    LAST_DEADLINE,
+    MIN_PENALTY,
+    RELIEFS,
+    RENTA_2027_PUBLISHED,
+    RENTA_2027_REVIEW,
+    STATUS,
+    TIMELINE,
+    UVT_TAXABLE,
+    formatDay,
+    shortDay,
+} from "@/lib/renta-2027";
+import { RESCATE_STATUS, TABLE_241_NOW, firstTaxedSalary, rentaFor } from "@/lib/ley-rescate";
+import { formatCOP, formatNumber } from "@/lib/uvt";
+import { articleJsonLd, longDate } from "@/lib/seo";
+
+const DECREE_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/decreto_2229_2023.htm";
+const UVT_URL = "https://normograma.dian.gov.co/dian/compilacion/docs/resolucion_dian_0238_2025.htm";
+const COURT_URL = "https://incp.org.co/publicaciones/2026/04/corte-constitucional-declaro-inexequible-el-decreto-legislativo-1474-de-2025/";
+
+const pct = (value: number) => `${(value * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`;
+const num = (value: number, digits = 1) => value.toLocaleString("es-CO", { maximumFractionDigits: digits });
+const uvtPesos = (uvt: number) => formatCOP(uvt * UVT_TAXABLE.value);
+
+const income = thresholdPesos(1_400);
+const wealth = thresholdPesos(4_500);
+const monthlyIncome = Math.ceil(income / 12);
+const firstTaxed = firstTaxedSalary("now");
+const known = STATUS.filter((item) => item.known);
+const pending = STATUS.filter((item) => !item.known);
+
+// Escala de la gráfica "declarar no es pagar": de $0 a un poco más del doble del tope mensual
+const scaleMax = Math.ceil((firstTaxed * 1.7) / 1_000_000) * 1_000_000;
+const zones = [
+    { id: "free", label: "No declaras", detail: `Menos de ${formatCOP(monthlyIncome)} al mes`, width: monthlyIncome / scaleMax },
+    { id: "file", label: "Declaras, pero no pagas", detail: `Entre ${formatCOP(monthlyIncome)} y ${formatCOP(firstTaxed)}`, width: (firstTaxed - monthlyIncome) / scaleMax },
+    { id: "pay", label: "Declaras y pagas", detail: `Desde unos ${formatCOP(firstTaxed)} al mes`, width: (scaleMax - firstTaxed) / scaleMax },
+];
+
+// Valores de arranque de la calculadora (la página se ve completa sin JavaScript)
+const SAMPLE = 8_000_000;
+const sample = rentaFor(SAMPLE, 0, "now");
+
+const tableRows = TABLE_241_NOW.map(({ from, to, rate }) => ({
+    range: to === Infinity ? `Más de ${formatNumber(from)}` : from === 0 ? `Hasta ${formatNumber(to)}` : `${formatNumber(from)} a ${formatNumber(to)}`,
+    pesos: to === Infinity ? `Más de ${uvtPesos(from)}` : from === 0 ? `Hasta ${uvtPesos(to)}` : `${uvtPesos(from)} a ${uvtPesos(to)}`,
+    rate: rate ? pct(rate) : "0 %",
+}));
+
+const documents = [
+    { title: "RUT actualizado", text: "Con la responsabilidad 05 (renta). Si no lo tienes, se saca gratis en el portal de la DIAN." },
+    { title: "Certificado de ingresos y retenciones", text: `El formulario 220 que te da tu empleador a más tardar el ${formatDay(CERTIFICATES_DUE)}.` },
+    { title: "Certificados de bancos", text: `Saldos al 31 de diciembre de ${TAXABLE_YEAR}, intereses que te pagaron y 4x1000 que te cobraron.` },
+    { title: "Certificados de deudas", text: "Saldo de créditos al 31 de diciembre e intereses pagados del crédito de vivienda." },
+    { title: "Pensión, cesantías y aportes voluntarios", text: "Saldos de cesantías, certificados de pensión voluntaria y cuentas AFC." },
+    { title: "Valor de tus bienes", text: `Avalúo catastral de inmuebles y valor de tus vehículos. Van en el patrimonio de ${TAXABLE_YEAR}.` },
+    { title: "Medicina prepagada y dependientes", text: "Certificados de pagos y los soportes de quienes dependen de ti." },
+    { title: "Información exógena", text: "Lo que terceros reportaron de ti. Se consulta en el portal de la DIAN y tu declaración debe cuadrar con eso." },
+];
+
+const mistakes = [
+    { title: "Mirar el sueldo neto", text: "El tope es sobre ingresos brutos: lo que te pagan antes de descontar salud, pensión o retención." },
+    { title: "Restar las deudas al patrimonio", text: "El tope de patrimonio es bruto. Un apartamento hipotecado cuenta por su valor completo." },
+    { title: "Usar la UVT equivocada", text: `Para saber si declaras en ${DECLARATION_YEAR} se usa la UVT de ${TAXABLE_YEAR} (${formatCOP(UVT_TAXABLE.value)}), no la de ${DECLARATION_YEAR}.` },
+    { title: "Creer que con la retención basta", text: "La retención es un anticipo. Si superas un tope, igual tienes que presentar la declaración." },
+    { title: "Olvidar las consignaciones", text: "Entran las transferencias que te hicieron, aunque sean de familia o devoluciones, y lo que pusiste en CDT o fondos." },
+    { title: "Contar el dígito de verificación", text: "Tu fecha sale de los dos últimos dígitos del NIT sin el dígito que va después del guion." },
+];
+
+const faqs = [
+    {
+        question: `¿Cuándo hay que declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `Entre el ${formatDay(FIRST_DEADLINE.date)} y el ${formatDay(LAST_DEADLINE.date)} de ${DECLARATION_YEAR}, según los dos últimos dígitos de tu cédula o NIT, sin el dígito de verificación. Las fechas salen del Decreto 2229 de 2023, que fija los plazos en días hábiles para todos los años; la DIAN suele publicar el calendario oficial a finales de diciembre.`,
+    },
+    {
+        question: `¿Quién debe declarar renta en ${DECLARATION_YEAR}?`,
+        answer: `Las personas naturales residentes que en ${TAXABLE_YEAR} tuvieron ingresos brutos de ${formatCOP(income)} o más, un patrimonio bruto de más de ${formatCOP(wealth)} al 31 de diciembre, o compras, consumos con tarjeta de crédito o consignaciones de más de ${formatCOP(income)} en el año. También quienes eran responsables de IVA al cierre del año. Con superar un solo tope ya estás obligado.`,
+    },
+    {
+        question: `¿La declaración de renta ${DECLARATION_YEAR} es sobre lo que gane en ${DECLARATION_YEAR}?`,
+        answer: `No. En ${DECLARATION_YEAR} declaras lo que ganaste y lo que tenías en ${TAXABLE_YEAR}, que es el año gravable. Lo que ganes en ${DECLARATION_YEAR} se declara en ${DECLARATION_YEAR + 1}.`,
+    },
+    {
+        question: `¿Ya salió el calendario de renta ${DECLARATION_YEAR}?`,
+        answer: `Las fechas ya se pueden calcular: el Decreto 2229 de 2023 dice en qué día hábil de agosto, septiembre y octubre vence cada par de dígitos, y con los festivos de ${DECLARATION_YEAR} eso da del ${formatDay(FIRST_DEADLINE.date)} al ${formatDay(LAST_DEADLINE.date)}. Lo que falta es la publicación oficial de la DIAN, que normalmente confirma esas mismas fechas. Solo cambiarían si el Gobierno expide un decreto nuevo.`,
+    },
+    {
+        question: `¿Qué UVT se usa para la declaración de renta ${DECLARATION_YEAR}?`,
+        answer: `La de ${TAXABLE_YEAR}: ${formatCOP(UVT_TAXABLE.value)} (${UVT_TAXABLE.resolution}). Con ella se calculan los topes, la tabla del impuesto y los límites de las deducciones. La UVT de ${DECLARATION_YEAR} solo se usa para las sanciones que se liquiden en ${DECLARATION_YEAR}.`,
+    },
+    {
+        question: `¿La Ley de Rescate Económico cambia la declaración de ${DECLARATION_YEAR}?`,
+        answer: `No. La tabla nueva de renta del proyecto, con el tramo del 9 %, y la eliminación de la deducción de 72 UVT por dependiente aplicarían desde el año gravable ${DECLARATION_YEAR}, que se declara en ${DECLARATION_YEAR + 1}. Lo que declaras en ${DECLARATION_YEAR} sigue las reglas de la Ley 2277 de 2022.`,
+    },
+    {
+        question: "Si me hicieron retención en la fuente, ¿igual tengo que declarar?",
+        answer: "Sí, si superas algún tope. La retención es un pago por adelantado del impuesto. Al declarar se resta, y muchas veces el resultado es cero o un saldo a favor que puedes pedir que te devuelvan.",
+    },
+    {
+        question: `¿Desde qué sueldo se paga renta en ${DECLARATION_YEAR}?`,
+        answer: `Un empleado con salario fijo, sin otros ingresos ni deducciones, empieza a tener impuesto con un sueldo de unos ${formatCOP(firstTaxed)} al mes en ${TAXABLE_YEAR}. Quien ganó entre ${formatCOP(monthlyIncome)} y esa cifra tiene que declarar, pero el impuesto le da cero.`,
+    },
+    {
+        question: "¿Qué formulario se usa?",
+        answer: `El formulario 210, para personas naturales residentes. La DIAN publica la versión del año gravable ${TAXABLE_YEAR} en los primeros meses de ${DECLARATION_YEAR} y ofrece una declaración sugerida con la información que reportaron bancos y empresas.`,
+    },
+    {
+        question: "¿Qué pasa si declaro tarde?",
+        answer: `Pagas una sanción por extemporaneidad del 5 % del impuesto por cada mes o fracción de retraso, hasta el 100 %, más intereses de mora sobre lo que no pagaste a tiempo. Si no tienes impuesto a cargo, la sanción se calcula sobre tus ingresos brutos. Ninguna sanción puede ser menor a 10 UVT, que en ${DECLARATION_YEAR} serán ${MIN_PENALTY.estimated ? "unos " : ""}${formatCOP(MIN_PENALTY.value)}.`,
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/blog/declaracion-de-renta-2027";
+const title = `Declaración de renta ${DECLARATION_YEAR}: fechas, topes y todo lo que ya se sabe`;
+const description = `Guía de la declaración de renta ${DECLARATION_YEAR} (año gravable ${TAXABLE_YEAR}): quién declara, topes en pesos, fechas por cédula, cuánto pagarías y qué falta por confirmar.`;
+const ogPath = "/og/declaracion-de-renta-2027.png";
+const jsonLd = articleJsonLd({
+    site,
+    path,
+    title,
+    description,
+    crumb: `Declaración de renta ${DECLARATION_YEAR}`,
+    published: RENTA_2027_PUBLISHED,
+    modified: RENTA_2027_REVIEW,
+    image: ogPath,
+    keywords: [
+        `declaración de renta ${DECLARATION_YEAR}`,
+        `renta ${DECLARATION_YEAR}`,
+        `calendario renta ${DECLARATION_YEAR}`,
+        `topes renta ${DECLARATION_YEAR}`,
+        `año gravable ${TAXABLE_YEAR}`,
+        "personas naturales",
+        "formulario 210",
+        `UVT ${TAXABLE_YEAR}`,
+    ],
+    faqs,
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`Declaración de renta ${DECLARATION_YEAR}: lo que ya se sabe`} imageWidth={1200} imageHeight={630} canvas={false} type="article" jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool post">
+        <Topbar
+            parent={{ href: "/blog", label: "Blog" }}
+            crumb={`Renta ${DECLARATION_YEAR}`}
+            links={[
+                { href: "#resumen", label: "Resumen" },
+                { href: "#topes", label: "Topes" },
+                { href: "#fechas", label: "Fechas" },
+                { href: "#cuanto", label: "Cuánto pagas" },
+                { href: "#reforma", label: "Reforma" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <header class="hero">
+            <p class="kicker">Impuestos explicados fácil</p>
+            <h1>Declaración de renta {DECLARATION_YEAR}, <span>lo que ya se sabe</span></h1>
+            <p class="lead">
+                Falta casi un año, pero lo más importante <strong>ya se puede calcular</strong>: en {DECLARATION_YEAR} declaras lo que
+                ganaste en {TAXABLE_YEAR}, con topes en pesos que no van a cambiar y fechas que salen de un decreto vigente. Aquí está todo,
+                sin enredos, y lo poco que todavía depende de la DIAN.
+            </p>
+            <p class="updated">
+                Por <a href="/">Antonio Sierra</a> · <time datetime={RENTA_2027_PUBLISHED}>{longDate(RENTA_2027_PUBLISHED)}</time>
+                {RENTA_2027_REVIEW !== RENTA_2027_PUBLISHED && <> · Revisado el <time datetime={RENTA_2027_REVIEW}>{longDate(RENTA_2027_REVIEW)}</time></>}
+                · Lectura de 12 minutos
+            </p>
+        </header>
+
+        <section id="resumen" aria-labelledby="resumen-titulo">
+            <header class="head">
+                <h2 id="resumen-titulo">Si solo tienes un minuto</h2>
+                <p>Lo esencial de la declaración de renta {DECLARATION_YEAR} para personas naturales.</p>
+            </header>
+            <ul class="facts">
+                <li>
+                    <b>{formatCOP(income)}</b>
+                    <span>Ingresos brutos en {TAXABLE_YEAR} desde los que declaras. Unos {formatCOP(monthlyIncome)} al mes.</span>
+                </li>
+                <li>
+                    <b>{formatCOP(wealth)}</b>
+                    <span>Patrimonio bruto al 31 de diciembre de {TAXABLE_YEAR}. Si lo superas, declaras aunque no hayas ganado nada.</span>
+                </li>
+                <li>
+                    <b>{shortDay(FIRST_DEADLINE.date)} - {shortDay(LAST_DEADLINE.date)}</b>
+                    <span>Plazos de {DECLARATION_YEAR}, según los dos últimos dígitos de tu cédula. <a href="/declarar-renta#calendario">Busca tu fecha</a>.</span>
+                </li>
+                <li>
+                    <b>{formatCOP(UVT_TAXABLE.value)}</b>
+                    <span>UVT de {TAXABLE_YEAR}. Es la que cuenta para los topes y la tabla, no la de {DECLARATION_YEAR}.</span>
+                </li>
+                <li>
+                    <b>{formatCOP(firstTaxed)}</b>
+                    <span>Sueldo mensual desde el que un empleado sin deducciones empieza a pagar impuesto. Declarar no siempre es pagar.</span>
+                </li>
+                <li>
+                    <b>Sin cambios</b>
+                    <span>La Ley de Rescate no toca esta declaración: su tabla nueva aplicaría a lo que ganes en {DECLARATION_YEAR}.</span>
+                </li>
+            </ul>
+
+            <nav class="index" aria-label="Contenido del artículo">
+                <p>Lo que vas a encontrar</p>
+                <ul>
+                    <li><a href="#que-es">Qué significa “renta {DECLARATION_YEAR}”</a></li>
+                    <li><a href="#estado">Lo que ya se sabe y lo que falta</a></li>
+                    <li><a href="#topes">Quién tiene que declarar</a></li>
+                    <li><a href="#fechas">Fechas por cédula</a></li>
+                    <li><a href="#linea">El año de la renta, mes a mes</a></li>
+                    <li><a href="#cuanto">Cuánto pagarías, con calculadora</a></li>
+                    <li><a href="#restar">Lo que puedes restar</a></li>
+                    <li><a href="#documentos">Qué documentos ir guardando</a></li>
+                    <li><a href="#reforma">La Ley de Rescate y el decreto que se cayó</a></li>
+                    <li><a href="#errores">Errores comunes y sanciones</a></li>
+                </ul>
+            </nav>
+        </section>
+
+        <section id="que-es" aria-labelledby="que-es-titulo">
+            <header class="head">
+                <h2 id="que-es-titulo">“Renta {DECLARATION_YEAR}” es sobre lo que pasó en {TAXABLE_YEAR}</h2>
+                <p>La confusión más común, resuelta en un párrafo.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        La declaración de renta mira hacia atrás. En {DECLARATION_YEAR} le cuentas a la DIAN <strong>cuánto ganaste, cuánto
+                        gastaste y qué tenías en {TAXABLE_YEAR}</strong>. A ese año se le llama <dfn>año gravable</dfn>. Por eso, cuando alguien
+                        busca “renta {DECLARATION_YEAR}”, lo que importa son los números de {TAXABLE_YEAR}, y esos ya están casi completos.
+                    </p>
+                    <p>
+                        Declarar es presentar un formulario, el <strong>210</strong>, con tus ingresos, tu patrimonio y tus deudas. De ahí sale un
+                        impuesto que puede dar cero, un valor a pagar o un <dfn>saldo a favor</dfn> si te retuvieron de más durante el año.
+                    </p>
+                    <p>
+                        Solo declaran las personas que superan algún tope, y se mide con la <dfn>UVT</dfn>, una unidad que la DIAN actualiza cada año
+                        con la inflación. La de {TAXABLE_YEAR} vale {formatCOP(UVT_TAXABLE.value)} desde diciembre del año pasado, así que los topes en
+                        pesos ya son definitivos.
+                    </p>
+                </div>
+                <aside class="analogy">
+                    <p class="analogy-head">Piénsalo como el boletín del colegio</p>
+                    <p>
+                        Las notas del año se entregan cuando el año ya terminó. Nadie te califica en enero por lo que vas a estudiar; te califican
+                        por lo que hiciste. La renta funciona igual: <strong>en {DECLARATION_YEAR} entregas el boletín de {TAXABLE_YEAR}</strong>, y
+                        lo que hagas en {DECLARATION_YEAR} va en el boletín de {DECLARATION_YEAR + 1}.
+                    </p>
+                </aside>
+            </div>
+        </section>
+
+        <section id="estado" aria-labelledby="estado-titulo">
+            <header class="head">
+                <h2 id="estado-titulo">Lo que ya se sabe y lo que falta</h2>
+                <p>Lo que decide si declaras y cuánto pagas ya está en firme. Lo pendiente es papeleo de la DIAN.</p>
+            </header>
+            <div class="board">
+                <div class="board-col">
+                    <p class="board-head known">Confirmado</p>
+                    <ul>
+                        {
+                            known.map(({ label, detail }) => (
+                                <li class="known">
+                                    <span class="mark" aria-hidden="true">✓</span>
+                                    <div>
+                                        <b>{label}</b>
+                                        <p>{detail}</p>
+                                    </div>
+                                </li>
+                            ))
+                        }
+                    </ul>
+                </div>
+                <div class="board-col">
+                    <p class="board-head">Por confirmar</p>
+                    <ul>
+                        {
+                            pending.map(({ label, detail }) => (
+                                <li>
+                                    <span class="mark" aria-hidden="true"></span>
+                                    <div>
+                                        <b>{label}</b>
+                                        <p>{detail}</p>
+                                    </div>
+                                </li>
+                            ))
+                        }
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="topes" aria-labelledby="topes-titulo">
+            <header class="head">
+                <h2 id="topes-titulo">¿Quién tiene que declarar renta en {DECLARATION_YEAR}?</h2>
+                <p>Basta con superar <strong>uno solo</strong> de estos topes en {TAXABLE_YEAR}.</p>
+            </header>
+            <div class="split">
+                <div class="table-wrap">
+                    <table class="amounts">
+                        <caption>Topes del año gravable {TAXABLE_YEAR} (arts. 592, 593 y 594-3 del Estatuto Tributario)</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Tope</th>
+                                <th scope="col" class="num">UVT</th>
+                                <th scope="col" class="num">En pesos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                THRESHOLDS.map(({ label, uvt: limit, inclusive, key }) => (
+                                    <tr>
+                                        <th scope="row">
+                                            {label}
+                                            <small>{key === "patrimonio" ? `Al 31 de diciembre, sin restar deudas` : "En todo el año"}</small>
+                                        </th>
+                                        <td class="num">{inclusive ? "Desde" : "Más de"} {formatNumber(limit)}</td>
+                                        <td class="num strong">{formatCOP(thresholdPesos(limit))}</td>
+                                    </tr>
+                                ))
+                            }
+                            <tr>
+                                <th scope="row">
+                                    Responsable de IVA
+                                    <small>Al 31 de diciembre de {TAXABLE_YEAR}</small>
+                                </th>
+                                <td class="num">-</td>
+                                <td class="num strong">Siempre declara</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="prose">
+                    <p>
+                        Los topes aplican a las personas naturales <dfn>residentes</dfn>: quienes estuvieron más de 183 días en Colombia en un
+                        periodo de un año, o tienen aquí a su familia o la mayor parte de sus bienes.
+                    </p>
+                    <ul>
+                        <li><strong>Ingresos brutos</strong> son todos: salario, honorarios, arriendos, intereses, pensión, ventas. Antes de cualquier descuento.</li>
+                        <li><strong>Patrimonio bruto</strong> es lo que valían tus cosas el 31 de diciembre: casa, carro, ahorros, inversiones, cesantías. Sin restar deudas.</li>
+                        <li><strong>Consignaciones</strong> incluye las transferencias que recibiste y lo que pusiste en CDT, fondos o inversiones.</li>
+                    </ul>
+                    <p>
+                        ¿Quieres revisarlo con tus números? En <a href="/declarar-renta">¿Debo declarar renta?</a> pones tus cifras de
+                        {TAXABLE_YEAR} y te dice si declaras y cuál es tu fecha límite.
+                    </p>
+                </div>
+            </div>
+
+            <figure class="chart zones-chart">
+                <figcaption>
+                    <b>Declarar no es lo mismo que pagar</b>
+                    <span>Empleado con salario fijo en {TAXABLE_YEAR}, sin otros ingresos ni deducciones</span>
+                </figcaption>
+                <div class="zones" role="img" aria-label={zones.map(({ label, detail }) => `${label}: ${detail}`).join(". ")}>
+                    {zones.map(({ id, width }) => <span class={`zone ${id}`} style={`--w: ${width}`}></span>)}
+                </div>
+                <div class="zones-scale" aria-hidden="true">
+                    <span>$0</span>
+                    <span>{formatCOP(scaleMax)} al mes</span>
+                </div>
+                <ul class="zones-legend">
+                    {
+                        zones.map(({ id, label, detail }) => (
+                            <li>
+                                <i class={`swatch ${id}`}></i>
+                                <span>
+                                    <b>{label}</b>
+                                    {detail}
+                                </span>
+                            </li>
+                        ))
+                    }
+                </ul>
+                <p class="chart-note">
+                    Por debajo de {formatCOP(firstTaxed)} al mes, lo que queda después de aportes y de la renta exenta del 25&nbsp;% cae en el
+                    tramo del 0&nbsp;%. Igual tienes que presentar la declaración si pasaste el tope de ingresos.
+                </p>
+            </figure>
+        </section>
+
+        <section id="fechas" aria-labelledby="fechas-titulo">
+            <header class="head">
+                <h2 id="fechas-titulo">Fechas de la declaración de renta {DECLARATION_YEAR}</h2>
+                <p>
+                    Del {formatDay(FIRST_DEADLINE.date)} al {formatDay(LAST_DEADLINE.date)}. Se presenta y se paga el mismo día, según los dos
+                    últimos dígitos de tu cédula.
+                </p>
+            </header>
+            <ol class="months">
+                {
+                    DEADLINE_MONTHS.map(({ month, from, to }) => (
+                        <li>
+                            <p class="months-name">{month.charAt(0).toUpperCase() + month.slice(1)}</p>
+                            <p class="months-digits">
+                                Dígitos <b>{from.digits.slice(0, 2)}</b> a <b>{to.digits.slice(3)}</b>
+                            </p>
+                            <p class="months-dates">
+                                Del {Number(from.date.slice(8))} al {Number(to.date.slice(8))} de {month}
+                            </p>
+                        </li>
+                    ))
+                }
+            </ol>
+            <div class="split narrow">
+                <div class="prose">
+                    <p>
+                        ¿Por qué se pueden saber desde ya? Porque el <a href={DECREE_URL} rel="noopener">Decreto 2229 de 2023</a> dejó de fijar
+                        fechas exactas y las fijó en <strong>días hábiles</strong>: los dígitos 01-02 vencen el séptimo día hábil de agosto, y así
+                        sucesivamente hasta los 99-00, el décimo séptimo día hábil de octubre. Con los festivos de {DECLARATION_YEAR}, eso da estas
+                        fechas. Con la misma regla, el calendario de este sitio coincidió con el que publicó la DIAN para {TAXABLE_YEAR}.
+                    </p>
+                    <p>
+                        Para encontrar tu día, toma tu cédula sin el dígito de verificación y mira los dos últimos números. Si tu cédula termina en
+                        …4537, buscas el 37.
+                    </p>
+                </div>
+                <a class="cta" href="/declarar-renta#calendario">
+                    <span>Calendario completo</span>
+                    <b>Busca tu fecha por cédula →</b>
+                </a>
+            </div>
+        </section>
+
+        <section id="linea" aria-labelledby="linea-titulo">
+            <header class="head">
+                <h2 id="linea-titulo">El año de la renta, mes a mes</h2>
+                <p>Lo que va a pasar desde hoy hasta tu fecha límite. La línea punteada es lo que todavía no ocurre.</p>
+            </header>
+            <ol class="timeline">
+                {
+                    TIMELINE.map(({ when, text, done }) => (
+                        <li class:list={{ done }}>
+                            <time>{when}</time>
+                            <p>{text}</p>
+                        </li>
+                    ))
+                }
+            </ol>
+        </section>
+
+        <section id="cuanto" aria-labelledby="cuanto-titulo">
+            <header class="head">
+                <h2 id="cuanto-titulo">¿Cuánto pagarías?</h2>
+                <p>La tabla del impuesto es la misma de la Ley 2277 de 2022, en UVT de {TAXABLE_YEAR}.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <p>
+                        El impuesto de renta se cobra por <dfn>tramos</dfn>, como los pisos de un edificio: cada peso paga la tarifa del piso en el
+                        que cae, no la del último. Los primeros 1.090&nbsp;UVT de <dfn>renta líquida</dfn> al año ({uvtPesos(1_090)}) pagan 0&nbsp;%.
+                    </p>
+                    <p>
+                        Renta líquida <strong>no es tu sueldo</strong>. Es lo que queda después de restar lo que te descontaron de salud, pensión y
+                        fondo de solidaridad, las rentas exentas y las deducciones. Por eso alguien que gana {formatCOP(monthlyIncome)} al mes
+                        declara pero no paga.
+                    </p>
+                    <p>
+                        Si eres empleado, tu empresa ya te hizo <a href="/retencion-en-la-fuente">retención en la fuente</a> cada mes con una tabla
+                        parecida. Al declarar, esa retención se resta del impuesto, así que lo normal es que pagues poco, nada o que te queden
+                        saldos a favor. Quien tiene ingresos sin retención, como arriendos o trabajos por cuenta propia, es quien más suele pagar.
+                    </p>
+                </div>
+                <div class="table-wrap">
+                    <table class="amounts">
+                        <caption>Tabla de renta de personas naturales (art. 241 E.T.). Renta líquida al año.</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">UVT</th>
+                                <th scope="col" class="num">En pesos de {TAXABLE_YEAR}</th>
+                                <th scope="col" class="num">Tarifa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {
+                                tableRows.map(({ range, pesos, rate }) => (
+                                    <tr>
+                                        <th scope="row">{range}</th>
+                                        <td class="num">{pesos}</td>
+                                        <td class="num strong">{rate}</td>
+                                    </tr>
+                                ))
+                            }
+                        </tbody>
+                    </table>
+                    <p class="hint">Tarifa marginal: se cobra solo sobre lo que cae dentro de cada tramo.</p>
+                </div>
+            </div>
+
+            <div class="workbench" data-calc="renta">
+                <form class="form" data-form>
+                    <div class="calc-head">
+                        <h3>Calcula tu renta del año gravable {TAXABLE_YEAR}</h3>
+                        <p class="hint">Para empleados con salario fijo todo el año, sin otros ingresos ni más deducciones.</p>
+                    </div>
+                    <div class="field">
+                        <label for="renta-salario">Tu salario mensual en {TAXABLE_YEAR}</label>
+                        <div class="money big">
+                            <span aria-hidden="true">$</span>
+                            <input id="renta-salario" name="salario" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(SAMPLE)} />
+                        </div>
+                        <div class="chips" role="group" aria-label="Salarios de ejemplo">
+                            {[4_000_000, 6_200_000, 8_000_000, 12_000_000, 20_000_000].map((value) => (
+                                <button type="button" class="chip" data-amount={value}>{formatCOP(value)}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="renta-dependientes">Personas que dependen de ti</label>
+                        <select class="input" id="renta-dependientes" name="dependientes">
+                            {[0, 1, 2, 3, 4].map((value) => <option value={value}>{value === 0 ? "Ninguna" : value}</option>)}
+                        </select>
+                        <p class="hint">Cada una te resta 72&nbsp;UVT al año ({uvtPesos(72)}), hasta cuatro.</p>
+                    </div>
+                    <details class="breakdown">
+                        <summary>Ver la cuenta completa</summary>
+                        <table class="amounts">
+                            <thead>
+                                <tr><th scope="col">Al año</th><th scope="col" class="num">Valor</th></tr>
+                            </thead>
+                            <tbody>
+                                {
+                                    [
+                                        ["income", "Salario"],
+                                        ["health", "− Salud (4 %)"],
+                                        ["pension", "− Pensión (4 %)"],
+                                        ["solidarity", "− Fondo de solidaridad"],
+                                        ["exempt", "− Renta exenta (25 %)"],
+                                        ["dependents", "− Dependientes"],
+                                    ].map(([key, label]) => (
+                                        <tr>
+                                            <th scope="row">{label}</th>
+                                            <td class="num" data-line={key}>{formatCOP(Math.round(sample[key as keyof typeof sample] as number))}</td>
+                                        </tr>
+                                    ))
+                                }
+                                <tr>
+                                    <th scope="row">Renta líquida en UVT</th>
+                                    <td class="num strong" data-line="uvt">{num(sample.taxableUvt)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </details>
+                </form>
+                <div class="result">
+                    <div class="ticket">
+                        <p class="ticket-head">Tu renta de {TAXABLE_YEAR}</p>
+                        <dl class="ticket-lines">
+                            <div><dt>¿Declaras?</dt><dd data-out="must">{SAMPLE * 12 >= income ? "Sí, por ingresos" : "No por ingresos"}</dd></div>
+                            <div><dt>Tramo</dt><dd data-out="bracket">{sample.tax ? pct(sample.bracket.rate) : "0 %"}</dd></div>
+                        </dl>
+                        <div class="ticket-big">
+                            <span>Impuesto del año</span>
+                            <b data-out="tax">{formatCOP(sample.tax)}</b>
+                        </div>
+                        <p class="ticket-foot">Unos <b data-out="month">{formatCOP(Math.round(sample.tax / 12))}</b> al mes, que la retención ya debió ir cubriendo</p>
+                    </div>
+                    <p class="hint result-note">
+                        Con la UVT de {TAXABLE_YEAR} ({formatCOP(UVT_TAXABLE.value)}) y el redondeo a miles de la DIAN. Intereses de vivienda,
+                        prepagada, aportes voluntarios o el 1&nbsp;% de tus facturas te bajarían el impuesto. Es una estimación, no tu declaración.
+                    </p>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+        </section>
+
+        <section id="restar" aria-labelledby="restar-titulo">
+            <header class="head">
+                <h2 id="restar-titulo">Lo que puedes restar</h2>
+                <p>Los alivios que más usan los empleados, con su tope en pesos de {TAXABLE_YEAR}. Sin soporte, no cuentan.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts reliefs">
+                    <thead>
+                        <tr>
+                            <th scope="col">Alivio</th>
+                            <th scope="col">Cómo funciona</th>
+                            <th scope="col" class="num">Tope al año</th>
+                            <th scope="col">Soporte</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            RELIEFS.map(({ label, rule, capUvt, outsideLimit, paper }) => (
+                                <tr>
+                                    <th scope="row">
+                                        {label}
+                                        {outsideLimit && <span class="tag">Fuera del límite</span>}
+                                    </th>
+                                    <td>{rule}</td>
+                                    <td class="num strong">
+                                        {capUvt ? (
+                                            <>
+                                                {uvtPesos(capUvt)}
+                                                <small>{formatNumber(capUvt)} UVT</small>
+                                            </>
+                                        ) : (
+                                            "Sin tope fijo"
+                                        )}
+                                    </td>
+                                    <td>{paper}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <aside class="analogy wide">
+                <p class="analogy-head">El techo que nadie te cuenta</p>
+                <p>
+                    Sumadas, las rentas exentas y deducciones no pueden pasar del <strong>{pct(GLOBAL_LIMIT.share)} de tu ingreso</strong>
+                    (después de aportes) ni de <strong>{formatNumber(GLOBAL_LIMIT.uvt)}&nbsp;UVT al año</strong> ({uvtPesos(GLOBAL_LIMIT.uvt)}).
+                    Las dos que dicen “fuera del límite”, los 72&nbsp;UVT por dependiente y el 1&nbsp;% de las facturas, se restan aparte. Por eso
+                    pedir todas las facturas electrónicas a tu nombre durante lo que queda de {TAXABLE_YEAR} sí vale la pena.
+                </p>
+            </aside>
+        </section>
+
+        <section id="documentos" aria-labelledby="documentos-titulo">
+            <header class="head">
+                <h2 id="documentos-titulo">Qué documentos ir guardando</h2>
+                <p>Casi todos llegan entre enero y marzo de {DECLARATION_YEAR}. Haz una carpeta desde ya.</p>
+            </header>
+            <ul class="docs">
+                {
+                    documents.map(({ title: docTitle, text }) => (
+                        <li>
+                            <span class="box" aria-hidden="true"></span>
+                            <div>
+                                <b>{docTitle}</b>
+                                <p>{text}</p>
+                            </div>
+                        </li>
+                    ))
+                }
+            </ul>
+        </section>
+
+        <section id="reforma" aria-labelledby="reforma-titulo">
+            <header class="head">
+                <h2 id="reforma-titulo">¿La reforma cambia tu renta {DECLARATION_YEAR}?</h2>
+                <p>No. Lo que declaras en {DECLARATION_YEAR} se rige por las reglas que estaban vigentes en {TAXABLE_YEAR}.</p>
+            </header>
+            <div class="split">
+                <div class="prose">
+                    <h3>La Ley de Rescate Económico</h3>
+                    <p>
+                        El proyecto del gobierno de Abelardo de la Espriella trae un tramo nuevo de renta del 9&nbsp;%, baja el tope de la renta
+                        exenta y elimina la deducción de 72&nbsp;UVT por dependiente. Pero esos cambios aplicarían al <strong>año gravable
+                        {DECLARATION_YEAR}</strong>, que se declara en {DECLARATION_YEAR + 1}.
+                        {RESCATE_STATUS.isLaw ? " Ya es ley, pero no cambia esta declaración." : ` Hoy: ${RESCATE_STATUS.label.toLowerCase()}.`}
+                    </p>
+                    <p>
+                        En la práctica, la declaración de {DECLARATION_YEAR} es la <strong>última con las reglas actuales</strong> si la reforma
+                        se aprueba como está. Lo que sí te tocaría desde enero es la retención mensual, que se ajustaría a la tabla nueva.
+                        Lo explico con calculadoras en <a href="/blog/ley-de-rescate-economico">La Ley de Rescate Económico, explicada fácil</a>.
+                    </p>
+                </div>
+                <div class="prose">
+                    <h3>El decreto de emergencia que se cayó</h3>
+                    <p>
+                        En diciembre de 2025 el gobierno anterior declaró una emergencia económica y expidió el Decreto Legislativo 1474, con
+                        impuestos extra para financiar el presupuesto de {TAXABLE_YEAR}. La Corte Constitucional lo declaró inexequible en la
+                        <a href={COURT_URL} rel="noopener">sentencia C-079 de 2026</a> y ordenó que la DIAN no cobre esos impuestos.
+                    </p>
+                    <p>
+                        Para tu renta de personas naturales de {TAXABLE_YEAR}, eso significa que <strong>no hay nada nuevo</strong>: aplican la
+                        Ley 2277 de 2022 y el Estatuto Tributario tal como venían.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="errores" aria-labelledby="errores-titulo">
+            <header class="head">
+                <h2 id="errores-titulo">Errores comunes</h2>
+                <p>Los que más hacen que alguien no declare estando obligado, o declare mal.</p>
+            </header>
+            <div class="mistakes">
+                {
+                    mistakes.map(({ title: mistakeTitle, text }) => (
+                        <article>
+                            <h3>{mistakeTitle}</h3>
+                            <p>{text}</p>
+                        </article>
+                    ))
+                }
+            </div>
+
+            <div class="penalty">
+                <div>
+                    <p class="penalty-kicker">Si se te pasa la fecha</p>
+                    <p class="penalty-big">5&nbsp;% por mes</p>
+                    <p>
+                        La sanción por extemporaneidad es el 5&nbsp;% del impuesto por cada mes o fracción de retraso, hasta el 100&nbsp;%, más
+                        intereses de mora sobre lo que no pagaste. Si no tienes impuesto a cargo, se calcula sobre tus ingresos brutos. Si la
+                        DIAN te emplaza primero, sale más cara.
+                    </p>
+                </div>
+                <div>
+                    <p class="penalty-kicker">Sanción mínima en {DECLARATION_YEAR}</p>
+                    <p class="penalty-big">{MIN_PENALTY.estimated && <small>unos </small>}{formatCOP(MIN_PENALTY.value)}</p>
+                    <p>
+                        Son 10&nbsp;UVT de {DECLARATION_YEAR}.
+                        {MIN_PENALTY.estimated
+                            ? ` La UVT ${DECLARATION_YEAR} todavía no está publicada; el valor sale de la estimación con la inflación. `
+                            : " "}
+                        <a href="/uvt">Mira la UVT aquí</a>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject={`Declaración de renta ${DECLARATION_YEAR}`} note="Es una guía informativa y no reemplaza la asesoría de un contador." />
+
+        <Colophon
+            sources={[
+                { label: "Estatuto Tributario (arts. 241, 336, 592 a 594-3, 641)" },
+                { label: "Ley 2277 de 2022" },
+                { href: DECREE_URL, label: "Decreto 2229 de 2023" },
+                { href: UVT_URL, label: UVT_TAXABLE.resolution },
+                { href: COURT_URL, label: "Sentencia C-079 de 2026 (INCP)" },
+            ]}
+            related={[
+                { href: "/declarar-renta", label: "¿Debo declarar renta?" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/uvt", label: "UVT y conversor" },
+                { href: "/blog/ley-de-rescate-economico", label: "Ley de Rescate Económico" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { rentaFor } from "@/lib/ley-rescate";
+    import { thresholdPesos } from "@/lib/renta";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/uvt";
+
+    const pct = (value: number) => `${(value * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 })} %`;
+    const incomeLimit = thresholdPesos(1_400);
+
+    const root = document.querySelector<HTMLElement>('[data-calc="renta"]');
+    if (root) {
+        const form = root.querySelector<HTMLFormElement>("[data-form]")!;
+        const live = root.querySelector<HTMLElement>("[data-live]")!;
+        const salaryInput = form.elements.namedItem("salario") as HTMLInputElement;
+        const dependentsInput = form.elements.namedItem("dependientes") as HTMLSelectElement;
+        const out = (key: string) => root.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+        const line = (key: string) => root.querySelector<HTMLElement>(`[data-line="${key}"]`)!;
+
+        const run = () => {
+            const salary = parseCOP(salaryInput.value);
+            const result = rentaFor(salary, Number(dependentsInput.value), "now");
+            out("must").textContent = salary * 12 >= incomeLimit ? "Sí, por ingresos" : "No por ingresos";
+            out("bracket").textContent = result.tax ? pct(result.bracket.rate) : "0 %";
+            out("tax").textContent = formatCOP(result.tax);
+            out("month").textContent = formatCOP(Math.round(result.tax / 12));
+            for (const key of ["income", "health", "pension", "solidarity", "exempt", "dependents"] as const) {
+                line(key).textContent = formatCOP(Math.round(result[key]));
+            }
+            line("uvt").textContent = result.taxableUvt.toLocaleString("es-CO", { maximumFractionDigits: 1 });
+            live.textContent = `Impuesto del año: ${formatCOP(result.tax)}.`;
+        };
+
+        salaryInput.addEventListener("input", () => {
+            const value = parseCOP(salaryInput.value);
+            salaryInput.value = value ? formatNumber(value) : "";
+        });
+        for (const chip of root.querySelectorAll<HTMLButtonElement>("[data-amount]")) {
+            chip.addEventListener("click", () => {
+                salaryInput.value = formatNumber(Number(chip.dataset.amount));
+                run();
+            });
+        }
+        form.addEventListener("input", run);
+        form.addEventListener("change", run);
+        run();
+    }
+</script>
+
+<style>
+    .kicker {
+        margin-bottom: 18px;
+        color: var(--red-ink);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .post h1 {
+        max-width: 14ch;
+    }
+
+    /* Resumen */
+    .facts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 2px solid var(--ink);
+    }
+
+    .facts li {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        padding: 24px 24px 24px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .facts li:not(:nth-child(3n + 1)) {
+        padding-left: 24px;
+        border-left: 1px solid var(--line);
+    }
+
+    .facts b {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(1.8rem, 1.4rem + 1.3vw, 2.5rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .facts span {
+        color: var(--text-soft);
+    }
+
+    .index {
+        margin-top: 36px;
+        padding: 24px 28px;
+        border-radius: 18px;
+        background: var(--board);
+    }
+
+    .index > p {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .index ul {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px 32px;
+        margin-top: 12px;
+    }
+
+    .index a {
+        display: block;
+        padding: 6px 0;
+        color: #fff;
+        text-decoration-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Texto */
+    .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        gap: 40px clamp(40px, 6vw, 80px);
+        align-items: start;
+    }
+
+    .split.narrow {
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+        margin-top: clamp(2rem, 4vw, 3rem);
+        align-items: center;
+    }
+
+    .prose {
+        max-width: 66ch;
+    }
+
+    .prose > * + * {
+        margin-top: 1.1rem;
+    }
+
+    .prose h3 {
+        font-size: 1.35rem;
+        letter-spacing: -0.025em;
+    }
+
+    .prose p,
+    .prose li {
+        color: var(--text);
+        font-size: 1.08rem;
+        line-height: 1.75;
+    }
+
+    .prose ul {
+        display: grid;
+        gap: 8px;
+        padding-left: 1.2rem;
+        list-style: disc;
+    }
+
+    .prose li::marker {
+        color: var(--red);
+    }
+
+    .prose strong {
+        color: var(--ink);
+    }
+
+    dfn {
+        color: var(--ink);
+        font-style: normal;
+        font-weight: 650;
+        text-decoration: underline dotted var(--red);
+        text-underline-offset: 4px;
+    }
+
+    .analogy {
+        padding: 22px 24px;
+        border-left: 3px solid var(--red);
+        border-radius: 0 16px 16px 0;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .analogy > * + * {
+        margin-top: 12px;
+    }
+
+    .analogy-head {
+        color: var(--red-ink);
+        font-family: var(--font-serif);
+        font-size: 1.6rem;
+        font-style: italic;
+        line-height: 1.1;
+    }
+
+    .analogy p:not(.analogy-head) {
+        color: var(--text);
+        line-height: 1.7;
+    }
+
+    .analogy strong {
+        color: var(--ink);
+    }
+
+    .analogy.wide {
+        max-width: 860px;
+        margin-top: clamp(2rem, 4vw, 3rem);
+    }
+
+    /* Confirmado y por confirmar */
+    .board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .board-col {
+        padding: clamp(20px, 3vw, 28px);
+        border-radius: 20px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .board-col:last-child {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--line-strong);
+    }
+
+    .board-head {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .board-head.known {
+        color: var(--success);
+    }
+
+    .board ul {
+        display: grid;
+        margin-top: 8px;
+    }
+
+    .board li {
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .board li:last-child {
+        border-bottom: 0;
+    }
+
+    .mark {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        margin-top: 2px;
+        border: 2px dashed var(--line-strong);
+        border-radius: 50%;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .known .mark {
+        border: 0;
+        background: var(--success);
+        color: #fff;
+    }
+
+    .board b {
+        color: var(--ink);
+    }
+
+    .board p {
+        margin-top: 2px;
+        color: var(--text-soft);
+        font-size: 0.95rem;
+    }
+
+    /* Topes */
+    .amounts th small,
+    .amounts td small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 400;
+    }
+
+    .table-wrap {
+        display: grid;
+        gap: 14px;
+        overflow-x: auto;
+    }
+
+    .table-wrap caption {
+        padding-bottom: 12px;
+        color: var(--muted);
+        font-size: 0.88rem;
+        text-align: left;
+    }
+
+    .chart {
+        margin: clamp(2.5rem, 5vw, 3.5rem) 0 0;
+        padding: 24px;
+        border-radius: 20px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .chart figcaption {
+        display: grid;
+        gap: 2px;
+        margin-bottom: 18px;
+    }
+
+    .chart figcaption b {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        letter-spacing: -0.02em;
+    }
+
+    .chart figcaption span,
+    .chart-note {
+        color: var(--muted);
+        font-size: 0.88rem;
+    }
+
+    .chart-note {
+        max-width: 72ch;
+        margin-top: 16px;
+    }
+
+    .zones {
+        display: flex;
+        height: 36px;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+
+    .zone {
+        flex: var(--w) 0 0;
+    }
+
+    .zone.free,
+    .swatch.free {
+        background: rgba(21, 25, 30, 0.1);
+    }
+
+    .zone.file,
+    .swatch.file {
+        background: var(--amber);
+    }
+
+    .zone.pay,
+    .swatch.pay {
+        background: var(--red);
+    }
+
+    .zones-scale {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .zones-legend {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px 24px;
+        margin-top: 18px;
+    }
+
+    .zones-legend li {
+        display: grid;
+        grid-template-columns: 14px minmax(0, 1fr);
+        gap: 10px;
+        color: var(--text-soft);
+        font-size: 0.92rem;
+    }
+
+    .zones-legend b {
+        display: block;
+        color: var(--ink);
+    }
+
+    .swatch {
+        width: 14px;
+        height: 14px;
+        margin-top: 3px;
+        border-radius: 4px;
+    }
+
+    /* Fechas */
+    .months {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .months li {
+        display: grid;
+        gap: 6px;
+        padding: 24px;
+        border-radius: 20px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .months-name {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .months-digits {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+        letter-spacing: -0.035em;
+    }
+
+    .months-digits b {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .cta {
+        display: grid;
+        gap: 4px;
+        padding: 24px;
+        border-radius: 20px;
+        background: var(--red);
+        color: #fff;
+        text-decoration: none !important;
+        transition: transform 0.2s var(--ease-out);
+    }
+
+    .cta:hover {
+        transform: translateY(-2px);
+    }
+
+    .cta span {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .cta b {
+        font-family: var(--font-display);
+        font-size: 1.45rem;
+        letter-spacing: -0.03em;
+    }
+
+    /* Línea de tiempo: lo que ya pasó va con línea continua; lo que falta, punteada */
+    .timeline {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 28px 0;
+    }
+
+    .timeline li {
+        position: relative;
+        padding: 26px 24px 4px 0;
+        border-top: 2px dashed var(--line-strong);
+    }
+
+    .timeline li.done {
+        border-top: 2px solid var(--ink);
+    }
+
+    .timeline li::before {
+        position: absolute;
+        top: -8px;
+        left: 0;
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--ink);
+        border-radius: 50%;
+        background: var(--background);
+        content: "";
+    }
+
+    .timeline li.done::before,
+    .timeline li:last-child::before {
+        background: var(--red);
+        border-color: var(--red);
+    }
+
+    .timeline time {
+        color: var(--red-ink);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .timeline p {
+        margin-top: 6px;
+        color: var(--text);
+    }
+
+    /* Calculadora */
+    .calc-head {
+        display: grid;
+        gap: 6px;
+    }
+
+    .calc-head h3 {
+        font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+        letter-spacing: -0.035em;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .breakdown summary {
+        color: var(--ink);
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .breakdown table {
+        margin-top: 14px;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    .result-note {
+        margin-top: 14px;
+    }
+
+    .ticket {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .ticket-head {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .ticket-lines {
+        display: grid;
+        margin-top: 10px;
+    }
+
+    .ticket-lines div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .ticket-lines dd {
+        margin: 0;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+    }
+
+    .ticket-big {
+        display: grid;
+        gap: 2px;
+        margin-top: 18px;
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .ticket-big b {
+        color: var(--amber);
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 1.9rem + 2vw, 3.4rem);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
+    }
+
+    .ticket-foot {
+        margin-top: 4px;
+    }
+
+    .ticket-foot b {
+        color: #fff;
+    }
+
+    /* Alivios */
+    .reliefs {
+        min-width: 760px;
+    }
+
+    .reliefs td {
+        color: var(--text) !important;
+        line-height: 1.5;
+    }
+
+    .reliefs th .tag {
+        display: inline-block;
+        margin-top: 6px;
+    }
+
+    /* Documentos */
+    .docs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 clamp(28px, 5vw, 64px);
+        border-top: 2px solid var(--ink);
+    }
+
+    .docs li {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 14px;
+        padding: 18px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .box {
+        width: 20px;
+        height: 20px;
+        margin-top: 2px;
+        border: 2px solid var(--ink);
+        border-radius: 5px;
+    }
+
+    .docs b {
+        color: var(--ink);
+    }
+
+    .docs p {
+        margin-top: 2px;
+        color: var(--text-soft);
+    }
+
+    /* Errores y sanciones */
+    .mistakes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .mistakes article {
+        padding: 22px;
+        border-radius: 18px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .mistakes h3 {
+        font-size: 1.15rem;
+        letter-spacing: -0.02em;
+    }
+
+    .mistakes p {
+        margin-top: 8px;
+        color: var(--text-soft);
+    }
+
+    .penalty {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 32px;
+        margin-top: clamp(2rem, 4vw, 3rem);
+        padding: clamp(22px, 3vw, 32px);
+        border-radius: 22px;
+        background: var(--red-soft);
+    }
+
+    .penalty p {
+        color: var(--text);
+    }
+
+    .penalty-kicker {
+        color: var(--red-ink) !important;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .penalty-big {
+        margin: 6px 0 10px;
+        color: var(--ink) !important;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 1.6rem + 1.4vw, 2.8rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.045em;
+        line-height: 1;
+    }
+
+    .penalty-big small {
+        font-size: 0.5em;
+        letter-spacing: 0;
+    }
+
+    @media (max-width: 1023px) {
+        .split,
+        .split.narrow {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .result {
+            position: static;
+        }
+
+        .ticket {
+            max-width: 560px;
+        }
+
+        .timeline,
+        .mistakes {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .facts,
+        .index ul,
+        .board,
+        .months,
+        .zones-legend,
+        .docs,
+        .mistakes,
+        .penalty {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .facts li,
+        .facts li:not(:nth-child(3n + 1)) {
+            padding: 20px 0;
+            border-left: 0;
+        }
+
+        .timeline {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0;
+            margin-left: 7px;
+        }
+
+        .timeline li {
+            padding: 0 0 22px 24px;
+            border-top: 0;
+            border-left: 2px dashed var(--line-strong);
+        }
+
+        .timeline li.done {
+            border-top: 0;
+            border-left: 2px solid var(--ink);
+        }
+
+        .timeline li::before {
+            top: 2px;
+            left: -8px;
+        }
+    }
+</style>

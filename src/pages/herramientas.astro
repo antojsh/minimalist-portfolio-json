@@ -186,6 +186,20 @@ const groups: { title: string; intro: string; tools: Tool[] }[] = [
         ],
     },
     {
+        title: "Textos",
+        intro: "Para trabajos, redes y cualquier texto con límite de caracteres.",
+        tools: [
+            {
+                href: "/contador-de-palabras",
+                title: "Contador de palabras",
+                text: "Palabras, caracteres con y sin espacios y tiempo de lectura. Pasa tu texto a mayúsculas, minúsculas o tipo oración.",
+                preview: "Aa",
+                caption: "cuenta y convierte",
+                tone: "paper",
+            },
+        ],
+    },
+    {
         title: "Para tu negocio",
         intro: "Para que tus clientes te encuentren y te escriban.",
         tools: [
@@ -234,7 +248,7 @@ const all = groups.flatMap((group) => group.tools);
 const site = Astro.site?.href ?? "/";
 const pageUrl = new URL("/herramientas", site).href;
 const title = "Herramientas gratis: impuestos, calculadoras laborales, festivos y más";
-const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario neto, horas extra, salario mínimo, pico y placa, link de WhatsApp con QR, interés compuesto, crédito, novena y ruleta.`;
+const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario neto, horas extra, salario mínimo, pico y placa, link de WhatsApp con QR, contador de palabras, interés compuesto, crédito, novena y ruleta.`;
 const personId = new URL("/#person", site).href;
 
 const jsonLd = {

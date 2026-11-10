@@ -1,0 +1,541 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { LIMITS, READING_WPM, SPEAKING_WPM, TEXTO_REVIEW, TRANSFORMS } from "@/lib/texto";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const STATS = [
+    { key: "characters", label: "Caracteres" },
+    { key: "charactersNoSpaces", label: "Sin espacios" },
+    { key: "sentences", label: "Oraciones" },
+    { key: "paragraphs", label: "Párrafos" },
+    { key: "reading", label: "Lectura" },
+    { key: "speaking", label: "En voz alta" },
+];
+
+const faqs = [
+    {
+        question: "¿Cómo se cuentan las palabras?",
+        answer: "Una palabra es una secuencia de letras o números: los signos de puntuación, los emojis y los espacios no cuentan. Los números como 2026 cuentan como una palabra. Usamos las reglas de segmentación de Unicode, las mismas de los navegadores, así que las tildes, la ñ y los signos ¿ ¡ no confunden el conteo.",
+    },
+    {
+        question: "¿Los espacios cuentan como caracteres?",
+        answer: "Sí, en el total de caracteres cuentan los espacios, los saltos de línea y los signos. Por eso también mostramos los caracteres sin espacios, que es lo que piden algunos trabajos y formularios.",
+    },
+    {
+        question: "¿Cuánto cuenta un emoji?",
+        answer: "Aquí un emoji cuenta como un carácter, porque así lo ve quien lee. Pero cada red lo cuenta a su manera: en X un emoji ocupa 2 de los 280, y en un SMS cualquier emoji o tilde (salvo é, ñ y ü) hace que el límite baje de 160 a 70 caracteres.",
+    },
+    {
+        question: "¿Cómo paso un texto de mayúsculas a minúsculas?",
+        answer: "Pega el texto y toca minúsculas. También puedes pasarlo a MAYÚSCULAS, a tipo oración (mayúscula solo al inicio de cada oración, también después de ¿ y ¡), a tipo título o invertir las mayúsculas. Si te equivocas, el botón Deshacer recupera el texto anterior.",
+    },
+    {
+        question: "¿Qué es el tipo oración y el tipo título?",
+        answer: "Tipo oración deja en minúscula todo menos la primera letra de cada oración; sirve para arreglar un texto que quedó en mayúsculas sostenidas. Revisa después los nombres propios, que también quedan en minúscula. Tipo título pone mayúscula inicial a cada palabra, salvo artículos y preposiciones como de, la, y, en.",
+    },
+    {
+        question: "¿Cuánto tiempo tarda leer un texto?",
+        answer: `Calculamos ${READING_WPM} palabras por minuto para leer en silencio y ${SPEAKING_WPM} para leer en voz alta, que es lo usual en español para un adulto. Sirve para medir una presentación, un discurso o un guion de video.`,
+    },
+    {
+        question: "¿Mi texto se guarda en algún lado?",
+        answer: "No sale de tu equipo. El conteo se hace en tu navegador y el texto solo queda guardado en este navegador para que no lo pierdas si recargas la página. Bórralo con el botón Borrar.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/contador-de-palabras";
+const title = "Contador de palabras y caracteres, y convertir mayúsculas a minúsculas";
+const description = "Cuenta palabras, caracteres con y sin espacios, oraciones y tiempo de lectura al instante. Pasa tu texto a mayúsculas, minúsculas, tipo oración o título y revisa los límites de X, Instagram y SMS.";
+const ogPath = "/og/contador-de-palabras.png";
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: "Contador de palabras y caracteres",
+    crumb: "Contador de palabras",
+    review: TEXTO_REVIEW,
+    image: ogPath,
+    category: "UtilitiesApplication",
+    faqs,
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt="Contador de palabras y caracteres" imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Contador de palabras"
+            links={[
+                { href: "#contar", label: "Contar" },
+                { href: "#mayusculas", label: "Mayúsculas" },
+                { href: "#limites", label: "Límites" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>Contador de <span>palabras</span></h1>
+            <p class="lead">
+                Escribe o pega tu texto y mira al instante las palabras, los caracteres con y sin espacios y cuánto se tarda
+                leerlo. Pásalo a <strong>MAYÚSCULAS</strong>, <strong>minúsculas</strong> o tipo oración con un toque. Todo
+                pasa en tu navegador.
+            </p>
+            <p class="updated">Actualizado el <time datetime={TEXTO_REVIEW}>{longDate(TEXTO_REVIEW)}</time></p>
+        </section>
+
+        <section id="contar" class="workbench" aria-labelledby="contar-titulo">
+            <h2 id="contar-titulo" class="sr-only">Cuenta las palabras de tu texto</h2>
+            <div class="editor">
+                <div id="mayusculas" class="toolbar" role="toolbar" aria-label="Convertir el texto">
+                    {TRANSFORMS.map(({ key, label }) => (
+                        <button type="button" class="tool-button" data-transform={key}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                <label for="texto" class="sr-only">Tu texto</label>
+                <textarea id="texto" class="paper" spellcheck="true" placeholder="Escribe o pega aquí tu texto…" data-text></textarea>
+                <div class="actions">
+                    <button type="button" class="action" data-undo disabled>Deshacer</button>
+                    <button type="button" class="action" data-copy>Copiar texto</button>
+                    <button type="button" class="action danger" data-clear>Borrar</button>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="board" aria-live="polite" aria-atomic="false">
+                    <p class="board-label">Palabras</p>
+                    <p class="board-big" data-out="words">0</p>
+                    <dl class="board-grid">
+                        {STATS.map(({ key, label }) => (
+                            <div>
+                                <dt>{label}</dt>
+                                <dd data-out={key}>{key === "reading" || key === "speaking" ? "0 s" : "0"}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <div class="keywords" data-keywords hidden>
+                        <p class="board-label">Palabras que más repites</p>
+                        <ol data-out="keywords"></ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="limites" aria-labelledby="limites-titulo">
+            <header class="head">
+                <h2 id="limites-titulo">¿Cabe en…?</h2>
+                <p>Los límites de caracteres más buscados, medidos con tu texto. Se actualizan mientras escribes.</p>
+            </header>
+            <ul class="limits">
+                {LIMITS.map(({ key, label, max, note }) => (
+                    <li data-limit={key} data-max={max}>
+                        <span class="limit-name">
+                            {label}
+                            {note && <small>{note}</small>}
+                        </span>
+                        <span class="limit-bar" aria-hidden="true"><span style="--w: 0"></span></span>
+                        <span class="limit-count" data-count>0 / {max}</span>
+                    </li>
+                ))}
+            </ul>
+        </section>
+
+        <section id="como" aria-labelledby="como-titulo">
+            <header class="head">
+                <h2 id="como-titulo">Cómo contamos</h2>
+                <p>Las reglas que usamos, para que sepas qué número esperar.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>Palabras</h3>
+                    <p>Letras o números seguidos. "¿Qué?" es una palabra, 2026 es una palabra, y un emoji o un guion suelto no cuentan.</p>
+                </article>
+                <article>
+                    <h3>Caracteres</h3>
+                    <p>Lo que ve una persona: una letra con tilde es un carácter y un emoji también, aunque por dentro ocupen más.</p>
+                </article>
+                <article>
+                    <h3>Tiempo</h3>
+                    <p>{READING_WPM} palabras por minuto para leer en silencio y {SPEAKING_WPM} para leer en voz alta, como en una exposición.</p>
+                </article>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Contador de palabras" note="Tu texto no sale de este navegador." />
+
+        <Colophon
+            sources={[{ label: "Unicode: segmentación de texto (UAX #29)" }, { label: "Alfabeto GSM 03.38 para SMS" }]}
+            related={[
+                { href: "/link-de-whatsapp", label: "Link de WhatsApp con QR" },
+                { href: "/ruleta", label: "Ruleta aleatoria" },
+                { href: "/dias-habiles", label: "Días hábiles" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { analyze, formatDuration, formatInt, smsLimit, transform, type TransformKey } from "@/lib/texto";
+
+    const textarea = document.querySelector<HTMLTextAreaElement>("[data-text]")!;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const undoButton = document.querySelector<HTMLButtonElement>("[data-undo]")!;
+    const KEY = "contador-de-palabras-texto";
+    const history: string[] = [];
+
+    function update(): void {
+        const text = textarea.value;
+        const stats = analyze(text);
+        out("words").textContent = formatInt(stats.words);
+        for (const key of ["characters", "charactersNoSpaces", "sentences", "paragraphs"] as const) out(key).textContent = formatInt(stats[key]);
+        out("reading").textContent = formatDuration(stats.reading);
+        out("speaking").textContent = formatDuration(stats.speaking);
+
+        document.querySelector<HTMLElement>("[data-keywords]")!.hidden = !stats.keywords.length;
+        out("keywords").innerHTML = stats.keywords
+            .map(({ word, count, density }) => `<li><span>${word.replace(/[<>&]/g, "")}</span><b>${count}</b><small>${String(Math.round(density * 1000) / 10).replace(".", ",")} %</small></li>`)
+            .join("");
+
+        for (const item of document.querySelectorAll<HTMLElement>("[data-limit]")) {
+            const max = item.dataset.limit === "sms" ? smsLimit(text) : Number(item.dataset.max);
+            const ratio = stats.characters / max;
+            item.classList.toggle("over", ratio > 1);
+            item.querySelector<HTMLElement>(".limit-bar span")!.style.setProperty("--w", String(Math.min(1, ratio)));
+            item.querySelector<HTMLElement>("[data-count]")!.textContent = `${formatInt(stats.characters)} / ${formatInt(max)}`;
+        }
+
+        try {
+            if (text) localStorage.setItem(KEY, text);
+            else localStorage.removeItem(KEY);
+        } catch {}
+    }
+
+    function replace(value: string, message: string) {
+        if (value === textarea.value) return;
+        history.push(textarea.value);
+        undoButton.disabled = false;
+        textarea.value = value;
+        update();
+        live.textContent = message;
+    }
+
+    textarea.addEventListener("input", update);
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-transform]")) {
+        button.addEventListener("click", () => {
+            const key = button.dataset.transform as TransformKey;
+            // Si hay una parte seleccionada, solo se convierte esa parte
+            const { selectionStart: start, selectionEnd: end, value } = textarea;
+            const next = start !== end ? value.slice(0, start) + transform(key, value.slice(start, end)) + value.slice(end) : transform(key, value);
+            replace(next, `Texto convertido a ${button.textContent?.trim()}.`);
+            if (start !== end) textarea.setSelectionRange(start, start + (next.length - value.length) + (end - start));
+            textarea.focus();
+        });
+    }
+
+    undoButton.addEventListener("click", () => {
+        const previous = history.pop();
+        if (previous == null) return;
+        textarea.value = previous;
+        undoButton.disabled = history.length === 0;
+        update();
+        live.textContent = "Cambio deshecho.";
+    });
+
+    document.querySelector("[data-clear]")!.addEventListener("click", () => {
+        replace("", "Texto borrado. Puedes deshacerlo.");
+        textarea.focus();
+    });
+
+    document.querySelector("[data-copy]")!.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(textarea.value);
+        } catch {
+            textarea.select();
+        }
+        const button = document.querySelector<HTMLButtonElement>("[data-copy]")!;
+        button.textContent = "¡Copiado!";
+        live.textContent = "Texto copiado.";
+        setTimeout(() => (button.textContent = "Copiar texto"), 1600);
+    });
+
+    try {
+        const saved = localStorage.getItem(KEY);
+        if (saved && !textarea.value) textarea.value = saved;
+    } catch {}
+    update();
+</script>
+
+<style>
+    .editor {
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .tool-button {
+        padding: 8px 14px;
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        background: var(--sheet);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .tool-button:hover {
+        border-color: var(--ink);
+        background: #fff;
+    }
+
+    .tool-button:focus-visible,
+    .action:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+    }
+
+    /* Hoja de cuaderno: renglones y margen rojo */
+    .paper {
+        --rule: 32px;
+        width: 100%;
+        min-height: 420px;
+        padding: calc(var(--rule) * 0.5) 22px var(--rule) 64px;
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        outline: 0;
+        background:
+            linear-gradient(90deg, transparent 47px, rgba(196, 42, 26, 0.45) 47px, rgba(196, 42, 26, 0.45) 49px, transparent 49px),
+            repeating-linear-gradient(transparent 0, transparent calc(var(--rule) - 1px), rgba(0, 56, 147, 0.16) calc(var(--rule) - 1px), rgba(0, 56, 147, 0.16) var(--rule)),
+            #fffdf6;
+        background-attachment: local;
+        background-position: 0 calc(var(--rule) * 0.5 - 1px);
+        color: var(--ink);
+        font: inherit;
+        font-size: 1.05rem;
+        line-height: var(--rule);
+        resize: vertical;
+        box-shadow: 0 24px 40px -32px rgba(21, 25, 30, 0.45);
+    }
+
+    .paper:focus {
+        border-color: var(--ink);
+    }
+
+    .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .action {
+        padding: 9px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font: inherit;
+        font-size: 0.92rem;
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .action:disabled {
+        opacity: 0.35;
+        cursor: default;
+    }
+
+    .action.danger {
+        margin-left: auto;
+        background: transparent;
+        color: var(--red-ink);
+        box-shadow: inset 0 0 0 1px var(--red-soft);
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    /* Tablero de contadores */
+    .board {
+        padding: clamp(22px, 3vw, 30px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .board-label {
+        color: var(--amber);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .board-big {
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(3.6rem, 2.6rem + 4vw, 5.4rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .board-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        margin-top: 20px;
+        overflow: hidden;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .board-grid div {
+        padding: 12px 14px;
+        background: var(--board);
+    }
+
+    .board-grid dt {
+        font-size: 0.8rem;
+    }
+
+    .board-grid dd {
+        margin: 2px 0 0;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: 1.45rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+    }
+
+    .keywords {
+        margin-top: 20px;
+    }
+
+    .keywords[hidden] {
+        display: none;
+    }
+
+    .keywords ol {
+        margin-top: 8px;
+    }
+
+    .keywords :global(li) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto 4.5ch;
+        gap: 12px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .keywords :global(li span) {
+        overflow: hidden;
+        color: #fff;
+        text-overflow: ellipsis;
+    }
+
+    .keywords :global(li b) {
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .keywords :global(li small) {
+        text-align: right;
+    }
+
+    /* Límites */
+    .limits {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 40px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .limits li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .limit-name {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .limit-name small {
+        margin-left: 6px;
+        color: var(--muted);
+        font-weight: 500;
+    }
+
+    .limit-count {
+        color: var(--text-soft);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .limit-bar {
+        grid-column: 1 / -1;
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--line);
+    }
+
+    .limit-bar span {
+        display: block;
+        width: calc(var(--w) * 100%);
+        height: 100%;
+        background: #1f4d3a;
+        transition: width 200ms var(--ease-out);
+    }
+
+    .limits li.over .limit-bar span {
+        background: var(--red);
+    }
+
+    .limits li.over .limit-count {
+        color: var(--red-ink);
+        font-weight: 700;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+            max-width: 560px;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .limits {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .paper {
+            min-height: 300px;
+            padding-left: 50px;
+            background-position: -14px calc(var(--rule) * 0.5 - 1px), 0 calc(var(--rule) * 0.5 - 1px), 0 0;
+        }
+    }
+</style>

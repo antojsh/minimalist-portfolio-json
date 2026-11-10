@@ -1,0 +1,56 @@
+# Revisa cada lunes si cambió el pico y placa de alguna ciudad.
+# - Si el modelo encuentra una rotación nueva con datos completos y respaldo (fuente .gov.co o dos
+#   medios), abre un PR por ciudad con el cambio escrito. Nunca hace merge.
+# - Si algo está por vencer o no se pudo proponer, abre un issue (o comenta en el que esté abierto).
+#
+# Configuración única en el repo:
+# - Secreto LLM_API_KEY (Settings → Secrets and variables → Actions). Sin él, solo avisa vencimientos.
+# - Opcional: variables LLM_MODEL (por defecto gpt-6-luna) y LLM_BASE_URL (por defecto la API de OpenAI).
+# - Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+
+name: Vigilar pico y placa
+
+on:
+    schedule:
+        # Lunes 12:00 UTC = 7:00 a. m. en Colombia
+        - cron: "0 12 * * 1"
+    workflow_dispatch:
+
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+
+concurrency:
+    group: vigilar-pico-y-placa
+
+jobs:
+    vigilar:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - id: revisar
+              run: npx --yes tsx@4 scripts/vigilar-pico-y-placa.ts
+              env:
+                  LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+                  LLM_MODEL: ${{ vars.LLM_MODEL || 'gpt-6-luna' }}
+                  LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+                  PICO_CREATE_PR: "1"
+                  GH_TOKEN: ${{ github.token }}
+
+            - if: steps.revisar.outputs.found == 'true'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  existing=$(gh issue list --state open --search "in:title Pico y placa: revisar" --json number --jq '.[0].number')
+                  if [ -n "$existing" ]; then
+                    gh issue comment "$existing" --body-file reporte-pico-y-placa.md
+                  else
+                    gh issue create --title "Pico y placa: revisar cambios" --body-file reporte-pico-y-placa.md
+                  fi

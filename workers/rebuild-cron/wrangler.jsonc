@@ -1,0 +1,17 @@
+// Worker aparte del sitio: cada madrugada llama al Deploy Hook de Workers Builds para que el sitio
+// se reconstruya con la fecha de hoy (pico y placa, festivos, plazos).
+//
+// Se publica una sola vez desde esta carpeta:
+//   npx wrangler deploy
+//   npx wrangler secret put DEPLOY_HOOK_URL   (la URL del hook: Workers & Pages → el sitio → Settings → Builds → Deploy Hooks)
+{
+    "$schema": "../../node_modules/wrangler/config-schema.json",
+    "name": "rebuild-cron",
+    "main": "index.ts",
+    "compatibility_date": "2026-08-13",
+    "workers_dev": false,
+    "triggers": {
+        // 05:05 UTC = 12:05 a. m. en Colombia (UTC−5, sin horario de verano)
+        "crons": ["5 5 * * *"]
+    }
+}

@@ -4,6 +4,7 @@ import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
 import { HORAS_EXTRA_REVIEW } from "@/lib/horas-extra";
 import { SALARIO_NETO_REVIEW } from "@/lib/salario-neto";
+import { CITIES } from "@/lib/pico-y-placa";
 import { RENTA_REVIEW } from "@/lib/renta";
 import { RETENCION_REVIEW } from "@/lib/retencion";
 import { UVT_REVIEW } from "@/lib/uvt";
@@ -30,6 +31,9 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
     { path: "/horas-extra", changefreq: "monthly", priority: "0.9", lastmod: HORAS_EXTRA_REVIEW },
     { path: "/salario-neto", changefreq: "monthly", priority: "0.9", lastmod: SALARIO_NETO_REVIEW },
+    // Se reconstruyen cada día: sin lastmod toman la fecha del build
+    { path: "/pico-y-placa", changefreq: "daily", priority: "0.9" },
+    ...CITIES.map(({ slug }) => ({ path: `/pico-y-placa-${slug}`, changefreq: "daily", priority: "0.9" })),
     { path: "/declarar-renta", changefreq: "weekly", priority: "0.9", lastmod: RENTA_REVIEW },
     { path: "/retencion-en-la-fuente", changefreq: "monthly", priority: "0.9", lastmod: RETENCION_REVIEW },
     { path: "/uvt", changefreq: "weekly", priority: "0.9", lastmod: UVT_REVIEW },

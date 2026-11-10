@@ -1,0 +1,69 @@
+---
+// Placa amarilla de carro particular colombiano. El contenido lo puede cambiar el navegador.
+interface Props {
+    city: string;
+    size?: "big" | "small";
+}
+const { city, size = "big" } = Astro.props;
+---
+
+<div class:list={["plate", size]}>
+    <span class="plate-main" data-plate-main><slot /></span>
+    <span class="plate-city">{city}</span>
+</div>
+
+<style is:global>
+    .plate {
+        display: grid;
+        place-items: center;
+        gap: 2px;
+        aspect-ratio: 2 / 1;
+        padding: 6% 6% 4%;
+        border: 3px solid #15191e;
+        border-radius: 14px;
+        background: #f7c600;
+        box-shadow:
+            inset 0 0 0 5px #f7c600,
+            inset 0 0 0 7px #15191e,
+            0 24px 40px -26px rgba(21, 25, 30, 0.6);
+        color: #15191e;
+        text-align: center;
+    }
+
+    .plate-main {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0 0.18em;
+        font-family: var(--font-display);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1;
+    }
+
+    .plate.big .plate-main {
+        font-size: clamp(3.4rem, 2.4rem + 4vw, 5.6rem);
+    }
+
+    .plate.small .plate-main {
+        font-size: clamp(1.7rem, 1.4rem + 1vw, 2.2rem);
+    }
+
+    .plate-main small {
+        font-size: 0.42em;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+
+    .plate-city {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+    }
+
+    .plate.big .plate-city {
+        font-size: 0.85rem;
+    }
+</style>

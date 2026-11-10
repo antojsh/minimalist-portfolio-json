@@ -1,0 +1,698 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import Plate from "@/components/tool/Plate.astro";
+import {
+    ALL_DIGITS,
+    CITIES,
+    PICO_Y_PLACA_REVIEW,
+    dayFor,
+    daysFrom,
+    describe,
+    endSentence,
+    formatDigits,
+    formatHours,
+    holidayName,
+    monthGrid,
+    rotationOn,
+    type City,
+    type Day,
+} from "@/lib/pico-y-placa";
+import { MONTHS, WEEKDAYS, capitalize, formatLong, todayInColombia } from "@/lib/festivos";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+export function getStaticPaths() {
+    return CITIES.map((city) => ({ params: { ciudad: city.slug }, props: { city } }));
+}
+
+const { city } = Astro.props as { city: City };
+// El sitio se reconstruye cada madrugada, así que "hoy" es el día del build en Colombia
+const TODAY = todayInColombia();
+const YEAR = Number(TODAY.slice(0, 4));
+const MONTH = Number(TODAY.slice(5, 7));
+const today = dayFor(city, TODAY);
+const week = daysFrom(city, TODAY, 7);
+const grid = monthGrid(city, YEAR, MONTH);
+const rotation = rotationOn(city, TODAY);
+const others = CITIES.filter(({ slug }) => slug !== city.slug);
+
+const label = (day: Day, index: number) => (index === 0 ? "Hoy" : index === 1 ? "Mañana" : capitalize(WEEKDAYS[new Date(`${day.date}T00:00:00Z`).getUTCDay()]));
+const plateText = (day: Day) => (day.status === "aplica" ? day.digits.join(" ") : "");
+const plateNote = (day: Day) =>
+    ({ aplica: "", festivo: "Festivo", "fin-de-semana": "Sin pico y placa", "sin-medida": "Sin pico y placa", "por-confirmar": "Por confirmar" })[day.status];
+const cellText = (day: Day) => (day.status === "aplica" ? (day.digits.length > 3 ? day.digits.join("") : day.digits.join(" · ")) : day.status === "festivo" ? "Festivo" : "");
+
+const weekdayRows =
+    rotation && rotation.weekdays !== "paridad"
+        ? ([1, 2, 3, 4, 5] as const).map((n) => ({ day: WEEKDAYS[n], digits: (rotation.weekdays as Record<number, number[]>)[n] ?? [] }))
+        : [];
+
+const faqs = city.none
+    ? [
+          {
+              question: "¿Hay pico y placa en Barranquilla?",
+              answer: "No para carros particulares: puedes circular cualquier día y a cualquier hora. La Alcaldía solo la activa en fechas especiales, como el Carnaval, con un decreto temporal que anuncia con anticipación.",
+          },
+          {
+              question: "¿Cuándo hubo pico y placa en Barranquilla?",
+              answer: "En el Carnaval de 2026 la Alcaldía activó la medida para particulares del viernes 13 al lunes 16 de febrero (Decreto 0036 de 2026). Las motos no tuvieron restricción.",
+          },
+      ]
+    : [
+          {
+              question: `¿Qué placas tienen pico y placa hoy ${city.where}?`,
+              answer: `Hoy, ${formatLong(TODAY)}: ${describe(city, today)}`,
+          },
+          {
+              question: `¿Cuál es el horario del pico y placa ${city.where}?`,
+              answer: rotation
+                  ? [
+                        endSentence(`De lunes a viernes, ${formatHours(rotation.hours)}`),
+                        rotation.saturday ? endSentence(`Los sábados, ${formatHours(rotation.saturday.hours)}`) : "",
+                        city.seasons?.length ? `En ${city.seasons[0].label} es de 24 horas.` : "",
+                    ]
+                        .filter(Boolean)
+                        .join(" ")
+                  : `La ${city.authority} todavía no ha publicado la rotación vigente.`,
+          },
+          {
+              question: "¿Hay pico y placa los fines de semana y festivos?",
+              answer: rotation?.saturday
+                  ? "Los sábados sí, en la mañana, con dígitos que rotan cada semana. Los domingos y festivos no hay pico y placa."
+                  : "No. El pico y placa para particulares rige de lunes a viernes; los sábados, domingos y festivos puedes circular.",
+          },
+          {
+              question: "¿Hasta cuándo va esta rotación?",
+              answer: rotation
+                  ? rotation.until
+                      ? `Hasta el ${longDate(rotation.until)}. Cuando la ${city.authority} publique la siguiente, actualizamos esta página.`
+                      : "No tiene fecha de vencimiento: rige hasta que la Alcaldía expida un nuevo decreto."
+                  : `La rotación anterior ya terminó y la ${city.authority} no ha publicado la nueva.`,
+          },
+          {
+              question: "¿Cuál es la multa por no respetar el pico y placa?",
+              answer: "Es la infracción C14 del Código Nacional de Tránsito: una multa de 15 salarios mínimos diarios (algunas ciudades ya la liquidan en UVB) y la inmovilización del vehículo.",
+          },
+      ];
+
+const site = Astro.site?.href ?? "/";
+const path = `/pico-y-placa-${city.slug}`;
+const title = city.none ? `¿Hay pico y placa en ${city.name} hoy? Lo que debes saber` : `Pico y placa ${city.name} hoy: placas, horario y rotación ${YEAR}`;
+const description = city.none
+    ? `En ${city.name} no hay pico y placa para carros particulares: puedes circular todos los días. Solo se activa en fechas especiales como el Carnaval.`
+    : `Pico y placa ${city.where} hoy y esta semana. ${describe(city, today)} Calendario de ${MONTHS[MONTH - 1]}, rotación vigente y excepciones.`;
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: `Pico y placa ${city.name}`,
+    crumb: city.name,
+    review: PICO_Y_PLACA_REVIEW,
+    image: "/og/pico-y-placa.png",
+    category: "TravelApplication",
+    faqs,
+});
+---
+
+<Layout title={title} description={description} image="/og/pico-y-placa.png" imageAlt={`Pico y placa ${city.name}`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool" data-city={city.slug} data-built={TODAY}>
+        <Topbar
+            crumb={city.name}
+            parent={{ href: "/pico-y-placa", label: "Pico y placa" }}
+            links={city.none
+                ? [{ href: "#preguntas", label: "Preguntas" }]
+                : [
+                      { href: "#hoy", label: "Hoy" },
+                      { href: "#mi-placa", label: "Mi placa" },
+                      { href: "#calendario", label: "Calendario" },
+                      { href: "#rotacion", label: "Rotación" },
+                      { href: "#preguntas", label: "Preguntas" },
+                  ]}
+        />
+
+        <section id="hoy" class="today">
+            <div class="today-text">
+                <h1>{city.none ? <>¿Hay pico y placa en <span>{city.name}</span>?</> : <>Pico y placa en <span>{city.name}</span> hoy</>}</h1>
+                <p class="date" data-out="date">{capitalize(formatLong(TODAY))} de {YEAR}</p>
+                <p class="lead" data-out="describe">{describe(city, today)}</p>
+                {
+                    today.season && (
+                        <p class="season" data-out="season">
+                            Rige la {today.season}: la restricción es de 24 horas.
+                        </p>
+                    )
+                }
+                <p class="updated">
+                    Revisado el <time datetime={PICO_Y_PLACA_REVIEW}>{longDate(PICO_Y_PLACA_REVIEW)}</time> con la {city.authority}
+                    {rotation?.until && <> · Rotación vigente hasta el {longDate(rotation.until)}</>}
+                </p>
+            </div>
+            <div class="today-plate">
+                <p class="plate-label">{city.none ? "Carros particulares" : "No circulan hoy"}</p>
+                <Plate city={city.name}>
+                    {plateText(today) || <small>{plateNote(today)}</small>}
+                </Plate>
+                {!city.none && <p class="plate-hours" data-out="hours">{today.status === "aplica" ? capitalize(formatHours(today.hours)) : ""}</p>}
+            </div>
+        </section>
+
+        {
+            !city.none && (
+                <>
+                    <section id="mi-placa" class="mine" aria-labelledby="mi-placa-titulo">
+                        <header class="head">
+                            <h2 id="mi-placa-titulo">¿Cuándo me toca?</h2>
+                            <p>Toca el {city.plateDigit} y te digo si puedes salir hoy y tus próximos días de pico y placa. Lo recordamos en este navegador.</p>
+                        </header>
+                        <div class="digits" role="group" aria-label="Último dígito de tu placa">
+                            {ALL_DIGITS.map((digit) => (
+                                <button type="button" class="digit" data-digit={digit} aria-pressed="false">
+                                    {digit}
+                                </button>
+                            ))}
+                        </div>
+                        <div class="mine-result" data-mine hidden>
+                            <p class="mine-today" data-out="mine-today" />
+                            <ol class="mine-next" data-out="mine-next" />
+                        </div>
+                    </section>
+
+                    <section id="semana" aria-labelledby="semana-titulo">
+                        <header class="head">
+                            <h2 id="semana-titulo">Esta semana</h2>
+                            <p>Los próximos siete días {city.where}, con festivos y fines de semana.</p>
+                        </header>
+                        <ol class="week" data-week>
+                            {week.map((day, index) => (
+                                <li class:list={[day.status]}>
+                                    <span class="week-day">
+                                        <b>{label(day, index)}</b> {formatLong(day.date).split(" ").slice(1).join(" ")}
+                                    </span>
+                                    <span class="week-digits">{day.status === "aplica" ? formatDigits(day.digits) : day.status === "festivo" ? `Festivo: ${holidayName(day.date)}` : plateNote(day)}</span>
+                                    <span class="week-hours">{day.status === "aplica" ? formatHours(day.hours) : ""}</span>
+                                </li>
+                            ))}
+                        </ol>
+                    </section>
+
+                    <section id="calendario" aria-labelledby="calendario-titulo">
+                        <header class="head">
+                            <h2 id="calendario-titulo">
+                                Calendario de {MONTHS[MONTH - 1]} {YEAR}
+                            </h2>
+                            <p>Las placas que no circulan cada día del mes.</p>
+                        </header>
+                        <div class="table-wrap">
+                            <table class="calendar">
+                                <thead>
+                                    <tr>
+                                        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => (
+                                            <th scope="col">{day}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {grid.map((week) => (
+                                        <tr>
+                                            {week.map((day) => (
+                                                <td class:list={[day.status, { out: !day.inMonth, "is-today": day.date === TODAY }]} data-date={day.date}>
+                                                    <span class="n">{Number(day.date.slice(8))}</span>
+                                                    <span class="d">{day.inMonth ? cellText(day) : ""}</span>
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section id="rotacion" aria-labelledby="rotacion-titulo">
+                        <header class="head">
+                            <h2 id="rotacion-titulo">Rotación vigente</h2>
+                            <p>
+                                {rotation
+                                    ? rotation.until
+                                        ? `Del ${longDate(rotation.from)} al ${longDate(rotation.until)}.`
+                                        : `Desde el ${longDate(rotation.from)}, sin fecha de vencimiento.`
+                                    : `La ${city.authority} no ha publicado la rotación nueva.`}
+                            </p>
+                        </header>
+                        {rotation && rotation.weekdays === "paridad" && (
+                            <div class="parity">
+                                <article>
+                                    <h3>Días pares</h3>
+                                    <p class="big-digits">1 2 3 4 5</p>
+                                    <p>no circulan, {formatHours(rotation.hours)}</p>
+                                </article>
+                                <article>
+                                    <h3>Días impares</h3>
+                                    <p class="big-digits">6 7 8 9 0</p>
+                                    <p>no circulan, {formatHours(rotation.hours)}</p>
+                                </article>
+                            </div>
+                        )}
+                        {weekdayRows.length > 0 && (
+                            <table class="amounts">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Día</th>
+                                        <th scope="col">No circulan placas terminadas en</th>
+                                        <th scope="col">Horario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {weekdayRows.map((row) => (
+                                        <tr>
+                                            <th scope="row">{capitalize(row.day)}</th>
+                                            <td class="strong">{row.digits.join(" y ")}</td>
+                                            <td>{formatHours(rotation!.hours)}</td>
+                                        </tr>
+                                    ))}
+                                    {rotation?.saturday && (
+                                        <tr>
+                                            <th scope="row">Sábado</th>
+                                            <td class="strong">Rota cada semana</td>
+                                            <td>{formatHours(rotation.saturday.hours)}</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        )}
+                        <p class="hint source">
+                            Fuente:{" "}
+                            {rotation?.source.href ? (
+                                <a href={rotation.source.href} rel="noopener">
+                                    {rotation.source.label}
+                                </a>
+                            ) : (
+                                (rotation?.source.label ?? city.authority)
+                            )}
+                            .
+                        </p>
+                    </section>
+                </>
+            )
+        }
+
+        <section id="reglas" aria-labelledby="reglas-titulo">
+            <header class="head">
+                <h2 id="reglas-titulo">{city.none ? "Lo que debes saber" : "Excepciones y detalles"}</h2>
+                <p>Revisa siempre los anuncios de la {city.authority}: los cambios de último momento salen por sus redes.</p>
+            </header>
+            <div class="rules">
+                {
+                    city.exemptions.length > 0 && (
+                        <article>
+                            <h3>No tienen pico y placa</h3>
+                            <ul class="list">
+                                {city.exemptions.map((item) => (
+                                    <li>{item}</li>
+                                ))}
+                            </ul>
+                        </article>
+                    )
+                }
+                {
+                    city.notes.map((note) => (
+                        <article>
+                            <p>{note}</p>
+                        </article>
+                    ))
+                }
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject={`Pico y placa ${city.name}`} note="Revisamos los decretos cada semana, pero ante cualquier duda manda lo que diga la autoridad de tránsito." />
+
+        <Colophon
+            sources={[...(rotation ? [rotation.source] : [{ label: city.authority }]), { label: "Ley 1964 de 2019 (vehículos eléctricos)" }]}
+            related={[...others.map(({ slug, name }) => ({ href: `/pico-y-placa-${slug}`, label: name })), { href: `/festivos-colombia-${YEAR}`, label: `Festivos ${YEAR}` }]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { addDays, capitalize, formatLong, todayInColombia, WEEKDAYS } from "@/lib/festivos";
+    import { dayFor, daysFrom, describe, endSentence, formatDigits, formatHours, getCity, holidayName, nextFor, type Day, type Digit } from "@/lib/pico-y-placa";
+
+    const main = document.querySelector<HTMLElement>("main.tool")!;
+    const city = getCity(main.dataset.city!)!;
+    const today = todayInColombia();
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`);
+    const note: Record<Day["status"], string> = { aplica: "", festivo: "Festivo", "fin-de-semana": "Sin pico y placa", "sin-medida": "Sin pico y placa", "por-confirmar": "Por confirmar" };
+    const shortDate = (date: string) => formatLong(date).split(" ").slice(1).join(" ");
+    const weekday = (date: string) => capitalize(WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()]);
+
+    // Si la página se construyó otro día, se recalcula todo lo que depende de "hoy"
+    if (main.dataset.built !== today) {
+        const day = dayFor(city, today);
+        out("date")!.textContent = `${capitalize(formatLong(today))} de ${today.slice(0, 4)}`;
+        out("describe")!.textContent = describe(city, day);
+        const plate = document.querySelector<HTMLElement>("[data-plate-main]")!;
+        plate.innerHTML = day.status === "aplica" ? day.digits.join(" ") : `<small>${note[day.status]}</small>`;
+        const hours = out("hours");
+        if (hours) hours.textContent = day.status === "aplica" ? capitalize(formatHours(day.hours)) : "";
+        out("season")?.remove();
+
+        const week = document.querySelector<HTMLElement>("[data-week]");
+        if (week) {
+            week.innerHTML = daysFrom(city, today, 7)
+                .map((d, index) => {
+                    const name = index === 0 ? "Hoy" : index === 1 ? "Mañana" : weekday(d.date);
+                    const digits = d.status === "aplica" ? formatDigits(d.digits) : d.status === "festivo" ? `Festivo: ${holidayName(d.date)}` : note[d.status];
+                    return `<li class="${d.status}"><span class="week-day"><b>${name}</b> ${shortDate(d.date)}</span><span class="week-digits">${digits}</span><span class="week-hours">${d.status === "aplica" ? formatHours(d.hours) : ""}</span></li>`;
+                })
+                .join("");
+        }
+        for (const cell of document.querySelectorAll<HTMLElement>(".calendar td")) cell.classList.toggle("is-today", cell.dataset.date === today);
+    }
+
+    // Mi placa
+    const KEY = "pico-y-placa-digito";
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>("[data-digit]")];
+    function pick(digit: Digit) {
+        for (const button of buttons) button.setAttribute("aria-pressed", String(Number(button.dataset.digit) === digit));
+        const box = document.querySelector<HTMLElement>("[data-mine]")!;
+        box.hidden = false;
+        const day = dayFor(city, today);
+        const blocked = day.status === "aplica" && day.digits.includes(digit);
+        const todayText = out("mine-today")!;
+        todayText.className = `mine-today ${blocked ? "no" : "yes"}`;
+        todayText.textContent = blocked
+            ? endSentence(`Hoy NO puedes circular ${formatHours(day.hours)}`)
+            : day.status === "por-confirmar"
+              ? "La rotación de hoy está por confirmar."
+              : "Hoy puedes circular sin problema.";
+        const next = nextFor(city, digit, blocked ? addDays(today, 1) : today);
+        out("mine-next")!.innerHTML = next.length
+            ? next.map((d) => `<li><b>${weekday(d.date)} ${shortDate(d.date)}</b><span>${formatHours(d.hours)}</span></li>`).join("")
+            : "<li>No hay días confirmados en las próximas semanas.</li>";
+        try {
+            localStorage.setItem(KEY, String(digit));
+        } catch {}
+    }
+    for (const button of buttons) button.addEventListener("click", () => pick(Number(button.dataset.digit) as Digit));
+    try {
+        const saved = localStorage.getItem(KEY);
+        if (saved != null && buttons.length) pick(Number(saved) as Digit);
+    } catch {}
+</script>
+
+<style>
+    .today {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 32px clamp(32px, 6vw, 80px);
+        align-items: center;
+        padding-top: clamp(2rem, 5vw, 3.5rem);
+        scroll-margin-top: 24px;
+    }
+
+    .today h1 {
+        max-width: 12ch;
+    }
+
+    .date {
+        margin-top: 22px;
+        color: var(--red-ink);
+        font-weight: 700;
+    }
+
+    .today .lead {
+        margin-top: 10px;
+    }
+
+    .season {
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--red-soft);
+        color: var(--red-ink);
+        font-weight: 600;
+    }
+
+    .plate-label {
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .plate-hours {
+        margin-top: 14px;
+        color: var(--ink);
+        font-weight: 650;
+        text-align: center;
+    }
+
+    /* Mi placa */
+    .digits {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+        gap: 8px;
+        max-width: 720px;
+    }
+
+    .digit {
+        aspect-ratio: 1;
+        border: 2px solid var(--ink);
+        border-radius: 12px;
+        background: #f7c600;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(1.3rem, 1rem + 1.2vw, 2rem);
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 150ms var(--ease-out);
+    }
+
+    .digit:hover {
+        transform: translateY(-2px);
+    }
+
+    .digit[aria-pressed="true"] {
+        background: var(--ink);
+        color: #f7c600;
+    }
+
+    .digit:focus-visible {
+        outline: 3px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .mine-result {
+        max-width: 720px;
+        margin-top: 24px;
+    }
+
+    .mine-result[hidden] {
+        display: none;
+    }
+
+    .mine-today {
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .mine-today.no {
+        background: var(--red);
+        color: #fff;
+    }
+
+    .mine-today.yes {
+        background: #1f4d3a;
+        color: #fff;
+    }
+
+    .mine-next {
+        margin-top: 14px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .mine-next :global(li) {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 4px 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .mine-next :global(b) {
+        color: var(--ink);
+    }
+
+    .mine-next :global(span) {
+        color: var(--muted);
+    }
+
+    /* Semana */
+    .week {
+        border-top: 2px solid var(--ink);
+    }
+
+    .week :global(li) {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 4px 16px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .week :global(.week-day b) {
+        color: var(--ink);
+    }
+
+    .week :global(.week-digits) {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .week :global(li:not(.aplica) .week-digits) {
+        color: var(--muted);
+        font-family: inherit;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .week :global(.week-hours) {
+        color: var(--muted);
+        text-align: right;
+    }
+
+    /* Calendario */
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .calendar {
+        min-width: 560px;
+        table-layout: fixed;
+        border-top: 2px solid var(--ink);
+    }
+
+    .calendar th {
+        padding: 10px 6px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .calendar td {
+        height: 74px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        vertical-align: top;
+    }
+
+    .calendar .n {
+        display: block;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .calendar .d {
+        display: block;
+        margin-top: 6px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .calendar td.aplica {
+        background: #fff6cc;
+    }
+
+    .calendar td.festivo .d {
+        color: var(--red-ink);
+        font-family: inherit;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .calendar td.out {
+        background: transparent;
+        opacity: 0.35;
+    }
+
+    .calendar td.is-today {
+        box-shadow: inset 0 0 0 3px var(--ink);
+    }
+
+    /* Rotación */
+    .parity {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+    }
+
+    .parity article {
+        padding-top: 18px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .big-digits {
+        margin: 8px 0 4px;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+        font-weight: 800;
+        letter-spacing: 0.05em;
+    }
+
+    .source {
+        margin-top: 16px;
+    }
+
+    .list {
+        display: grid;
+        gap: 6px;
+        margin-top: 10px;
+        padding-left: 18px;
+        list-style: disc;
+    }
+
+    @media (max-width: 760px) {
+        .today {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .today-plate {
+            max-width: 380px;
+        }
+
+        .digits {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .week :global(li) {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .week :global(.week-hours) {
+            grid-column: 1 / -1;
+            text-align: left;
+        }
+
+        .parity {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>

@@ -1,0 +1,156 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import Plate from "@/components/tool/Plate.astro";
+import { CITIES, PICO_Y_PLACA_REVIEW, dayFor, describe, type Day } from "@/lib/pico-y-placa";
+import { capitalize, formatLong, todayInColombia } from "@/lib/festivos";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const TODAY = todayInColombia();
+const YEAR = Number(TODAY.slice(0, 4));
+const cities = CITIES.map((city) => ({ city, day: dayFor(city, TODAY) }));
+const note = (day: Day) =>
+    ({ aplica: "", festivo: "Festivo", "fin-de-semana": "Libre", "sin-medida": "Libre", "por-confirmar": "Por confirmar" })[day.status];
+
+const faqs = [
+    {
+        question: "¿Qué es el pico y placa?",
+        answer: "Es una restricción para circular en carro en ciertos días y horarios según el último dígito de la placa. Cada alcaldía la define por decreto y la cambia cada semestre o trimestre, salvo Bogotá, que usa el esquema par e impar.",
+    },
+    {
+        question: "¿Hay pico y placa los fines de semana y festivos?",
+        answer: "En general no. La excepción es Bucaramanga, que tiene pico y placa los sábados en la mañana. Los festivos no hay restricción en ninguna de estas ciudades.",
+    },
+    {
+        question: "¿Los carros eléctricos tienen pico y placa?",
+        answer: "No. La Ley 1964 de 2019 exime a los vehículos eléctricos de las medidas de restricción como el pico y placa en todo el país.",
+    },
+    {
+        question: "¿Cada cuánto actualizan esta página?",
+        answer: "El calendario se calcula todos los días a la medianoche y revisamos los decretos de cada ciudad cada semana. Si una rotación vence y no hay decreto nuevo, la página lo dice en vez de inventar.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/pico-y-placa";
+const title = `Pico y placa hoy en Colombia: Bogotá, Medellín, Cali, Bucaramanga y Cartagena`;
+const description = `Qué placas no circulan hoy en las principales ciudades de Colombia, con horarios, calendario y la rotación vigente de cada decreto ${YEAR}.`;
+const ogPath = "/og/pico-y-placa.png";
+const jsonLd = toolJsonLd({ site, path, title, description, name: "Pico y placa hoy", crumb: "Pico y placa", review: PICO_Y_PLACA_REVIEW, image: ogPath, category: "TravelApplication", faqs });
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt="Pico y placa hoy en Colombia" imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool" data-built={TODAY}>
+        <Topbar crumb="Pico y placa" links={[{ href: "#ciudades", label: "Ciudades" }, { href: "#preguntas", label: "Preguntas" }]} />
+
+        <section class="hero">
+            <h1>Pico y placa <span>hoy</span></h1>
+            <p class="lead">
+                <span data-out="date">{capitalize(formatLong(TODAY))} de {YEAR}</span>. Las placas que no circulan en cada ciudad, con
+                su horario. Entra a la tuya para ver la semana, el calendario y cuándo te toca.
+            </p>
+            <p class="updated">Decretos revisados el <time datetime={PICO_Y_PLACA_REVIEW}>{longDate(PICO_Y_PLACA_REVIEW)}</time></p>
+        </section>
+
+        <section id="ciudades" class="cities" aria-label="Ciudades">
+            {
+                cities.map(({ city, day }) => (
+                    <a class="city" href={`/pico-y-placa-${city.slug}`} data-slug={city.slug}>
+                        <Plate city={city.name} size="small">
+                            {day.status === "aplica" ? day.digits.join(" ") : <small>{note(day)}</small>}
+                        </Plate>
+                        <span class="city-body">
+                            <strong>{city.name}</strong>
+                            <span data-describe>{describe(city, day)}</span>
+                        </span>
+                    </a>
+                ))
+            }
+        </section>
+
+        <Faq faqs={faqs} subject="Pico y placa" note="Ante cualquier duda manda lo que diga la autoridad de tránsito de cada ciudad." />
+
+        <Colophon
+            sources={[...CITIES.map(({ authority }) => ({ label: authority })), { label: "Ley 1964 de 2019" }]}
+            related={[
+                { href: `/festivos-colombia-${YEAR}`, label: `Festivos ${YEAR}` },
+                { href: "/dias-habiles", label: "Días hábiles" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { capitalize, formatLong, todayInColombia } from "@/lib/festivos";
+    import { dayFor, describe, getCity } from "@/lib/pico-y-placa";
+
+    const today = todayInColombia();
+    const main = document.querySelector<HTMLElement>("main.tool")!;
+    if (main.dataset.built !== today) {
+        document.querySelector<HTMLElement>('[data-out="date"]')!.textContent = `${capitalize(formatLong(today))} de ${today.slice(0, 4)}`;
+        for (const card of document.querySelectorAll<HTMLElement>("[data-slug]")) {
+            const city = getCity(card.dataset.slug!)!;
+            const day = dayFor(city, today);
+            const label = { aplica: "", festivo: "Festivo", "fin-de-semana": "Libre", "sin-medida": "Libre", "por-confirmar": "Por confirmar" }[day.status];
+            card.querySelector<HTMLElement>("[data-plate-main]")!.innerHTML = day.status === "aplica" ? day.digits.join(" ") : `<small>${label}</small>`;
+            card.querySelector<HTMLElement>("[data-describe]")!.textContent = describe(city, day);
+        }
+    }
+</script>
+
+<style>
+    .cities {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+        gap: 28px 24px;
+        margin-top: clamp(2.5rem, 5vw, 2.5rem);
+        padding-top: clamp(2rem, 4vw, 2.75rem);
+        border-top: 2px solid var(--ink);
+    }
+
+    .city {
+        display: grid;
+        gap: 14px;
+        text-decoration: none !important;
+    }
+
+    .city .plate {
+        max-width: 300px;
+        transition: transform 200ms var(--ease-out);
+    }
+
+    .city .plate-main {
+        font-size: clamp(2.1rem, 1.7rem + 1.4vw, 2.6rem);
+    }
+
+    .city:hover .plate {
+        transform: translateY(-3px) rotate(-1deg);
+    }
+
+    .city-body {
+        display: grid;
+        gap: 4px;
+    }
+
+    .city-body strong {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+    }
+
+    .city-body span {
+        color: var(--text-soft);
+        font-size: 0.95rem;
+    }
+
+    .city:focus-visible {
+        outline: 3px solid var(--ink);
+        outline-offset: 6px;
+        border-radius: 8px;
+    }
+</style>

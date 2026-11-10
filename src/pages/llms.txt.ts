@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { basics } from "@cv";
-import { FESTIVOS_YEARS, LAST_REVIEW, formatLong, getHolidays, getLongWeekends } from "@/lib/festivos";
+import { FESTIVOS_YEARS, LAST_REVIEW, formatLong, getHolidays, getLongWeekends, todayInColombia } from "@/lib/festivos";
+import { CITIES, dayFor, describe } from "@/lib/pico-y-placa";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
 import { countBetween } from "@/lib/dias-habiles";
 import { SALARIO_MINIMO_REVIEW, employerCost, isRevealed, latestWage, nextWage } from "@/lib/salario-minimo";
@@ -36,6 +37,7 @@ ${FESTIVOS_YEARS.map((year) => `- [Festivos en Colombia ${year}](${url(`/festivo
 - [Calculadora de IVA](${url("/calculadora-iva")}): agregar IVA (× 1,19) o quitarlo (÷ 1,19), con tarifas del 19 %, 5 % u otra.
 - [Calculadora del 4x1000](${url("/calculadora-4x1000")}): GMF del 0,4 % con la exención de 350 UVT al mes ($18.330.900 en 2026).
 - [Calculadora de liquidación laboral](${url("/liquidacion-laboral")}): salario pendiente, cesantías, intereses, prima, vacaciones e indemnización por despido, con el detalle de cada cuenta.
+- [Pico y placa hoy](${url("/pico-y-placa")}): placas que no circulan hoy (calculado el ${todayInColombia()}) en ${CITIES.map(({ name }) => name).join(", ")}, con calendario y rotación vigente por decreto. ${CITIES.map((city) => `${city.name}: ${describe(city, dayFor(city, todayInColombia()))}`).join(" ")} Páginas por ciudad: ${CITIES.map(({ slug }) => url(`/pico-y-placa-${slug}`)).join(", ")}.
 - [Calculadora de salario neto](${url("/salario-neto")}): cuánto le llega al trabajador al mes y por quincena: salario más horas extra, menos salud (4 %), pensión (4 %), Fondo de Solidaridad Pensional (1 % a 2 % desde 4 mínimos, sobre todo el salario) y retención en la fuente (art. 383), más el auxilio de transporte para quien gana hasta 2 mínimos. Salario integral sobre el 70 %, tope de cotización de 25 mínimos. Cálculo inverso: cuánto pedir para recibir un neto. Tabla de neto por salario y costo para la empresa.
 - [Calculadora de horas extra y recargos](${url("/horas-extra")}): hora ordinaria = salario ÷ 210 (jornada de 42 horas desde el 15 de julio de 2026). Recargo nocturno 35 % desde las 7:00 p. m. (Ley 2466 de 2025, desde el 25 de diciembre de 2025), extra diurna 25 %, extra nocturna 75 %, dominical y festivo 90 % desde el 1 de julio de 2026 y 100 % desde el 1 de julio de 2027; los recargos se suman. Reparte un turno en tipos de hora con los festivos de Colombia.
 - [Blog](${url("/blog")}): artículos de desarrollo y de economía de Colombia explicados fácil.

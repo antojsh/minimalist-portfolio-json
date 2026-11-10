@@ -1,5 +1,8 @@
 {
   "extends": "astro/tsconfigs/strict",
+  // scripts/ corre en Node (GitHub Actions) y workers/ es otro Worker: no son parte del sitio
+  // y no deben pasar por `astro check`, que en Cloudflare no tiene los tipos de Node.
+  "exclude": ["node_modules", "dist", "scripts", "workers"],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

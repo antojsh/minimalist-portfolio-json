@@ -1,0 +1,631 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { COMMON_SALARIES, INTEGRAL_MIN, SALARIO_NETO_REVIEW, companyCost, netSalary } from "@/lib/salario-neto";
+import { salaryThreshold } from "@/lib/retencion";
+import { latestWage, nextWage } from "@/lib/salario-minimo";
+import { transportLimit } from "@/lib/prima";
+import { formatCOP, formatNumber, getUvt } from "@/lib/uvt";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const REVIEW = SALARIO_NETO_REVIEW;
+const wage = latestWage();
+const YEAR = Math.max(wage.year, Number(REVIEW.slice(0, 4)));
+const uvt = getUvt(YEAR);
+const base = { year: YEAR, uvt: uvt.value };
+const minimum = netSalary({ ...base, salary: wage.salary });
+const threshold = salaryThreshold(uvt.value, YEAR);
+const limit = transportLimit(wage);
+const rows = [wage.salary, ...COMMON_SALARIES].map((salary) => ({ salary, ...netSalary({ ...base, salary }) }));
+const atLimit = netSalary({ ...base, salary: limit });
+const pastLimit = netSalary({ ...base, salary: limit + 1 });
+const cost = companyCost({ ...base, salary: wage.salary });
+
+const SEGMENTS = [
+    { key: "salud", label: "Salud" },
+    { key: "pension", label: "Pensión" },
+    { key: "solidaridad", label: "Solidaridad" },
+    { key: "retencion", label: "Retención" },
+    { key: "voluntarios", label: "Voluntarios" },
+];
+const width = (value: number, total: number) => (total ? value / total : 0);
+
+const faqs = [
+    {
+        question: `¿Cuánto le llega a quien gana el mínimo en ${YEAR}?`,
+        answer: `${formatCOP(minimum.net)} al mes: el salario de ${formatCOP(wage.salary)} menos el 4 % de salud y el 4 % de pensión (${formatCOP(minimum.health + minimum.pension)}), más el auxilio de transporte de ${formatCOP(wage.transport)}. Por quincena son ${formatCOP(minimum.half)}.`,
+    },
+    {
+        question: "¿Qué descuentos me hacen del salario?",
+        answer: "Salud (4 %) y pensión (4 %) siempre. Si ganas 4 mínimos o más, el Fondo de Solidaridad Pensional (del 1 % al 2 %). Si tu salario pasa el tope, retención en la fuente. Además pueden descontarte lo que tú autorices: libranzas, cooperativas, aportes voluntarios, y embargos ordenados por un juez.",
+    },
+    {
+        question: `¿Desde qué salario me hacen retención en la fuente en ${YEAR}?`,
+        answer: `Sin deducciones, desde unos ${formatCOP(threshold)} al mes. Con dependientes, medicina prepagada, intereses de vivienda o aportes voluntarios el tope sube, porque bajan la base. Puedes probarlo en la calculadora.`,
+    },
+    {
+        question: "¿Quién recibe auxilio de transporte?",
+        answer: `Quien gana hasta dos salarios mínimos: ${formatCOP(limit)} en ${YEAR}. Son ${formatCOP(wage.transport)} al mes que no pagan salud ni pensión. Por eso alguien que gana ${formatCOP(limit + 1)} recibe ${formatCOP(atLimit.net - pastLimit.net)} menos que quien gana exactamente dos mínimos.`,
+    },
+    {
+        question: "¿Cómo se calcula el salario neto si tengo salario integral?",
+        answer: `Salud, pensión y solidaridad se pagan sobre el 70 % del salario. No hay auxilio de transporte, prima ni cesantías, porque ya vienen incluidos. El salario integral no puede ser menor a ${INTEGRAL_MIN} mínimos: ${formatCOP(INTEGRAL_MIN * wage.salary)} en ${YEAR}.`,
+    },
+    {
+        question: "¿Por qué mi colilla no coincide con la calculadora?",
+        answer: "Revisa días no pagados (incapacidades, licencias), horas extra o recargos del mes, libranzas, cuotas de cooperativa o fondo de empleados, embargos y anticipos. La calculadora solo incluye los descuentos de ley y los aportes voluntarios que escribas.",
+    },
+    {
+        question: "¿La reforma pensional cambia lo que me descuentan?",
+        answer: "Por ahora no. La Corte Constitucional avaló la mayor parte de la Ley 2381 de 2024 y su entrada en vigencia quedó para el 1 de abril de 2027. Hasta entonces se aplican los porcentajes de hoy. Cuando rija, actualizaremos la calculadora.",
+    },
+    {
+        question: "¿Me van a descontar más de salud?",
+        answer: "Hoy el trabajador aporta el 4 %. El proyecto de Ley de Rescate Económico propone que el aporte suba según el salario desde 2027, pero todavía no es ley. Lo explico en el blog.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/salario-neto";
+const title = `Salario neto ${YEAR}: cuánto me llega del sueldo en Colombia`;
+const description = `Calcula cuánto te llega al mes y por quincena: salario menos salud, pensión, solidaridad y retención, más el auxilio de transporte. Con el mínimo de ${YEAR} te llegan ${formatCOP(minimum.net)}.`;
+const ogPath = "/og/salario-neto.png";
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: "Calculadora de salario neto",
+    crumb: "Salario neto",
+    review: REVIEW,
+    image: ogPath,
+    faqs,
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`Calculadora de salario neto ${YEAR}`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Salario neto"
+            links={[
+                { href: "#calculadora", label: "Calculadora" },
+                { href: "#tabla", label: "Tabla" },
+                { href: "#descuentos", label: "Descuentos" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>¿Cuánto me <span>llega</span>?</h1>
+            <p class="lead">
+                Con el mínimo de {YEAR} te llegan <strong>{formatCOP(minimum.net)} al mes</strong>: el salario menos el 8 % de
+                salud y pensión, más el auxilio de transporte. Pon tu salario y mira cada peso que se queda en el camino, o
+                calcula cuánto pedir para recibir lo que necesitas.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={REVIEW}>{longDate(REVIEW)}</time> · Salario mínimo {formatCOP(wage.salary)} · UVT
+                {YEAR}: {formatCOP(uvt.value)}
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo" data-year={YEAR} data-uvt={uvt.value} data-minimum={wage.salary}>
+            <h2 id="calculadora-titulo" class="sr-only">Calcula tu salario neto</h2>
+            <form class="form" data-form>
+                <fieldset class="field">
+                    <legend>¿Qué quieres saber?</legend>
+                    <div class="options">
+                        <label class="option">
+                            <input type="radio" name="modo" value="bruto" checked />
+                            <span><strong>Cuánto me llega</strong><small>Sé mi salario</small></span>
+                        </label>
+                        <label class="option">
+                            <input type="radio" name="modo" value="neto" />
+                            <span><strong>Cuánto pedir</strong><small>Sé cuánto quiero recibir</small></span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <div class="field">
+                    <label for="valor" data-amount-label>¿Cuánto ganas al mes?</label>
+                    <div class="money big">
+                        <span aria-hidden="true">$</span>
+                        <input id="valor" name="valor" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(wage.salary)} />
+                    </div>
+                    <div class="chips" role="group" aria-label="Valores comunes">
+                        <button type="button" class="chip" data-amount={wage.salary}>Mínimo</button>
+                        {[2_000_000, 3_000_000, 5_000_000, 10_000_000].map((value) => (
+                            <button type="button" class="chip" data-amount={value}>{formatCOP(value)}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="otros">Horas extra, recargos o comisiones del mes</label>
+                    <div class="money">
+                        <span aria-hidden="true">$</span>
+                        <input id="otros" name="otros" type="text" inputmode="numeric" autocomplete="off" placeholder="0" />
+                    </div>
+                    <p class="hint">¿No sabes cuánto son? Sácalo con la <a href="/horas-extra">calculadora de horas extra</a>.</p>
+                </div>
+
+                <label class="switch">
+                    <input type="checkbox" name="integral" />
+                    <span class="track" aria-hidden="true"></span>
+                    <span>Tengo salario integral</span>
+                </label>
+
+                <details class="more">
+                    <summary>Deducciones que bajan la retención <small>opcional</small></summary>
+                    <div class="more-body">
+                        <label class="switch">
+                            <input type="checkbox" name="dependientes" />
+                            <span class="track" aria-hidden="true"></span>
+                            <span>Tengo dependientes económicos</span>
+                        </label>
+                        <div class="row">
+                            <div class="field">
+                                <label for="prepagada">Medicina prepagada al mes</label>
+                                <div class="money"><span aria-hidden="true">$</span><input id="prepagada" name="prepagada" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                            </div>
+                            <div class="field">
+                                <label for="vivienda">Intereses de vivienda al mes</label>
+                                <div class="money"><span aria-hidden="true">$</span><input id="vivienda" name="vivienda" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="voluntarios">Aportes voluntarios o AFC por nómina</label>
+                            <div class="money"><span aria-hidden="true">$</span><input id="voluntarios" name="voluntarios" type="text" inputmode="numeric" autocomplete="off" placeholder="0" /></div>
+                            <p class="hint">Se descuentan del pago, pero bajan la retención y siguen siendo tu plata.</p>
+                        </div>
+                    </div>
+                </details>
+            </form>
+
+            <div class="result">
+                <div class="paycheck">
+                    <p class="ask" data-ask hidden>Pide un salario de <b data-out="ask">$0</b></p>
+                    <p class="paycheck-head">Te llega al mes</p>
+                    <p class="paycheck-net" data-out="net">{formatCOP(minimum.net)}</p>
+                    <p class="paycheck-half">Por quincena: <b data-out="half">{formatCOP(minimum.half)}</b></p>
+
+                    <div class="shrink" aria-hidden="true">
+                        <span class="seg net" data-bar="net" style={`--w: ${width(minimum.net, minimum.gross + minimum.transport)}`}></span>
+                        {SEGMENTS.map(({ key }) => (
+                            <span class={`seg ${key}`} data-bar={key} style={`--w: ${width(minimum.lines.find((line) => line.key === key)!.value, minimum.gross + minimum.transport)}`}></span>
+                        ))}
+                    </div>
+                    <p class="share" data-out="share">Se va en descuentos el {Math.round(minimum.share * 100)} % de lo que ganas.</p>
+
+                    <dl class="paycheck-lines">
+                        <div><dt>Salario y otros pagos</dt><dd data-out="gross">{formatCOP(minimum.gross)}</dd></div>
+                        <div data-row="transport" hidden={!minimum.transport}><dt>Auxilio de transporte</dt><dd data-out="transport">+{formatCOP(minimum.transport)}</dd></div>
+                        {
+                            minimum.lines.map((line) => (
+                                <div data-row={line.key} hidden={!line.value}>
+                                    <dt>
+                                        <i class={line.key} aria-hidden="true"></i>
+                                        {line.label}
+                                        <small data-out={`note-${line.key}`}>{line.note}</small>
+                                    </dt>
+                                    <dd data-out={line.key}>−{formatCOP(line.value)}</dd>
+                                </div>
+                            ))
+                        }
+                    </dl>
+                    <p class="cost" data-cost>
+                        A tu empresa le cuestas unos <b data-out="cost">{formatCOP(cost.monthly)}</b> al mes con prestaciones y aportes.
+                        <a href={`/salario-minimo-${nextWage.year}#costo`}>¿Por qué?</a>
+                    </p>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="tabla" aria-labelledby="tabla-titulo">
+            <header class="head">
+                <h2 id="tabla-titulo">Cuánto llega de cada salario</h2>
+                <p>Salarios ordinarios en {YEAR}, sin horas extra ni deducciones adicionales para la retención.</p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Salario</th>
+                            <th scope="col" class="num">Auxilio</th>
+                            <th scope="col" class="num">Salud y pensión</th>
+                            <th scope="col" class="num">Solidaridad</th>
+                            <th scope="col" class="num">Retención</th>
+                            <th scope="col" class="num">Te llega</th>
+                            <th scope="col" class="num">Quincena</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {
+                            rows.map((row) => (
+                                <tr>
+                                    <th scope="row">
+                                        {formatCOP(row.salary)}
+                                        {row.salary === wage.salary && <span class="tag">Mínimo</span>}
+                                    </th>
+                                    <td class="num">{row.transport ? formatCOP(row.transport) : "—"}</td>
+                                    <td class="num">{formatCOP(row.health + row.pension)}</td>
+                                    <td class="num">{row.solidarity ? formatCOP(row.solidarity) : "—"}</td>
+                                    <td class="num">{row.withholding ? formatCOP(row.withholding) : "—"}</td>
+                                    <td class="num strong">{formatCOP(row.net)}</td>
+                                    <td class="num">{formatCOP(row.half)}</td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="descuentos" aria-labelledby="descuentos-titulo">
+            <header class="head">
+                <h2 id="descuentos-titulo">De dónde sale cada descuento</h2>
+                <p>Solo estos son obligatorios. Cualquier otro descuento necesita tu autorización por escrito o la orden de un juez.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>Salud y pensión: 8 %</h3>
+                    <p>
+                        Tú pones el 4 % de salud y el 4 % de pensión; la empresa pone el resto (12 % de pensión y, si ganas
+                        más de 10 mínimos, 8,5 % de salud). El auxilio de transporte no paga aportes.
+                    </p>
+                </article>
+                <article>
+                    <h3>Solidaridad desde 4 mínimos</h3>
+                    <p>
+                        Desde {formatCOP(4 * wage.salary)} pagas el 1 % adicional para el Fondo de Solidaridad Pensional, y
+                        sube hasta el 2 % desde 20 mínimos. Se cobra sobre todo el salario, no solo sobre lo que pasa de 4.
+                    </p>
+                </article>
+                <article>
+                    <h3>Retención en la fuente</h3>
+                    <p>
+                        Empieza cerca de {formatCOP(threshold)} al mes. Es un anticipo del impuesto de renta; mira el detalle en
+                        la <a href="/retencion-en-la-fuente">calculadora de retención</a>.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Calculadora de salario neto" />
+
+        <Colophon
+            sources={[
+                { label: "Ley 100 de 1993 (arts. 18, 20 y 204)" },
+                { label: "Ley 797 de 2003 (art. 8)" },
+                { label: "Estatuto Tributario (arts. 383 y 387)" },
+                { label: wage.salaryDecree },
+                { label: wage.transportDecree },
+            ]}
+            related={[
+                { href: "/horas-extra", label: "Horas extra y recargos" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/calculadora-prima", label: "Calculadora de prima" },
+                { href: "/blog/ley-de-rescate-economico", label: "Ley de Rescate Económico" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { companyCost, netSalary, salaryForNet } from "@/lib/salario-neto";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/uvt";
+
+    const section = document.querySelector<HTMLElement>("#calculadora")!;
+    const year = Number(section.dataset.year);
+    const uvt = Number(section.dataset.uvt);
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+    const money = (name: string) => parseCOP(field(name).value);
+
+    for (const input of form.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]')) {
+        input.addEventListener("input", () => {
+            const value = parseCOP(input.value);
+            input.value = value ? formatNumber(value) : "";
+        });
+    }
+
+    function update(): void {
+        const reverse = (form.elements.namedItem("modo") as RadioNodeList).value === "neto";
+        const options = {
+            other: money("otros"),
+            integral: field("integral").checked,
+            dependents: field("dependientes").checked,
+            prepaid: money("prepagada"),
+            housing: money("vivienda"),
+            voluntary: money("voluntarios"),
+            year,
+            uvt,
+        };
+        const amount = money("valor");
+        // Al pedir un neto, los otros pagos del mes ya cuentan para llegar a lo que se quiere recibir
+        const salary = reverse ? salaryForNet(amount, options) : amount;
+        const result = netSalary({ ...options, salary });
+        const total = result.gross + result.transport;
+
+        document.querySelector<HTMLElement>("[data-amount-label]")!.textContent = reverse ? "¿Cuánto quieres recibir al mes?" : "¿Cuánto ganas al mes?";
+        document.querySelector<HTMLElement>("[data-ask]")!.hidden = !reverse;
+        out("ask").textContent = formatCOP(salary);
+        out("net").textContent = formatCOP(result.net);
+        out("half").textContent = formatCOP(result.half);
+        out("gross").textContent = formatCOP(result.gross);
+        out("transport").textContent = `+${formatCOP(result.transport)}`;
+        document.querySelector<HTMLElement>('[data-row="transport"]')!.hidden = !result.transport;
+        for (const line of result.lines) {
+            document.querySelector<HTMLElement>(`[data-row="${line.key}"]`)!.hidden = line.value < 1;
+            out(line.key).textContent = `−${formatCOP(line.value)}`;
+            out(`note-${line.key}`).textContent = line.note;
+            document.querySelector<HTMLElement>(`[data-bar="${line.key}"]`)!.style.setProperty("--w", String(total ? line.value / total : 0));
+        }
+        document.querySelector<HTMLElement>('[data-bar="net"]')!.style.setProperty("--w", String(total ? Math.max(0, result.net) / total : 0));
+        out("share").textContent = `Se va en descuentos el ${Math.round(result.share * 100)} % de lo que ganas.`;
+
+        const cost = document.querySelector<HTMLElement>("[data-cost]")!;
+        cost.hidden = options.integral || !result.gross;
+        if (!cost.hidden) out("cost").textContent = formatCOP(companyCost({ ...options, salary }).monthly);
+
+        live.textContent = reverse
+            ? `Pide ${formatCOP(salary)} para recibir ${formatCOP(result.net)} al mes.`
+            : `Te llegan ${formatCOP(result.net)} al mes.`;
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    for (const chip of document.querySelectorAll<HTMLButtonElement>("[data-amount]")) {
+        chip.addEventListener("click", () => {
+            field("valor").value = formatNumber(Number(chip.dataset.amount));
+            update();
+        });
+    }
+    update();
+</script>
+
+<style>
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    .more {
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .more summary {
+        padding: 16px 0;
+        color: var(--ink);
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .more summary small {
+        margin-left: 6px;
+        color: var(--muted);
+        font-weight: 500;
+    }
+
+    .more-body {
+        display: grid;
+        gap: 22px;
+        padding-bottom: 22px;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    /* El pago: oscuro, con la barra que se encoge */
+    .paycheck {
+        padding: clamp(24px, 3vw, 32px);
+        border-radius: 22px;
+        background: var(--board);
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .ask {
+        margin: -4px 0 18px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: var(--amber);
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .ask[hidden],
+    .cost[hidden] {
+        display: none;
+    }
+
+    .ask b {
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+    }
+
+    .paycheck-head {
+        color: var(--amber);
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .paycheck-net {
+        margin-top: 4px;
+        color: #fff;
+        font-family: var(--font-display);
+        font-size: clamp(2.6rem, 2rem + 2.4vw, 3.8rem);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .paycheck-half {
+        margin-top: 8px;
+    }
+
+    .paycheck-half b {
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .shrink {
+        display: flex;
+        height: 16px;
+        margin-top: 22px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .seg {
+        flex: none;
+        width: calc(var(--w) * 100%);
+        height: 100%;
+        transition: width 300ms var(--ease-out);
+    }
+
+    .seg.net,
+    .paycheck-lines i.net {
+        background: #9fe0b8;
+    }
+
+    .seg.salud,
+    .paycheck-lines i.salud {
+        background: #f28b6d;
+    }
+
+    .seg.pension,
+    .paycheck-lines i.pension {
+        background: var(--red);
+    }
+
+    .seg.solidaridad,
+    .paycheck-lines i.solidaridad {
+        background: #c08bdc;
+    }
+
+    .seg.retencion,
+    .paycheck-lines i.retencion {
+        background: var(--amber);
+    }
+
+    .seg.voluntarios,
+    .paycheck-lines i.voluntarios {
+        background: #6fa8ff;
+    }
+
+    .share {
+        margin-top: 10px;
+        font-size: 0.88rem;
+    }
+
+    .paycheck-lines {
+        margin-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .paycheck-lines div {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .paycheck-lines div[hidden] {
+        display: none;
+    }
+
+    .paycheck-lines dt {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 8px;
+        align-items: center;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .paycheck-lines dt small {
+        grid-column: 2;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 0.8rem;
+    }
+
+    .paycheck-lines i {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+    }
+
+    .paycheck-lines dd {
+        margin: 0;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .cost {
+        margin-top: 16px;
+        font-size: 0.88rem;
+    }
+
+    .cost b {
+        color: #fff;
+    }
+
+    .cost a {
+        color: #fff;
+        text-decoration-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .table-wrap table {
+        min-width: 720px;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .paycheck {
+            max-width: 520px;
+        }
+    }
+</style>

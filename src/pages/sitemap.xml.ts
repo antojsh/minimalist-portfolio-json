@@ -3,6 +3,7 @@ import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
 import { HORAS_EXTRA_REVIEW } from "@/lib/horas-extra";
+import { SALARIO_NETO_REVIEW } from "@/lib/salario-neto";
 import { RENTA_REVIEW } from "@/lib/renta";
 import { RETENCION_REVIEW } from "@/lib/retencion";
 import { UVT_REVIEW } from "@/lib/uvt";
@@ -28,6 +29,7 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
     { path: "/horas-extra", changefreq: "monthly", priority: "0.9", lastmod: HORAS_EXTRA_REVIEW },
+    { path: "/salario-neto", changefreq: "monthly", priority: "0.9", lastmod: SALARIO_NETO_REVIEW },
     { path: "/declarar-renta", changefreq: "weekly", priority: "0.9", lastmod: RENTA_REVIEW },
     { path: "/retencion-en-la-fuente", changefreq: "monthly", priority: "0.9", lastmod: RETENCION_REVIEW },
     { path: "/uvt", changefreq: "weekly", priority: "0.9", lastmod: UVT_REVIEW },

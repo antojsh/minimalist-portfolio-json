@@ -186,6 +186,20 @@ const groups: { title: string; intro: string; tools: Tool[] }[] = [
         ],
     },
     {
+        title: "Para tu negocio",
+        intro: "Para que tus clientes te encuentren y te escriban.",
+        tools: [
+            {
+                href: "/link-de-whatsapp",
+                title: "Link de WhatsApp con QR",
+                text: "Crea tu link wa.me con mensaje prellenado y descarga su código QR para imprimir. No caduca.",
+                preview: "wa.me/",
+                caption: "con QR que no caduca",
+                tone: "green",
+            },
+        ],
+    },
+    {
         title: "Movilidad",
         intro: "Se actualiza solo cada madrugada con los decretos de cada ciudad.",
         tools: [
@@ -220,7 +234,7 @@ const all = groups.flatMap((group) => group.tools);
 const site = Astro.site?.href ?? "/";
 const pageUrl = new URL("/herramientas", site).href;
 const title = "Herramientas gratis: impuestos, calculadoras laborales, festivos y más";
-const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario neto, horas extra, salario mínimo, pico y placa, interés compuesto, crédito, novena y ruleta.`;
+const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario neto, horas extra, salario mínimo, pico y placa, link de WhatsApp con QR, interés compuesto, crédito, novena y ruleta.`;
 const personId = new URL("/#person", site).href;
 
 const jsonLd = {

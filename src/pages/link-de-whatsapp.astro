@@ -1,0 +1,610 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import { COUNTRIES, TEMPLATES, WHATSAPP_REVIEW, buildLink, formatNumber, getCountry } from "@/lib/whatsapp";
+import { encodeText, toSvg } from "@/lib/qr";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const country = getCountry("CO");
+const EXAMPLE = { phone: "300 123 4567", text: TEMPLATES[0].text };
+const example = buildLink({ country, phone: EXAMPLE.phone, text: EXAMPLE.text });
+const qr = encodeText(example.url);
+const qrSvg = toSvg(qr, { dark: "#15191e" });
+
+const faqs = [
+    {
+        question: "¿Cómo crear un link de WhatsApp?",
+        answer: "Escribe el número con su código de país y, si quieres, el mensaje con el que te van a escribir. El link queda así: https://wa.me/573001234567?text=Hola. Quien lo toque abre el chat contigo con ese mensaje listo para enviar, sin tener que guardar tu número.",
+    },
+    {
+        question: "¿Cómo pongo el número en el link?",
+        answer: "En formato internacional y solo con dígitos: primero el código del país (57 para Colombia) y luego el número, sin el signo +, sin espacios, guiones ni ceros al inicio. Esta herramienta lo limpia por ti.",
+    },
+    {
+        question: "¿El código QR caduca?",
+        answer: "No. El QR guarda el link directamente, sin pasar por ningún servidor ni acortador, así que funciona para siempre y nadie puede desactivarlo ni cobrarte por él. Solo deja de servir si cambias de número.",
+    },
+    {
+        question: "¿Funciona con WhatsApp Business?",
+        answer: "Sí. El link wa.me abre el chat con cualquier número que tenga WhatsApp, sea la app normal o WhatsApp Business.",
+    },
+    {
+        question: "¿Puedo poner emojis, tildes y saltos de línea en el mensaje?",
+        answer: "Sí. El mensaje se codifica para que viaje bien dentro del link. Eso sí, entre más largo el mensaje, más grande y denso queda el QR: para algo impreso, mejor un mensaje corto.",
+    },
+    {
+        question: "¿Por qué mi link no abre el chat?",
+        answer: "Casi siempre es el número: falta el código de país, sobra un 0 o un dígito, o ese número no tiene WhatsApp. En Argentina los celulares llevan un 9 después del 54 (54 9 11…); esta herramienta lo agrega solo.",
+    },
+    {
+        question: "¿Puedo crear un link sin número?",
+        answer: "Sí. Un link como https://wa.me/?text=Hola abre WhatsApp con el mensaje listo y deja que la persona escoja a quién enviarlo. Sirve para que tus clientes compartan una promoción.",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/link-de-whatsapp";
+const title = "Crear link de WhatsApp con mensaje y código QR gratis";
+const description = "Genera tu link de WhatsApp (wa.me) con mensaje prellenado y descarga su código QR en PNG o SVG. Gratis, sin registro y sin caducidad: todo se crea en tu navegador.";
+const ogPath = "/og/link-de-whatsapp.png";
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: "Generador de link de WhatsApp con QR",
+    crumb: "Link de WhatsApp",
+    review: WHATSAPP_REVIEW,
+    image: ogPath,
+    category: "BusinessApplication",
+    faqs,
+    howTo: {
+        name: "Cómo crear un link de WhatsApp con mensaje",
+        steps: [
+            { title: "Escoge el país", text: "El código de país va al inicio del número, por ejemplo 57 para Colombia." },
+            { title: "Escribe tu número", text: "Solo el número de celular; los espacios y guiones se quitan solos." },
+            { title: "Agrega el mensaje", text: "Es el texto con el que te van a escribir; la persona lo puede cambiar antes de enviarlo." },
+            { title: "Copia el link o baja el QR", text: "Pégalo en tu bio, en Google Maps o imprime el QR en tu local o tus empaques." },
+        ],
+    },
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt="Generador de link de WhatsApp con QR" imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Link de WhatsApp"
+            links={[
+                { href: "#crear", label: "Crear" },
+                { href: "#donde", label: "Dónde usarlo" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>Link de <span>WhatsApp</span> con QR</h1>
+            <p class="lead">
+                Para que tus clientes te escriban con un toque, sin guardar tu número y con el mensaje ya escrito. Copia el link
+                para tu bio o baja el <strong>código QR</strong> para imprimirlo. <strong>No caduca</strong> y se crea en tu
+                navegador: tu número no pasa por ningún servidor.
+            </p>
+            <p class="updated">Actualizado el <time datetime={WHATSAPP_REVIEW}>{longDate(WHATSAPP_REVIEW)}</time> · Formato oficial wa.me</p>
+        </section>
+
+        <section id="crear" class="workbench" aria-labelledby="crear-titulo">
+            <h2 id="crear-titulo" class="sr-only">Crea tu link de WhatsApp</h2>
+            <form class="form" data-form>
+                <label class="switch">
+                    <input type="checkbox" name="sin-numero" />
+                    <span class="track" aria-hidden="true"></span>
+                    <span>Sin número: que la persona escoja a quién enviarlo</span>
+                </label>
+
+                <div class="field" data-phone-field>
+                    <label for="telefono">Tu número de WhatsApp</label>
+                    <div class="phone">
+                        <select name="pais" aria-label="País">
+                            {COUNTRIES.map((c) => (
+                                <option value={c.iso} selected={c.iso === country.iso}>
+                                    {c.name} +{c.code}
+                                </option>
+                            ))}
+                        </select>
+                        <input id="telefono" name="telefono" type="tel" inputmode="tel" autocomplete="tel-national" placeholder={country.example} value={EXAMPLE.phone} />
+                    </div>
+                    <p class="hint" data-out="warning" aria-live="polite"></p>
+                </div>
+
+                <div class="field">
+                    <label for="mensaje">Mensaje con el que te van a escribir</label>
+                    <textarea id="mensaje" name="mensaje" class="input" rows="4" maxlength="1000">{EXAMPLE.text}</textarea>
+                    <div class="chips" role="group" aria-label="Mensajes de ejemplo">
+                        {TEMPLATES.map(({ label, text }) => (
+                            <button type="button" class="chip" data-template={text}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                    <p class="hint"><span data-out="chars">{EXAMPLE.text.length}</span> caracteres. Para un QR impreso, mejor un mensaje corto.</p>
+                </div>
+
+                <div class="output">
+                    <p class="output-label">Tu link</p>
+                    <p class="link" data-out="url">{example.url}</p>
+                    <div class="buttons">
+                        <button type="button" class="primary" data-copy>Copiar link</button>
+                        <a class="secondary" data-open href={example.url} target="_blank" rel="noopener">Probar</a>
+                    </div>
+                    <p class="sr-only" aria-live="polite" data-live></p>
+                </div>
+            </form>
+
+            <div class="result">
+                <div class="phone-mock" aria-label="Vista previa del chat">
+                    <div class="mock-top">
+                        <span class="avatar" aria-hidden="true"></span>
+                        <span class="contact" data-out="contact">{formatNumber(example.number, country)}</span>
+                    </div>
+                    <div class="mock-chat">
+                        <p class="mock-note">Así ve el chat quien toca tu link: el mensaje queda escrito, listo para enviar.</p>
+                    </div>
+                    <div class="mock-input">
+                        <span class="draft" data-out="draft">{EXAMPLE.text}</span>
+                        <span class="send" aria-hidden="true">➤</span>
+                    </div>
+                </div>
+
+                <div class="qr-card">
+                    <div class="qr" data-qr set:html={qrSvg} role="img" aria-label="Código QR del link de WhatsApp" />
+                    <div class="qr-side">
+                        <p class="qr-title">Código QR</p>
+                        <p class="hint" data-out="qr-info">{qr.size}×{qr.size} módulos</p>
+                        <div class="swatches" role="group" aria-label="Color del QR">
+                            <button type="button" class="swatch" data-color="#15191e" aria-pressed="true" aria-label="Negro"></button>
+                            <button type="button" class="swatch" data-color="#0b6b4f" aria-pressed="false" aria-label="Verde"></button>
+                            <button type="button" class="swatch" data-color="#003893" aria-pressed="false" aria-label="Azul"></button>
+                        </div>
+                        <div class="buttons">
+                            <button type="button" class="primary" data-download="png">PNG</button>
+                            <button type="button" class="secondary" data-download="svg">SVG</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="donde" aria-labelledby="donde-titulo">
+            <header class="head">
+                <h2 id="donde-titulo">Dónde ponerlo para que te escriban más</h2>
+                <p>Cada lugar donde aparece tu link es una puerta directa a tu chat.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>En tu bio</h3>
+                    <p>Instagram, TikTok y Facebook permiten un link en el perfil. Usa un mensaje que diga de dónde vienen: así sabes qué red te trae clientes.</p>
+                </article>
+                <article>
+                    <h3>En Google Maps</h3>
+                    <p>En tu perfil de empresa de Google, el link de WhatsApp en el botón de mensajes o en la web ayuda a quien te encuentra buscando.</p>
+                </article>
+                <article>
+                    <h3>Impreso</h3>
+                    <p>El QR en la vitrina, la caja, el menú o la tarjeta. Imprímelo de al menos 2 cm y con buen contraste: negro sobre blanco es lo más seguro.</p>
+                </article>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Link de WhatsApp" note="Todo se crea en tu navegador: no guardamos tu número ni tus mensajes." />
+
+        <Colophon
+            sources={[{ label: "Centro de ayuda de WhatsApp: enlaces wa.me" }, { label: "Norma ISO/IEC 18004 (códigos QR)" }]}
+            related={[
+                { href: "/calculadora-iva", label: "Calculadora de IVA" },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+                { href: "/ruleta", label: "Ruleta para sorteos" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { buildLink, formatNumber, getCountry } from "@/lib/whatsapp";
+    import { encodeText, toSvg } from "@/lib/qr";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const qrBox = document.querySelector<HTMLElement>("[data-qr]")!;
+    let color = "#15191e";
+    let current = { url: "", svg: "" };
+
+    function update(): void {
+        const country = getCountry(field("pais").value);
+        const withNumber = !field("sin-numero").checked;
+        const text = field("mensaje").value;
+        const result = buildLink({ country, phone: field("telefono").value, text, withNumber });
+
+        document.querySelector<HTMLElement>("[data-phone-field]")!.hidden = !withNumber;
+        field("telefono").placeholder = country.example;
+        out("warning").textContent = result.warnings.join(" ");
+        out("chars").textContent = String(text.length);
+        out("url").textContent = result.url;
+        document.querySelector<HTMLAnchorElement>("[data-open]")!.href = result.url;
+        out("contact").textContent = withNumber ? (result.number ? formatNumber(result.number, country) : "Tu número") : "Escoge un contacto";
+        out("draft").textContent = text.trim() || "Escribe un mensaje";
+
+        const qr = encodeText(result.url);
+        current = { url: result.url, svg: toSvg(qr, { dark: color }) };
+        qrBox.innerHTML = current.svg;
+        out("qr-info").textContent = `${qr.size}×${qr.size} módulos${qr.size > 57 ? " · acorta el mensaje si lo vas a imprimir pequeño" : ""}`;
+    }
+
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+
+    for (const chip of document.querySelectorAll<HTMLButtonElement>("[data-template]")) {
+        chip.addEventListener("click", () => {
+            field("mensaje").value = chip.dataset.template!;
+            update();
+        });
+    }
+
+    for (const swatch of document.querySelectorAll<HTMLButtonElement>("[data-color]")) {
+        swatch.style.background = swatch.dataset.color!;
+        swatch.addEventListener("click", () => {
+            color = swatch.dataset.color!;
+            for (const other of document.querySelectorAll("[data-color]")) other.setAttribute("aria-pressed", String(other === swatch));
+            update();
+        });
+    }
+
+    document.querySelector("[data-copy]")!.addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(current.url);
+            live.textContent = "Link copiado.";
+        } catch {
+            // Sin permiso de portapapeles: seleccionar el texto para copiarlo a mano
+            const range = document.createRange();
+            range.selectNodeContents(out("url"));
+            getSelection()?.removeAllRanges();
+            getSelection()?.addRange(range);
+            live.textContent = "Selecciona y copia el link.";
+        }
+        const button = document.querySelector<HTMLButtonElement>("[data-copy]")!;
+        button.textContent = "¡Copiado!";
+        setTimeout(() => (button.textContent = "Copiar link"), 1600);
+    });
+
+    function save(blob: Blob, name: string) {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-download]")) {
+        button.addEventListener("click", () => {
+            const svgBlob = new Blob([current.svg], { type: "image/svg+xml" });
+            if (button.dataset.download === "svg") return save(svgBlob, "whatsapp-qr.svg");
+            const image = new Image();
+            image.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = canvas.height = 1200;
+                const context = canvas.getContext("2d")!;
+                context.imageSmoothingEnabled = false;
+                context.drawImage(image, 0, 0, 1200, 1200);
+                canvas.toBlob((blob) => blob && save(blob, "whatsapp-qr.png"), "image/png");
+                URL.revokeObjectURL(image.src);
+            };
+            image.src = URL.createObjectURL(svgBlob);
+        });
+    }
+
+    update();
+</script>
+
+<style>
+    .phone {
+        display: flex;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+        overflow: hidden;
+    }
+
+    .phone:focus-within {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+    }
+
+    .phone select {
+        flex: none;
+        max-width: 46%;
+        padding: 0 10px 0 14px;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .phone input {
+        width: 100%;
+        min-width: 0;
+        padding: 13px 16px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    [data-phone-field][hidden] {
+        display: none;
+    }
+
+    textarea.input {
+        resize: vertical;
+        line-height: 1.5;
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        padding: 7px 13px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--sheet);
+        color: var(--text-soft);
+        font: inherit;
+        font-size: 0.88rem;
+        cursor: pointer;
+    }
+
+    .chip:hover {
+        border-color: var(--ink);
+        color: var(--ink);
+    }
+
+    [data-out="warning"]:empty {
+        display: none;
+    }
+
+    [data-out="warning"] {
+        color: var(--red-ink);
+        font-weight: 600;
+    }
+
+    .output {
+        padding: 20px;
+        border-radius: 16px;
+        background: var(--board);
+    }
+
+    .output-label {
+        color: #8de0b0;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .link {
+        margin-top: 8px;
+        color: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .primary,
+    .secondary {
+        padding: 11px 18px;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 650;
+        text-decoration: none !important;
+        cursor: pointer;
+    }
+
+    .primary {
+        border: 0;
+        background: #25d366;
+        color: #0b2e1c;
+    }
+
+    .primary:hover {
+        background: #1fb85a;
+    }
+
+    .secondary {
+        border: 1px solid currentColor;
+        background: transparent;
+        color: inherit;
+    }
+
+    .output .secondary {
+        color: #fff;
+    }
+
+    .primary:focus-visible,
+    .secondary:focus-visible,
+    .swatch:focus-visible {
+        outline: 3px solid var(--amber);
+        outline-offset: 2px;
+    }
+
+    .result {
+        display: grid;
+        gap: 20px;
+        position: sticky;
+        top: 24px;
+    }
+
+    /* Celular con el chat */
+    .phone-mock {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-height: 300px;
+        overflow: hidden;
+        border: 10px solid var(--board);
+        border-radius: 34px;
+        background:
+            radial-gradient(circle at 20% 30%, rgba(21, 25, 30, 0.04) 2px, transparent 3px) 0 0 / 22px 22px,
+            #efe7dc;
+        box-shadow: 0 30px 50px -34px rgba(21, 25, 30, 0.6);
+    }
+
+    .mock-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: #075e54;
+        color: #fff;
+    }
+
+    .avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.35);
+    }
+
+    .contact {
+        font-weight: 650;
+    }
+
+    .mock-chat {
+        display: grid;
+        align-content: start;
+        padding: 16px;
+    }
+
+    .mock-note {
+        justify-self: center;
+        max-width: 30ch;
+        padding: 6px 12px;
+        border-radius: 8px;
+        background: #fdf4c5;
+        color: #54656f;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+
+    .mock-input {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .draft {
+        flex: 1;
+        max-height: 140px;
+        overflow: auto;
+        padding: 10px 14px;
+        border-radius: 22px;
+        background: #fff;
+        color: #111b21;
+        font-size: 0.95rem;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+
+    .send {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #00a884;
+        color: #fff;
+    }
+
+    /* QR */
+    .qr-card {
+        display: grid;
+        grid-template-columns: minmax(0, 170px) minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        padding: 16px;
+        border-radius: 18px;
+        background: var(--sheet);
+        box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .qr :global(svg) {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .qr-title {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+
+    .swatches {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .swatch {
+        width: 28px;
+        height: 28px;
+        border: 2px solid var(--sheet);
+        border-radius: 50%;
+        box-shadow: 0 0 0 1px var(--line-strong);
+        cursor: pointer;
+    }
+
+    .swatch[aria-pressed="true"] {
+        box-shadow: 0 0 0 2px var(--ink);
+    }
+
+    .qr-card .secondary {
+        color: var(--ink);
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+            max-width: 520px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .qr-card {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>

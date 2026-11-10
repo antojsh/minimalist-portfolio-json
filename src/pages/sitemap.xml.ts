@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { FESTIVOS_YEARS, LAST_REVIEW } from "@/lib/festivos";
 import { PRIMA_REVIEW } from "@/lib/prima";
 import { LIQUIDACION_REVIEW } from "@/lib/liquidacion";
+import { HORAS_EXTRA_REVIEW } from "@/lib/horas-extra";
 import { RENTA_REVIEW } from "@/lib/renta";
 import { RETENCION_REVIEW } from "@/lib/retencion";
 import { UVT_REVIEW } from "@/lib/uvt";
@@ -17,7 +18,7 @@ import { getPublishedPosts } from "@/lib/blog";
 // Páginas públicas del sitio. Agrega aquí las nuevas páginas indexables.
 const pages: { path: string; changefreq: string; priority: string; lastmod?: string }[] = [
     { path: "/", changefreq: "monthly", priority: "1.0" },
-    { path: "/herramientas", changefreq: "weekly", priority: "0.8", lastmod: "2026-11-06" },
+    { path: "/herramientas", changefreq: "weekly", priority: "0.8", lastmod: "2026-11-10" },
     ...FESTIVOS_YEARS.map((year) => ({
         path: `/festivos-colombia-${year}`,
         changefreq: "monthly",
@@ -26,6 +27,7 @@ const pages: { path: string; changefreq: string; priority: string; lastmod?: str
     })),
     { path: "/calculadora-prima", changefreq: "monthly", priority: "0.9", lastmod: PRIMA_REVIEW },
     { path: "/liquidacion-laboral", changefreq: "monthly", priority: "0.9", lastmod: LIQUIDACION_REVIEW },
+    { path: "/horas-extra", changefreq: "monthly", priority: "0.9", lastmod: HORAS_EXTRA_REVIEW },
     { path: "/declarar-renta", changefreq: "weekly", priority: "0.9", lastmod: RENTA_REVIEW },
     { path: "/retencion-en-la-fuente", changefreq: "monthly", priority: "0.9", lastmod: RETENCION_REVIEW },
     { path: "/uvt", changefreq: "weekly", priority: "0.9", lastmod: UVT_REVIEW },

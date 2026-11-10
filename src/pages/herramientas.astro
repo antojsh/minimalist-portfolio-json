@@ -10,13 +10,15 @@ import { simulate as simulateCredit } from "@/lib/credito";
 import { formatCompact, simulate as simulateSavings } from "@/lib/interes-compuesto";
 import { wheelSegments } from "@/lib/ruleta";
 
-const REVIEW = "2026-11-06";
+const REVIEW = "2026-11-10";
+import { addedPerHour, kindOf } from "@/lib/horas-extra";
 import { DECLARATION_YEAR, deadlines } from "@/lib/renta";
 import { getUvt as getTaxUnit, isNextUvtKnown, NEXT_UVT } from "@/lib/uvt";
 const YEAR = Number(REVIEW.slice(0, 4));
 const wage = getMinimumWage(YEAR);
 const prima = calculatePrima({ salary: wage.salary, transport: true, start: `${YEAR}-07-01`, end: `${YEAR}-12-31`, wage });
-const businessDays = countBetween(`${YEAR}-01-01`, `${YEAR}-12-31`, { includeStart: true }).business;
+const extraHour = addedPerHour(kindOf("hed"), wage.salary, REVIEW);
+const businessDays =countBetween(`${YEAR}-01-01`, `${YEAR}-12-31`, { includeStart: true }).business;
 const credit = simulateCredit({ amount: 10_000_000, months: 36, rate: 0.24, rateType: "ea" });
 const savings = simulateSavings({ initial: 1_000_000, contribution: 200_000, rate: 0.1, months: 240 });
 const miniWheel = `<svg viewBox="0 0 1000 1000" aria-hidden="true">${wheelSegments(["", "", "", "", "", "", "", ""])}</svg>`;
@@ -83,6 +85,14 @@ const groups: { title: string; intro: string; tools: Tool[] }[] = [
                 preview: "5 en 1",
                 caption: "prestaciones y despido",
                 tone: "paper",
+            },
+            {
+                href: "/horas-extra",
+                title: "Horas extra y recargos",
+                text: "Nocturno desde las 7:00 p. m., dominical y festivo con la reforma laboral, y un reloj que reparte tu turno.",
+                preview: formatCOP(extraHour),
+                caption: "hora extra diurna con el mínimo",
+                tone: "blue",
             },
             {
                 href: `/salario-minimo-${nextWage.year}`,
@@ -183,7 +193,7 @@ const all = groups.flatMap((group) => group.tools);
 const site = Astro.site?.href ?? "/";
 const pageUrl = new URL("/herramientas", site).href;
 const title = "Herramientas gratis: impuestos, calculadoras laborales, festivos y más";
-const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, salario mínimo, interés compuesto, crédito, novena y ruleta.`;
+const description = `${all.length} herramientas gratis y sin registro: declarar renta, retención en la fuente, UVT, IVA, 4x1000, festivos, días hábiles, prima, liquidación, horas extra, salario mínimo, interés compuesto, crédito, novena y ruleta.`;
 const personId = new URL("/#person", site).href;
 
 const jsonLd = {

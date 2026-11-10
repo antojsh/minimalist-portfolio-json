@@ -1,0 +1,1004 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import "@/styles/tools.css";
+import Topbar from "@/components/tool/Topbar.astro";
+import Faq from "@/components/tool/Faq.astro";
+import Colophon from "@/components/tool/Colophon.astro";
+import {
+    HORAS_EXTRA_REVIEW,
+    HOUR_KINDS,
+    TIMELINE,
+    addedPerHour,
+    calculate,
+    formatClock,
+    formatHours,
+    formatRate,
+    hourlyValue,
+    kindOf,
+    nightStart,
+    shiftDial,
+    splitShift,
+    sundayRate,
+    surcharge,
+    type HourCounts,
+} from "@/lib/horas-extra";
+import { latestWage, weeklyHours, monthlyHours } from "@/lib/salario-minimo";
+import { formatCOP, formatNumber } from "@/lib/prima";
+import { longDate, toolJsonLd } from "@/lib/seo";
+
+const REVIEW = HORAS_EXTRA_REVIEW;
+const wage = latestWage();
+// Fecha de referencia: hoy, o el 1 de enero si ya se conoce el mínimo del año siguiente
+const DATE = REVIEW >= `${wage.year}-01-01` ? REVIEW : `${wage.year}-01-01`;
+const YEAR = Number(DATE.slice(0, 4));
+const hourly = hourlyValue(wage.salary, DATE);
+const divisor = monthlyHours(DATE);
+const weekly = weeklyHours(DATE);
+const night = nightStart(DATE);
+const sunday = sundayRate(DATE);
+const value = (key: Parameters<typeof kindOf>[0]) => addedPerHour(kindOf(key), wage.salary, DATE);
+const full = (key: Parameters<typeof kindOf>[0]) => hourly * (1 + surcharge(kindOf(key), DATE));
+const FUTURE = "2027-07-01";
+
+const DESCRIPTIONS: Record<string, string> = {
+    rn: "Horas de tu jornada que caen de noche.",
+    rd: "Horas de tu jornada en domingo o festivo, de día.",
+    rdn: "Horas de tu jornada en domingo o festivo, de noche.",
+    hed: "Después de tu jornada, de día.",
+    hen: "Después de tu jornada, de noche.",
+    hedd: "Después de tu jornada, domingo o festivo de día.",
+    hend: "Después de tu jornada, domingo o festivo de noche.",
+};
+
+const EXAMPLE: HourCounts = { rn: 0, rd: 7, rdn: 0, hed: 6, hen: 2, hedd: 0, hend: 0 };
+const example = calculate({ salary: wage.salary, date: DATE, hours: EXAMPLE });
+
+const SHIFT = { date: DATE, start: "14:00", end: "23:00", ordinary: weekly / 6 };
+const shift = splitShift(SHIFT);
+const dial = shiftDial(shift.segments, night);
+
+const faqs = [
+    {
+        question: `¿Cuánto vale una hora extra en ${YEAR}?`,
+        answer: `Con el salario mínimo de ${formatCOP(wage.salary)}, la hora ordinaria vale ${formatCOP(hourly)} (el salario dividido entre ${divisor}). La hora extra diurna se paga a ${formatCOP(full("hed"))} (25 % más) y la nocturna a ${formatCOP(full("hen"))} (75 % más). En domingo o festivo, a ${formatCOP(full("hedd"))} y ${formatCOP(full("hend"))}.`,
+    },
+    {
+        question: "¿Cómo se calcula el valor de la hora ordinaria?",
+        answer: `Se divide el salario mensual entre las horas de la jornada del mes. Desde el 15 de julio de 2026 la jornada máxima es de 42 horas a la semana (Ley 2101 de 2021): 42 ÷ 6 días × 30 = 210 horas. El auxilio de transporte no entra en esa cuenta.`,
+    },
+    {
+        question: "¿Desde qué hora se paga el recargo nocturno?",
+        answer: "Desde las 7:00 p. m. y hasta las 6:00 a. m. La Ley 2466 de 2025 adelantó el inicio de la noche, que antes era a las 9:00 p. m., a partir del 25 de diciembre de 2025. El recargo nocturno es del 35 % sobre la hora ordinaria.",
+    },
+    {
+        question: "¿Cuánto pagan por trabajar un domingo o un festivo?",
+        answer: `El recargo es del ${formatRate(sunday)} sobre la hora ordinaria desde el 1 de julio de 2026 y sube al 100 % el 1 de julio de 2027 (Ley 2466 de 2025). Antes fue del 75 % y del 80 %. Si el domingo es ocasional, puedes escoger entre el pago o un día de descanso compensatorio; si trabajas tres o más domingos al mes, tienes derecho al descanso compensatorio además del pago.`,
+    },
+    {
+        question: "¿Los recargos se suman o se multiplican?",
+        answer: `Se suman. Una hora extra nocturna en domingo lleva el 75 % de la extra nocturna más el ${formatRate(sunday)} del dominical: ${formatRate(surcharge(kindOf("hend"), DATE))} más que la hora ordinaria. Por eso vale ${formatCOP(full("hend"))} con el mínimo.`,
+    },
+    {
+        question: "¿Cuántas horas extra se pueden trabajar?",
+        answer: "Máximo 2 horas extra al día y 12 a la semana (art. 22 de la Ley 50 de 1990). Las horas por encima de esos topes igual se deben pagar, pero el empleador está incumpliendo la ley.",
+    },
+    {
+        question: "¿Quién no tiene derecho a horas extra?",
+        answer: "Los trabajadores de dirección, confianza y manejo, los del servicio doméstico que viven en la casa donde trabajan y quienes hacen labores discontinuas o de simple vigilancia que viven en el sitio de trabajo (art. 162 del Código Sustantivo del Trabajo).",
+    },
+    {
+        question: "¿Las horas extra cuentan para la prima y las cesantías?",
+        answer: "Sí. Son salario, así que entran en el promedio para la prima, las cesantías y sus intereses, y sobre ellas se paga seguridad social. Lo que no las incluye es el pago de las vacaciones (art. 192).",
+    },
+];
+
+const site = Astro.site?.href ?? "/";
+const path = "/horas-extra";
+const title = `Calculadora de horas extra y recargos ${YEAR}: nocturno, dominical y festivo`;
+const description = `Calcula horas extra y recargos con la reforma laboral: hora ordinaria = salario ÷ ${divisor}, nocturno desde las ${formatClock(night)} y dominical al ${formatRate(sunday)}. Con el mínimo, la extra diurna vale ${formatCOP(full("hed"))}.`;
+const ogPath = "/og/horas-extra.png";
+const jsonLd = toolJsonLd({
+    site,
+    path,
+    title,
+    description,
+    name: "Calculadora de horas extra y recargos",
+    crumb: "Horas extra y recargos",
+    review: REVIEW,
+    image: ogPath,
+    faqs,
+    howTo: {
+        name: "Cómo calcular las horas extra en Colombia",
+        steps: [
+            { title: "Saca el valor de la hora", text: `Divide el salario mensual entre ${divisor} horas.` },
+            { title: "Clasifica cada hora", text: `Diurna o nocturna (desde las ${formatClock(night)}), ordinaria o extra, y si fue domingo o festivo.` },
+            { title: "Suma los recargos", text: `Extra diurna 25 %, extra nocturna 75 %, nocturno 35 % y dominical o festivo ${formatRate(sunday)}; se suman entre sí.` },
+            { title: "Multiplica", text: "Las extras se pagan completas (hora más recargo); en los recargos de tu jornada solo se suma el porcentaje." },
+        ],
+    },
+});
+---
+
+<Layout title={title} description={description} image={ogPath} imageAlt={`Calculadora de horas extra y recargos ${YEAR}`} imageWidth={1200} imageHeight={630} canvas={false} jsonLd={jsonLd}>
+    <div class="tool-flag" aria-hidden="true"></div>
+
+    <main class="tool">
+        <Topbar
+            crumb="Horas extra y recargos"
+            links={[
+                { href: "#calculadora", label: "Calculadora" },
+                { href: "#turno", label: "Por turno" },
+                { href: "#valores", label: "Valores" },
+                { href: "#cambios", label: "Cambios" },
+                { href: "#preguntas", label: "Preguntas" },
+            ]}
+        />
+
+        <section class="hero">
+            <h1>Horas extra y <span>recargos</span></h1>
+            <p class="lead">
+                Con el mínimo de {YEAR}, la hora ordinaria vale <strong>{formatCOP(hourly)}</strong> y una hora extra diurna,
+                <strong>{formatCOP(full("hed"))}</strong>. La noche empieza a las <strong>{formatClock(night)}</strong> y trabajar
+                un domingo o festivo suma el <strong>{formatRate(sunday)}</strong>.
+            </p>
+            <p class="updated">
+                Actualizado el <time datetime={REVIEW}>{longDate(REVIEW)}</time> · Ley 2466 de 2025 · Jornada de {weekly} horas
+            </p>
+        </section>
+
+        <section id="calculadora" class="workbench" aria-labelledby="calculadora-titulo" data-default-date={DATE}>
+            <h2 id="calculadora-titulo" class="sr-only">Calcula tus horas extra y recargos</h2>
+            <form class="form" data-form>
+                <div class="row">
+                    <div class="field">
+                        <label for="salario">Salario mensual</label>
+                        <div class="money">
+                            <span aria-hidden="true">$</span>
+                            <input id="salario" name="salario" type="text" inputmode="numeric" autocomplete="off" value={formatNumber(wage.salary)} />
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="fecha">¿Cuándo las trabajaste?</label>
+                        <input id="fecha" name="fecha" class="input date" type="date" min="2024-01-01" max="2030-12-31" value={DATE} />
+                    </div>
+                </div>
+                <p class="hint rules-line" data-out="rules">
+                    Hora ordinaria: salario ÷ {divisor} (jornada de {weekly} h) · Noche desde las {formatClock(night)} · Dominical {formatRate(sunday)}.
+                    Sin auxilio de transporte.
+                </p>
+
+                {
+                    [
+                        { legend: "Recargos dentro de tu jornada", note: "La hora ya está en tu salario: se suma solo el porcentaje.", extra: false },
+                        { legend: "Horas extra", note: "Después de tu jornada: se paga la hora completa más el recargo.", extra: true },
+                    ].map((group) => (
+                        <fieldset class="field counters">
+                            <legend>{group.legend}</legend>
+                            <p class="hint">{group.note}</p>
+                            {HOUR_KINDS.filter((kind) => kind.extra === group.extra).map((kind) => (
+                                <div class="counter">
+                                    <label for={`h-${kind.key}`}>
+                                        <strong>{kind.label}</strong>
+                                        <small>
+                                            <b data-rate={kind.key}>+{formatRate(surcharge(kind, DATE))}</b> · {DESCRIPTIONS[kind.key]}
+                                        </small>
+                                    </label>
+                                    <div class="stepper">
+                                        <button type="button" data-step="-1" data-target={kind.key} aria-label={`Restar una hora de ${kind.label.toLowerCase()}`}>−</button>
+                                        <input id={`h-${kind.key}`} name={kind.key} type="number" min="0" max="400" step="any" inputmode="decimal" value={EXAMPLE[kind.key] ?? 0} />
+                                        <button type="button" data-step="1" data-target={kind.key} aria-label={`Sumar una hora de ${kind.label.toLowerCase()}`}>+</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </fieldset>
+                    ))
+                }
+                <p><button type="button" class="link" data-clear>Poner todo en cero</button></p>
+            </form>
+
+            <div class="result">
+                <div class="slip">
+                    <p class="slip-head">Colilla de pago <span>horas extra y recargos</span></p>
+                    <p class="slip-meta">Hora ordinaria <b data-out="hourly">{formatCOP(hourly)}</b></p>
+                    <dl class="slip-lines">
+                        {
+                            example.lines.map((line) => (
+                                <div data-line={line.key} hidden={!line.hours}>
+                                    <dt>
+                                        {line.label}
+                                        <small data-out={`detail-${line.key}`}>{formatHours(line.hours)} × {formatCOP(line.perHour)}</small>
+                                    </dt>
+                                    <dd data-out={`value-${line.key}`}>{formatCOP(line.value)}</dd>
+                                </div>
+                            ))
+                        }
+                    </dl>
+                    <p class="slip-empty" data-empty hidden>Agrega horas a la izquierda para ver la cuenta.</p>
+                    <div class="slip-total">
+                        <span>Se suma a tu salario</span>
+                        <b data-out="total">{formatCOP(example.total)}</b>
+                    </div>
+                    <p class="slip-gross">Salario del mes con todo: <b data-out="gross">{formatCOP(example.gross)}</b></p>
+                    <p class="slip-warning" data-warning hidden></p>
+                </div>
+                <p class="sr-only" aria-live="polite" data-live></p>
+            </div>
+        </section>
+
+        <section id="turno" aria-labelledby="turno-titulo" data-night-default={night}>
+            <header class="head">
+                <h2 id="turno-titulo">¿No sabes qué tipo de hora es?</h2>
+                <p>Pon la entrada y la salida de un turno. El reloj lo reparte en horas diurnas, nocturnas, ordinarias y extra, y revisa si cayó en domingo o festivo.</p>
+            </header>
+            <div class="shift">
+                <form class="form" data-shift>
+                    <div class="field">
+                        <label for="turno-fecha">Día en que entraste</label>
+                        <input id="turno-fecha" name="fecha" class="input date" type="date" min="2024-01-01" max="2030-12-31" value={SHIFT.date} />
+                    </div>
+                    <div class="row">
+                        <div class="field">
+                            <label for="entrada">Entrada</label>
+                            <input id="entrada" name="entrada" class="input" type="time" step="900" value={SHIFT.start} />
+                        </div>
+                        <div class="field">
+                            <label for="salida">Salida</label>
+                            <input id="salida" name="salida" class="input" type="time" step="900" value={SHIFT.end} />
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="jornada">Horas ordinarias de ese día</label>
+                        <input id="jornada" name="jornada" class="input" type="number" min="0" max="12" step="any" inputmode="decimal" value={SHIFT.ordinary} />
+                        <p class="hint">
+                            Con {weekly} horas en 6 días son {formatHours(weekly / 6)}; en 5 días, {formatHours(weekly / 5)}. Si era tu día
+                            de descanso, pon 0: todo el turno es extra.
+                        </p>
+                    </div>
+                </form>
+
+                <div class="clock">
+                    <figure>
+                        <svg viewBox="0 0 320 320" role="img" aria-labelledby="reloj-titulo">
+                            <title id="reloj-titulo">Turno en un reloj de 24 horas</title>
+                            <g data-dial set:html={dial} />
+                            <text class="center-big" x="160" y="156" text-anchor="middle" data-out="shift-total">{formatHours(shift.total)}</text>
+                            <text class="center-small" x="160" y="182" text-anchor="middle">de turno</text>
+                        </svg>
+                        <figcaption class="legend">
+                            <span><i class="ord"></i>Ordinaria</span>
+                            <span><i class="rec"></i>Recargo</span>
+                            <span><i class="ext"></i>Extra</span>
+                            <span><i class="sun"></i>Domingo o festivo</span>
+                            <span><i class="night"></i>Noche</span>
+                        </figcaption>
+                    </figure>
+                    <dl class="breakdown" data-breakdown>
+                        {
+                            [{ key: "ord", label: "Horas ordinarias diurnas" }, ...HOUR_KINDS].map(({ key, label }) => (
+                                <div data-split={key} hidden={!shift.hours[key as keyof typeof shift.hours]}>
+                                    <dt>{label}</dt>
+                                    <dd>{formatHours(shift.hours[key as keyof typeof shift.hours])}</dd>
+                                </div>
+                            ))
+                        }
+                    </dl>
+                    <p class="hint shift-warning" data-shift-warning hidden></p>
+                    <button type="button" class="add" data-add>Sumar este turno a la calculadora <span aria-hidden="true">↑</span></button>
+                </div>
+            </div>
+        </section>
+
+        <section id="valores" aria-labelledby="valores-titulo">
+            <header class="head">
+                <h2 id="valores-titulo">Cuánto vale cada hora en {YEAR}</h2>
+                <p>
+                    Con el salario mínimo de <strong>{formatCOP(wage.salary)}</strong>. Si ganas otro salario, multiplica tu hora
+                    ordinaria por el factor.
+                </p>
+            </header>
+            <div class="table-wrap">
+                <table class="amounts">
+                    <thead>
+                        <tr>
+                            <th scope="col">Tipo de hora</th>
+                            <th scope="col" class="num">Recargo</th>
+                            <th scope="col" class="num">Factor</th>
+                            <th scope="col" class="num">Valor de la hora</th>
+                            <th scope="col" class="num">Desde jul. 2027</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Hora ordinaria</th>
+                            <td class="num">—</td>
+                            <td class="num">1,00</td>
+                            <td class="num strong">{formatCOP(hourly)}</td>
+                            <td class="num">—</td>
+                        </tr>
+                        {
+                            HOUR_KINDS.map((kind) => (
+                                <tr>
+                                    <th scope="row">{kind.label}</th>
+                                    <td class="num">{formatRate(surcharge(kind, DATE))}</td>
+                                    <td class="num">{(1 + surcharge(kind, DATE)).toFixed(2).replace(".", ",")}</td>
+                                    <td class="num strong">{formatCOP(full(kind.key))}</td>
+                                    <td class="num">
+                                        {surcharge(kind, FUTURE) !== surcharge(kind, DATE) ? formatRate(surcharge(kind, FUTURE)) : "igual"}
+                                    </td>
+                                </tr>
+                            ))
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="hint table-note">
+                El valor de la hora es la hora ordinaria más el recargo. En los recargos dentro de tu jornada se suma solo la
+                diferencia: un recargo nocturno le agrega {formatCOP(value("rn"))} a cada hora que ya te pagan con el salario.
+            </p>
+        </section>
+
+        <section id="cambios" aria-labelledby="cambios-titulo">
+            <header class="head">
+                <h2 id="cambios-titulo">Lo que cambió con la reforma laboral</h2>
+                <p>La Ley 2466 de 2025 y la Ley 2101 de 2021 cambian las cuentas por etapas. Una calculadora vieja te puede dar menos.</p>
+            </header>
+            <ol class="timeline">
+                {
+                    TIMELINE.map((step) => (
+                        <li class:list={{ future: step.date > REVIEW }}>
+                            <time datetime={step.date}>{longDate(step.date)}</time>
+                            <h3>{step.title}</h3>
+                            <p>{step.text}</p>
+                            {step.date > REVIEW && <span class="tag">Próximo</span>}
+                        </li>
+                    ))
+                }
+            </ol>
+        </section>
+
+        <section id="reglas" aria-labelledby="reglas-titulo">
+            <header class="head">
+                <h2 id="reglas-titulo">Antes de reclamar, revisa esto</h2>
+                <p>Tres reglas que cambian la cuenta y que casi nadie tiene en cuenta.</p>
+            </header>
+            <div class="rules">
+                <article>
+                    <h3>Topes de horas extra</h3>
+                    <p>Máximo 2 al día y 12 a la semana. Si te ponen más, igual te las deben pagar todas.</p>
+                </article>
+                <article>
+                    <h3>Domingo ocasional o habitual</h3>
+                    <p>Con uno o dos domingos al mes eliges entre el pago o un día de descanso. Con tres o más, te dan las dos cosas.</p>
+                </article>
+                <article>
+                    <h3>Sin auxilio en la base</h3>
+                    <p>La hora se calcula solo con el salario. El auxilio de transporte no es salario y no sube el valor de las extras.</p>
+                </article>
+            </div>
+        </section>
+
+        <Faq faqs={faqs} subject="Calculadora de horas extra" note="Es una guía de referencia y no reemplaza la asesoría de un abogado laboral." />
+
+        <Colophon
+            sources={[
+                { label: "Código Sustantivo del Trabajo (arts. 160, 162, 168, 179 y 192)" },
+                { label: "Ley 2466 de 2025" },
+                { label: "Ley 2101 de 2021" },
+                { label: "Ley 50 de 1990 (art. 22)" },
+                { label: wage.salaryDecree },
+            ]}
+            related={[
+                { href: "/calculadora-prima", label: "Calculadora de prima" },
+                { href: "/liquidacion-laboral", label: "Liquidación laboral" },
+                { href: `/festivos-colombia-${YEAR}`, label: `Festivos ${YEAR}` },
+                { href: "/retencion-en-la-fuente", label: "Retención en la fuente" },
+            ]}
+        />
+    </main>
+</Layout>
+
+<script>
+    import { HOUR_KINDS, calculate, formatClock, formatHours, formatRate, nightStart, shiftDial, splitShift, sundayRate, type HourKey } from "@/lib/horas-extra";
+    import { monthlyHours, weeklyHours } from "@/lib/salario-minimo";
+    import { todayInColombia } from "@/lib/festivos";
+    import { formatCOP, formatNumber, parseCOP } from "@/lib/prima";
+
+    const form = document.querySelector<HTMLFormElement>("[data-form]")!;
+    const shiftForm = document.querySelector<HTMLFormElement>("[data-shift]")!;
+    const out = (key: string) => document.querySelector<HTMLElement>(`[data-out="${key}"]`)!;
+    const live = document.querySelector<HTMLElement>("[data-live]")!;
+    const field = (name: string) => form.elements.namedItem(name) as HTMLInputElement;
+    const shiftField = (name: string) => shiftForm.elements.namedItem(name) as HTMLInputElement;
+    const decimal = (text: string) => Math.max(0, Number(text.replace(",", ".")) || 0);
+    const round = (n: number) => Math.round(n * 100) / 100;
+
+    // La página se construye con una fecha fija; en el navegador se usa la de hoy
+    const today = todayInColombia();
+    if (today > field("fecha").value) {
+        field("fecha").value = today;
+        shiftField("fecha").value = today;
+    }
+
+    const salary = field("salario");
+    salary.addEventListener("input", () => {
+        const value = parseCOP(salary.value);
+        salary.value = value ? formatNumber(value) : "";
+    });
+
+    function update(): void {
+        const date = field("fecha").value || document.querySelector<HTMLElement>("#calculadora")!.dataset.defaultDate!;
+        const hours = Object.fromEntries(HOUR_KINDS.map(({ key }) => [key, decimal(field(key).value)]));
+        const result = calculate({ salary: parseCOP(salary.value), date, hours });
+
+        out("hourly").textContent = formatCOP(result.hourly);
+        out("rules").textContent = `Hora ordinaria: salario ÷ ${monthlyHours(date)} (jornada de ${weeklyHours(date)} h) · Noche desde las ${formatClock(nightStart(date))} · Dominical ${formatRate(sundayRate(date))}. Sin auxilio de transporte.`;
+        for (const line of result.lines) {
+            document.querySelector<HTMLElement>(`[data-rate="${line.key}"]`)!.textContent = `+${formatRate(line.rate)}`;
+            document.querySelector<HTMLElement>(`[data-line="${line.key}"]`)!.hidden = !line.hours;
+            out(`detail-${line.key}`).textContent = `${formatHours(line.hours)} × ${formatCOP(line.perHour)}`;
+            out(`value-${line.key}`).textContent = formatCOP(line.value);
+        }
+        document.querySelector<HTMLElement>("[data-empty]")!.hidden = result.lines.some((line) => line.hours);
+        out("total").textContent = formatCOP(result.total);
+        out("gross").textContent = formatCOP(result.gross);
+
+        const warning = document.querySelector<HTMLElement>("[data-warning]")!;
+        warning.hidden = result.extraHours <= 52;
+        warning.textContent = `${formatHours(result.extraHours)} extra en un mes pasan el tope de 12 a la semana. Igual te las deben pagar.`;
+        live.textContent = `Se suma a tu salario: ${formatCOP(result.total)}.`;
+    }
+
+    function updateShift() {
+        const date = shiftField("fecha").value || field("fecha").value;
+        const result = splitShift({
+            date,
+            start: shiftField("entrada").value || "00:00",
+            end: shiftField("salida").value || "00:00",
+            ordinary: Math.min(24, decimal(shiftField("jornada").value)),
+        });
+        document.querySelector<SVGGElement>("[data-dial]")!.innerHTML = shiftDial(result.segments, nightStart(date));
+        out("shift-total").textContent = formatHours(result.total);
+        for (const [key, value] of Object.entries(result.hours)) {
+            const row = document.querySelector<HTMLElement>(`[data-split="${key}"]`)!;
+            row.hidden = value < 0.005;
+            row.querySelector("dd")!.textContent = formatHours(value);
+        }
+        const extra = HOUR_KINDS.filter((kind) => kind.extra).reduce((sum, kind) => sum + result.hours[kind.key], 0);
+        const warning = document.querySelector<HTMLElement>("[data-shift-warning]")!;
+        warning.hidden = extra <= 2;
+        warning.textContent = `Son ${formatHours(extra)} extra en un día: la ley permite máximo 2.`;
+        return result;
+    }
+
+    form.addEventListener("input", update);
+    shiftForm.addEventListener("input", updateShift);
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-step]")) {
+        button.addEventListener("click", () => {
+            const input = field(button.dataset.target!);
+            input.value = String(Math.max(0, round(decimal(input.value) + Number(button.dataset.step))));
+            update();
+        });
+    }
+
+    document.querySelector("[data-clear]")!.addEventListener("click", () => {
+        for (const { key } of HOUR_KINDS) field(key).value = "0";
+        update();
+    });
+
+    document.querySelector("[data-add]")!.addEventListener("click", () => {
+        const { hours } = updateShift();
+        for (const { key } of HOUR_KINDS) {
+            const input = field(key satisfies HourKey);
+            input.value = String(round(decimal(input.value) + hours[key]));
+        }
+        field("fecha").value = shiftField("fecha").value || field("fecha").value;
+        update();
+        document.querySelector("#calculadora")!.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        live.textContent = `Turno sumado. Se suma a tu salario: ${out("total").textContent}.`;
+    });
+
+    // Evita que la rueda del mouse cambie las horas sin querer
+    for (const input of form.querySelectorAll<HTMLInputElement>('input[type="number"]')) {
+        input.addEventListener("wheel", () => input.blur(), { passive: true });
+    }
+
+    update();
+    updateShift();
+</script>
+
+<style>
+    .date {
+        min-height: 54px;
+    }
+
+    .rules-line {
+        margin-top: -12px;
+    }
+
+    /* Contadores de horas */
+    .counters {
+        gap: 0;
+    }
+
+    .counters .hint {
+        margin: -4px 0 8px;
+    }
+
+    .counter {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+    }
+
+    .counter label {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        cursor: pointer;
+    }
+
+    .counter strong {
+        color: var(--ink);
+        font-weight: 650;
+    }
+
+    .counter small {
+        color: var(--muted);
+        font-size: 0.85rem;
+    }
+
+    .counter small b {
+        color: var(--red-ink);
+        font-weight: 700;
+    }
+
+    .stepper {
+        display: flex;
+        flex: none;
+        align-items: center;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sheet);
+    }
+
+    .stepper:focus-within {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px rgba(21, 25, 30, 0.12);
+    }
+
+    .stepper button {
+        width: 40px;
+        height: 44px;
+        border: 0;
+        background: none;
+        color: var(--text-soft);
+        font-size: 1.25rem;
+        cursor: pointer;
+    }
+
+    .stepper button:hover {
+        color: var(--ink);
+    }
+
+    .stepper input {
+        width: 4.2ch;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        text-align: center;
+        appearance: textfield;
+        -moz-appearance: textfield;
+    }
+
+    .stepper input::-webkit-inner-spin-button,
+    .stepper input::-webkit-outer-spin-button {
+        margin: 0;
+        appearance: none;
+    }
+
+    .result {
+        position: sticky;
+        top: 24px;
+    }
+
+    /* Colilla de pago: papel con el borde troquelado */
+    .slip {
+        --notch: 9px;
+        position: relative;
+        padding: clamp(24px, 3vw, 32px);
+        padding-top: calc(clamp(24px, 3vw, 32px) + var(--notch));
+        background:
+            radial-gradient(circle at var(--notch) 0, transparent calc(var(--notch) - 0.5px), #fbf6ea var(--notch)) 0 0 / calc(var(--notch) * 2) 100% repeat-x;
+        box-shadow: 0 30px 50px -36px rgba(21, 25, 30, 0.55);
+        color: var(--text);
+        filter: drop-shadow(0 0 0.5px rgba(21, 25, 30, 0.35));
+    }
+
+    .slip-head {
+        display: grid;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .slip-head span {
+        color: var(--muted);
+        font-family: var(--font-body, inherit);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .slip-meta {
+        margin-top: 14px;
+        padding-bottom: 12px;
+        border-bottom: 2px dashed var(--line-strong);
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+
+    .slip-meta b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .slip-lines div {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .slip-lines div[hidden],
+    .slip-empty[hidden],
+    .slip-warning[hidden],
+    .breakdown div[hidden],
+    .shift-warning[hidden] {
+        display: none;
+    }
+
+    .slip-lines dt {
+        display: grid;
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .slip-lines small {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+    }
+
+    .slip-lines dd {
+        margin: 0;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .slip-empty {
+        padding: 18px 0;
+        color: var(--muted);
+    }
+
+    .slip-total {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 12px;
+        margin-top: 18px;
+        color: var(--ink);
+        font-weight: 650;
+    }
+
+    .slip-total b {
+        color: var(--red);
+        font-family: var(--font-display);
+        font-size: clamp(2.3rem, 1.8rem + 2vw, 3.2rem);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
+    }
+
+    .slip-gross {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        text-align: right;
+    }
+
+    .slip-gross b {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .slip-warning,
+    .shift-warning {
+        margin-top: 14px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--red-soft);
+        color: var(--red-ink);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    /* Turno en el reloj */
+    .shift {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+        gap: 40px clamp(40px, 7vw, 96px);
+        align-items: start;
+        padding-top: clamp(2rem, 4vw, 2.75rem);
+        border-top: 2px solid var(--ink);
+    }
+
+    .clock figure {
+        display: grid;
+        grid-template-columns: minmax(0, 280px) auto;
+        gap: 20px 28px;
+        align-items: center;
+    }
+
+    .clock svg {
+        display: block;
+        width: 100%;
+        overflow: visible;
+    }
+
+    .clock :global(.band) {
+        fill: none;
+        stroke-width: 30;
+    }
+
+    .clock :global(.band.day) {
+        stroke: #efe7d8;
+    }
+
+    .clock :global(.band.night) {
+        stroke: var(--board);
+    }
+
+    .clock :global(.tick) {
+        stroke: var(--line-strong);
+        stroke-width: 1.5;
+    }
+
+    .clock :global(.hour) {
+        fill: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .clock :global(.seg) {
+        fill: none;
+        stroke-width: 14;
+    }
+
+    .clock :global(.seg.ord) {
+        stroke: #8e98a3;
+    }
+
+    .clock :global(.seg.rec) {
+        stroke: var(--amber);
+    }
+
+    .clock :global(.seg.ext) {
+        stroke: var(--red);
+    }
+
+    .clock :global(.sun) {
+        fill: none;
+        stroke: #003893;
+        stroke-width: 5;
+        stroke-linecap: round;
+    }
+
+    .clock :global(.edge) {
+        fill: var(--sheet);
+        stroke: var(--board);
+        stroke-width: 2;
+    }
+
+    .center-big {
+        fill: var(--ink);
+        font-family: var(--font-display);
+        font-size: 40px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .center-small {
+        fill: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .legend {
+        display: grid;
+        gap: 8px;
+        color: var(--text-soft);
+        font-size: 0.88rem;
+    }
+
+    .legend span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend i {
+        width: 18px;
+        height: 8px;
+        border-radius: 999px;
+    }
+
+    .legend .ord {
+        background: #8e98a3;
+    }
+
+    .legend .rec {
+        background: var(--amber);
+    }
+
+    .legend .ext {
+        background: var(--red);
+    }
+
+    .legend .sun {
+        background: #003893;
+    }
+
+    .legend .night {
+        background: var(--board);
+    }
+
+    .breakdown {
+        margin-top: 24px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .breakdown div:not([hidden]) {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .breakdown dt {
+        color: var(--text-soft);
+    }
+
+    .breakdown dd {
+        margin: 0;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+    }
+
+    .add {
+        margin-top: 18px;
+        padding: 13px 20px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--ink);
+        color: #fff;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+    }
+
+    .add:hover {
+        background: var(--red);
+    }
+
+    .add:focus-visible {
+        outline: 3px solid var(--ink);
+        outline-offset: 3px;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    .table-note {
+        max-width: 70ch;
+        margin-top: 16px;
+    }
+
+    /* Línea de tiempo */
+    .timeline {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 32px clamp(28px, 4vw, 56px);
+    }
+
+    .timeline li {
+        position: relative;
+        padding-top: 18px;
+        border-top: 2px solid var(--ink);
+    }
+
+    .timeline li.future {
+        border-top-style: dashed;
+    }
+
+    .timeline time {
+        color: var(--red-ink);
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .timeline h3 {
+        margin-top: 4px;
+    }
+
+    .timeline p {
+        margin-top: 8px;
+    }
+
+    .timeline .tag {
+        position: absolute;
+        top: 16px;
+        right: 0;
+    }
+
+    @media (max-width: 1023px) {
+        .result {
+            position: static;
+        }
+
+        .slip {
+            max-width: 520px;
+        }
+
+        .shift {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .timeline {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 560px) {
+        .clock figure {
+            grid-template-columns: minmax(0, 1fr);
+            justify-items: center;
+        }
+
+        .legend {
+            grid-template-columns: repeat(2, auto);
+        }
+
+        .timeline {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .counter {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+</style>

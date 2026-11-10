@@ -8,7 +8,7 @@
 //    abre un PR por ciudad con el cambio escrito en src/lib/pico-y-placa.ts. Lo demás va a un issue.
 // Nunca hace merge: el dato llega a producción solo cuando una persona aprueba el PR.
 //
-// Uso local (sin tocar git): npx --yes tsx@4 scripts/vigilar-pico-y-placa.ts
+// Uso local (sin tocar git): npx --yes tsx@4 --tsconfig scripts/tsconfig.json scripts/vigilar-pico-y-placa.ts
 //   PICO_HOY=2026-12-20        simula otra fecha
 //   PICO_FAKE_LLM=a.json       usa una respuesta guardada en vez de llamar a la API
 //   PICO_CREATE_PR=1           crea ramas y PRs (solo en la Action)

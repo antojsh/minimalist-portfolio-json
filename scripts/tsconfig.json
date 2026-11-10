@@ -1,0 +1,14 @@
+{
+  // Configuración propia de los scripts de Node: no extiende la de Astro, así funciona sin instalar
+  // las dependencias del sitio (GitHub Actions corre el vigilante con `npx tsx` y nada más).
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["src/*"],
+      "@cv": ["./cv.json"]
+    }
+  }
+}

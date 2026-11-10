@@ -36,7 +36,7 @@ jobs:
                   node-version: 20
 
             - id: revisar
-              run: npx --yes tsx@4 scripts/vigilar-pico-y-placa.ts
+              run: npx --yes tsx@4 --tsconfig scripts/tsconfig.json scripts/vigilar-pico-y-placa.ts
               env:
                   LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
                   LLM_MODEL: ${{ vars.LLM_MODEL || 'gpt-6-luna' }}
